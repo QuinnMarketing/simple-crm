@@ -1,4 +1,4 @@
-import PDFDocument from 'pdfkit'
+import { PDFDocument, StandardFonts, rgb, PageSizes } from 'pdf-lib'
 
 type LineItem = { description: string; quantity: number; unitPrice: number }
 
@@ -9,6 +9,22 @@ function fmtAUD(n: number) {
 function fmtDate(d: Date | null | string): string {
   if (!d) return '—'
   return new Date(d).toLocaleDateString('en-AU', { day: 'numeric', month: 'long', year: 'numeric' })
+}
+
+function hexRgb(hex: string) {
+  const n = parseInt(hex.replace('#', ''), 16)
+  return rgb(((n >> 16) & 255) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255)
+}
+
+const C = {
+  black:  hexRgb('#0f172a'),
+  dark:   hexRgb('#1e293b'),
+  mid:    hexRgb('#475569'),
+  muted:  hexRgb('#94a3b8'),
+  light:  hexRgb('#cbd5e1'),
+  bg:     hexRgb('#f1f5f9'),
+  bgAlt:  hexRgb('#f8fafc'),
+  white:  rgb(1, 1, 1),
 }
 
 export type InvoicePdfData = {
@@ -24,159 +40,179 @@ export type InvoicePdfData = {
   }
 }
 
-const MARGIN = 48
-const PAGE_WIDTH = 595.28  // A4
-const CONTENT_WIDTH = PAGE_WIDTH - MARGIN * 2
+export async function generateInvoicePdf(data: InvoicePdfData): Promise<Buffer> {
+  const { quote, lead, business } = data
+  const docType = quote.type === 'invoice' ? 'Invoice' : 'Quote'
+  const dueDateLabel = quote.type === 'invoice' ? 'Due Date' : 'Valid Until'
+  const items: LineItem[] = JSON.parse(quote.lineItems)
 
-const SLATE_900 = '#0f172a'
-const SLATE_700 = '#334155'
-const SLATE_500 = '#64748b'
-const SLATE_300 = '#cbd5e1'
-const SLATE_100 = '#f1f5f9'
-const INDIGO   = '#4f46e5'
+  const pdfDoc = await PDFDocument.create()
+  const font     = await pdfDoc.embedFont(StandardFonts.Helvetica)
+  const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold)
 
-export function generateInvoicePdf(data: InvoicePdfData): Promise<Buffer> {
-  return new Promise((resolve, reject) => {
-    const { quote, lead, business } = data
-    const docType = quote.type === 'invoice' ? 'Invoice' : 'Quote'
-    const dueDateLabel = quote.type === 'invoice' ? 'Due Date' : 'Valid Until'
-    const items: LineItem[] = JSON.parse(quote.lineItems)
+  const page = pdfDoc.addPage(PageSizes.A4)
+  const { width, height } = page.getSize()
+  const MARGIN = 48
+  const W = width - MARGIN * 2
 
-    const doc = new PDFDocument({ size: 'A4', margin: MARGIN, bufferPages: true })
-    const chunks: Buffer[] = []
-    doc.on('data', (c: Buffer) => chunks.push(c))
-    doc.on('end', () => resolve(Buffer.concat(chunks)))
-    doc.on('error', reject)
+  // Y cursor — pdf-lib origin is bottom-left, so we track from the top
+  let y = height - MARGIN
 
-    let y = MARGIN
-
-    // ── Business name ──────────────────────────────────────────────────
-    doc.font('Helvetica-Bold').fontSize(20).fillColor(SLATE_900)
-       .text(business.accountName || 'Your Business', MARGIN, y)
-    y = doc.y + 4
-
-    doc.font('Helvetica').fontSize(9).fillColor(SLATE_500)
-    if (business.abn) {
-      doc.text(`ABN: ${business.abn}`, MARGIN, y)
-      y = doc.y + 2
+  function drawText(text: string, x: number, yPos: number, opts: {
+    size?: number; bold?: boolean; color?: ReturnType<typeof rgb>; align?: 'left' | 'right' | 'center'; maxWidth?: number
+  } = {}) {
+    const f = opts.bold ? fontBold : font
+    const size = opts.size ?? 10
+    const color = opts.color ?? C.dark
+    let drawX = x
+    if (opts.align === 'right' && opts.maxWidth) {
+      drawX = x + opts.maxWidth - f.widthOfTextAtSize(text, size)
+    } else if (opts.align === 'center' && opts.maxWidth) {
+      drawX = x + (opts.maxWidth - f.widthOfTextAtSize(text, size)) / 2
     }
-    if (business.businessAddress) {
-      doc.text(business.businessAddress, MARGIN, y)
-      y = doc.y + 2
+    page.drawText(text, { x: drawX, y: yPos, size, font: f, color })
+  }
+
+  function wrapLines(text: string, maxWidth: number, f: typeof font, size: number): string[] {
+    const words = text.split(' ')
+    const lines: string[] = []
+    let line = ''
+    for (const word of words) {
+      const test = line ? `${line} ${word}` : word
+      if (f.widthOfTextAtSize(test, size) > maxWidth && line) {
+        lines.push(line)
+        line = word
+      } else {
+        line = test
+      }
     }
-    const contactParts = [business.businessPhone, business.businessEmail, business.businessWebsite].filter(Boolean)
-    if (contactParts.length) {
-      doc.text(contactParts.join('   ·   '), MARGIN, y)
-      y = doc.y
+    if (line) lines.push(line)
+    return lines
+  }
+
+  // ── Business header ─────────────────────────────────────────────────
+  drawText(business.accountName || 'Your Business', MARGIN, y, { size: 20, bold: true, color: C.black })
+  y -= 24
+
+  const metaLines = [
+    business.abn ? `ABN: ${business.abn}` : null,
+    business.businessAddress ?? null,
+    [business.businessPhone, business.businessEmail, business.businessWebsite].filter(Boolean).join('   ·   ') || null,
+  ].filter(Boolean) as string[]
+
+  for (const line of metaLines) {
+    drawText(line, MARGIN, y, { size: 9, color: C.muted })
+    y -= 13
+  }
+
+  // ── Divider ──────────────────────────────────────────────────────────
+  y -= 8
+  page.drawLine({ start: { x: MARGIN, y }, end: { x: width - MARGIN, y }, thickness: 0.5, color: C.light })
+  y -= 18
+
+  // ── Doc type + number ────────────────────────────────────────────────
+  drawText(docType, MARGIN, y, { size: 26, bold: true, color: C.black })
+  y -= 32
+  drawText(quote.number, MARGIN, y, { size: 11, color: C.muted })
+  y -= 24
+
+  // ── Dates + client ────────────────────────────────────────────────────
+  const colL = MARGIN
+  const colR = MARGIN + W / 2
+  const topY = y
+
+  drawText('ISSUE DATE', colL, y, { size: 8, bold: true, color: C.muted })
+  drawText('BILL TO',    colR, y, { size: 8, bold: true, color: C.muted })
+  y -= 14
+
+  drawText(fmtDate(quote.issuedAt), colL, y, { size: 10, color: C.dark })
+  drawText(lead.name, colR, y, { size: 10, bold: true, color: C.black })
+  y -= 14
+
+  drawText(dueDateLabel, colL, y, { size: 8, bold: true, color: C.muted })
+  const clientLines = [lead.email, lead.phone, lead.address].filter(Boolean) as string[]
+  for (const cl of clientLines) {
+    drawText(cl, colR, y, { size: 9, color: C.muted })
+    y -= 12
+  }
+  y -= 2
+
+  drawText(fmtDate(quote.dueAt), colL, y, { size: 10, color: C.dark })
+  y = Math.min(y, topY - 60) - 20
+
+  // ── Table header ──────────────────────────────────────────────────────
+  const ROW_H = 26
+  const cols = {
+    desc:  { x: MARGIN,                  w: W * 0.52 },
+    qty:   { x: MARGIN + W * 0.52,       w: W * 0.10 },
+    price: { x: MARGIN + W * 0.62,       w: W * 0.19 },
+    total: { x: MARGIN + W * 0.81,       w: W * 0.19 },
+  }
+
+  page.drawRectangle({ x: MARGIN, y: y - ROW_H, width: W, height: ROW_H, color: C.bg })
+
+  const hY = y - ROW_H + 9
+  drawText('DESCRIPTION', cols.desc.x + 6,  hY, { size: 8, bold: true, color: C.mid })
+  drawText('QTY',         cols.qty.x,  hY, { size: 8, bold: true, color: C.mid, align: 'center', maxWidth: cols.qty.w })
+  drawText('UNIT PRICE',  cols.price.x, hY, { size: 8, bold: true, color: C.mid, align: 'right',  maxWidth: cols.price.w })
+  drawText('TOTAL',       cols.total.x, hY, { size: 8, bold: true, color: C.mid, align: 'right',  maxWidth: cols.total.w })
+  y -= ROW_H
+
+  // ── Rows ──────────────────────────────────────────────────────────────
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i]
+    const descLines = wrapLines(item.description, cols.desc.w - 12, font, 10)
+    const itemH = Math.max(ROW_H, descLines.length * 14 + 12)
+
+    if (i % 2 === 1) {
+      page.drawRectangle({ x: MARGIN, y: y - itemH, width: W, height: itemH, color: C.bgAlt })
     }
 
-    // ── Divider ────────────────────────────────────────────────────────
-    y += 16
-    doc.moveTo(MARGIN, y).lineTo(PAGE_WIDTH - MARGIN, y).lineWidth(0.5).strokeColor(SLATE_300).stroke()
-    y += 16
-
-    // ── Doc type + number ───────────────────────────────────────────────
-    doc.font('Helvetica-Bold').fontSize(26).fillColor(SLATE_900).text(docType, MARGIN, y)
-    y = doc.y + 4
-    doc.font('Helvetica').fontSize(11).fillColor(SLATE_500).text(quote.number, MARGIN, y)
-    y = doc.y + 20
-
-    // ── Dates + client ──────────────────────────────────────────────────
-    const colL = MARGIN
-    const colR = MARGIN + CONTENT_WIDTH / 2
-
-    doc.font('Helvetica-Bold').fontSize(8).fillColor(SLATE_500)
-       .text('ISSUE DATE', colL, y).text('BILL TO', colR, y)
-    y += 14
-
-    doc.font('Helvetica').fontSize(10).fillColor(SLATE_900)
-       .text(fmtDate(quote.issuedAt), colL, y)
-
-    doc.font('Helvetica-Bold').fontSize(10).fillColor(SLATE_900)
-       .text(lead.name, colR, y)
-    y = doc.y + 4
-
-    doc.font('Helvetica-Bold').fontSize(8).fillColor(SLATE_500)
-       .text(dueDateLabel, colL, y)
-    doc.font('Helvetica').fontSize(9).fillColor(SLATE_500)
-    const clientLines = [lead.email, lead.phone, lead.address].filter(Boolean)
-    clientLines.forEach((line) => { doc.text(line!, colR, y); y = doc.y + 2 })
-
-    y = Math.max(y, doc.y) + 8
-
-    doc.font('Helvetica').fontSize(10).fillColor(SLATE_900)
-       .text(fmtDate(quote.dueAt), colL, y)
-    y = doc.y + 24
-
-    // ── Line items table ────────────────────────────────────────────────
-    const col = {
-      desc:  { x: MARGIN,                     w: CONTENT_WIDTH * 0.52 },
-      qty:   { x: MARGIN + CONTENT_WIDTH * 0.52, w: CONTENT_WIDTH * 0.10 },
-      price: { x: MARGIN + CONTENT_WIDTH * 0.62, w: CONTENT_WIDTH * 0.19 },
-      total: { x: MARGIN + CONTENT_WIDTH * 0.81, w: CONTENT_WIDTH * 0.19 },
-    }
-    const ROW_H = 26
-
-    // Header row background
-    doc.rect(MARGIN, y, CONTENT_WIDTH, ROW_H).fill(SLATE_100)
-
-    doc.font('Helvetica-Bold').fontSize(8).fillColor(SLATE_700)
-    const hY = y + 9
-    doc.text('DESCRIPTION', col.desc.x + 6, hY, { width: col.desc.w })
-    doc.text('QTY',   col.qty.x,   hY, { width: col.qty.w,   align: 'center' })
-    doc.text('PRICE', col.price.x, hY, { width: col.price.w, align: 'right' })
-    doc.text('TOTAL', col.total.x, hY, { width: col.total.w, align: 'right' })
-    y += ROW_H
-
-    items.forEach((item, i) => {
-      const rowH = 28
-      if (i % 2 === 1) doc.rect(MARGIN, y, CONTENT_WIDTH, rowH).fill('#f8fafc')
-      const tY = y + 9
-      doc.font('Helvetica').fontSize(10).fillColor(SLATE_900)
-         .text(item.description, col.desc.x + 6, tY, { width: col.desc.w - 6 })
-      doc.text(String(item.quantity), col.qty.x, tY, { width: col.qty.w, align: 'center' })
-         .text(fmtAUD(item.unitPrice), col.price.x, tY, { width: col.price.w, align: 'right' })
-         .text(fmtAUD(item.quantity * item.unitPrice), col.total.x, tY, { width: col.total.w, align: 'right' })
-
-      // bottom border
-      doc.moveTo(MARGIN, y + rowH).lineTo(PAGE_WIDTH - MARGIN, y + rowH)
-         .lineWidth(0.5).strokeColor('#e2e8f0').stroke()
-      y += rowH
+    const rY = y - itemH + (itemH - descLines.length * 14) / 2 + (descLines.length - 1) * 14
+    descLines.forEach((line, li) => {
+      drawText(line, cols.desc.x + 6, rY - li * 14, { size: 10 })
     })
+    const midY = y - itemH / 2 - 5
+    drawText(String(item.quantity), cols.qty.x,   midY, { size: 10, align: 'center', maxWidth: cols.qty.w })
+    drawText(fmtAUD(item.unitPrice), cols.price.x, midY, { size: 10, align: 'right',  maxWidth: cols.price.w })
+    drawText(fmtAUD(item.quantity * item.unitPrice), cols.total.x, midY, { size: 10, align: 'right', maxWidth: cols.total.w })
 
-    y += 16
+    page.drawLine({ start: { x: MARGIN, y: y - itemH }, end: { x: width - MARGIN, y: y - itemH }, thickness: 0.5, color: C.bgAlt })
+    y -= itemH
+  }
 
-    // ── Totals ──────────────────────────────────────────────────────────
-    const totX = PAGE_WIDTH - MARGIN - 200
-    const totW = 200
+  y -= 16
 
-    function totalRow(label: string, value: string, bold = false) {
-      doc.font(bold ? 'Helvetica-Bold' : 'Helvetica').fontSize(bold ? 11 : 10)
-         .fillColor(bold ? SLATE_900 : SLATE_500)
-         .text(label, totX, y, { width: 110 })
-      doc.font(bold ? 'Helvetica-Bold' : 'Helvetica').fontSize(bold ? 11 : 10)
-         .fillColor(SLATE_900)
-         .text(value, totX + 110, y, { width: 90, align: 'right' })
-      y = doc.y + (bold ? 0 : 4)
+  // ── Totals ────────────────────────────────────────────────────────────
+  const totX  = width - MARGIN - 200
+  const totW  = 200
+
+  function totalLine(label: string, value: string, bold = false) {
+    drawText(label, totX,        y, { size: bold ? 11 : 10, bold, color: bold ? C.black : C.muted })
+    drawText(value, totX + 100,  y, { size: bold ? 11 : 10, bold, color: C.black, align: 'right', maxWidth: 100 })
+    y -= bold ? 0 : 16
+  }
+
+  totalLine('Subtotal', fmtAUD(quote.subtotal))
+  totalLine(`GST (${quote.taxRate}%)`, fmtAUD(quote.taxAmount))
+  y -= 8
+  page.drawRectangle({ x: totX - 8, y: y - 28, width: totW + 8, height: 28, color: C.bg })
+  y -= 8
+  totalLine('Total', fmtAUD(quote.total), true)
+  y -= 28
+
+  // ── Notes ─────────────────────────────────────────────────────────────
+  if (quote.notes) {
+    y -= 8
+    drawText('NOTES', MARGIN, y, { size: 8, bold: true, color: C.muted })
+    y -= 14
+    const noteLines = wrapLines(quote.notes, W, font, 9)
+    for (const line of noteLines) {
+      drawText(line, MARGIN, y, { size: 9, color: C.muted })
+      y -= 13
     }
+  }
 
-    totalRow('Subtotal', fmtAUD(quote.subtotal))
-    totalRow(`GST (${quote.taxRate}%)`, fmtAUD(quote.taxAmount))
-
-    y += 6
-    doc.rect(totX - 8, y, totW + 8, 30).fill(SLATE_100)
-    y += 6
-    totalRow('Total', fmtAUD(quote.total), true)
-    y += 16
-
-    // ── Notes ────────────────────────────────────────────────────────────
-    if (quote.notes) {
-      doc.font('Helvetica-Bold').fontSize(8).fillColor(SLATE_500).text('NOTES', MARGIN, y)
-      y = doc.y + 6
-      doc.font('Helvetica').fontSize(9).fillColor(SLATE_500)
-         .text(quote.notes, MARGIN, y, { width: CONTENT_WIDTH })
-    }
-
-    doc.end()
-  })
+  const bytes = await pdfDoc.save()
+  return Buffer.from(bytes)
 }
