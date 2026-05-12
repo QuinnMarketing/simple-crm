@@ -105,8 +105,8 @@ function AutomationModal({ initial, onSave, onDelete, onClose }: ModalProps) {
   }
 
   function insertVar(v: string, field: 'subject' | 'body') {
-    if (field === 'subject') setSubject((s) => s + v)
-    else setBody((s) => s + v)
+    if (field === 'subject') setSubject((s: string) => s + v)
+    else setBody((s: string) => s + v)
   }
 
   const inputCls = 'w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent'
