@@ -17,13 +17,15 @@ const TRIGGER_LABELS: Record<string, string> = {
   lead_created: 'New lead created',
   lead_status_changed: 'Lead status changed',
   pending_quote_followup: 'Pending quote follow-up',
+  appointment_booked: 'Appointment booked',
+  appointment_reminder: '24h appointment reminder',
 }
 
 const STATUS_LABELS: Record<string, string> = {
   new: 'New', contacted: 'Contacted', qualified: 'Qualified', won: 'Won', lost: 'Lost',
 }
 
-const VARS = ['{{name}}', '{{email}}', '{{phone}}', '{{service}}', '{{source}}', '{{status}}', '{{days}}']
+const VARS = ['{{name}}', '{{email}}', '{{phone}}', '{{service}}', '{{source}}', '{{status}}', '{{days}}', '{{title}}', '{{date}}', '{{time}}', '{{location}}']
 
 function triggerDescription(automation: Automation): string {
   const tc = JSON.parse(automation.triggerConfig)
@@ -34,6 +36,15 @@ function triggerDescription(automation: Automation): string {
     return `Quote pending for ${tc.days ?? 3} day${(tc.days ?? 3) !== 1 ? 's' : ''}`
   }
   return TRIGGER_LABELS[automation.trigger] ?? automation.trigger
+}
+
+const APPOINTMENT_DEFAULT_SUBJECT: Record<string, string> = {
+  appointment_booked: 'Your appointment is confirmed, {{name}}!',
+  appointment_reminder: 'Reminder: your appointment is tomorrow, {{name}}',
+}
+const APPOINTMENT_DEFAULT_BODY: Record<string, string> = {
+  appointment_booked: 'Hi {{name}},\n\nYour appointment has been confirmed:\n\n📅 {{date}}\n🕐 {{time}}\n📍 {{location}}\n\nIf you need to reschedule please reply to this email.\n\nLooking forward to seeing you!',
+  appointment_reminder: 'Hi {{name}},\n\nJust a reminder that you have an appointment tomorrow:\n\n📅 {{date}}\n🕐 {{time}}\n📍 {{location}}\n\nIf you need to reschedule please reply to this email.\n\nSee you soon!',
 }
 
 // ─── Modal ─────────────────────────────────────────────────────────────────────
@@ -54,12 +65,12 @@ function AutomationModal({ initial, onSave, onDelete, onClose }: ModalProps) {
   const [trigger, setTrigger] = useState(initial?.trigger ?? 'lead_created')
   const [toStatus, setToStatus] = useState(initTc.toStatus ?? 'won')
   const [followupDays, setFollowupDays] = useState<number>(initTc.days ?? 3)
-  const defaultSubject = initial?.trigger === 'pending_quote_followup'
-    ? 'Following up on your quote, {{name}}'
-    : 'Thanks for your enquiry, {{name}}!'
-  const defaultBody = initial?.trigger === 'pending_quote_followup'
-    ? 'Hi {{name}},\n\nI just wanted to follow up on the quote we sent you{{service ? " for " + service : ""}}. Please let us know if you have any questions or if you\'d like to proceed.\n\nBest regards'
-    : 'Hi {{name}},\n\nThank you for reaching out. We\'ve received your enquiry{{service ? " about " + service : ""}} and will be in touch shortly.\n\nBest regards'
+  const defaultSubject = APPOINTMENT_DEFAULT_SUBJECT[initial?.trigger ?? trigger]
+    ?? (initial?.trigger === 'pending_quote_followup' ? 'Following up on your quote, {{name}}' : 'Thanks for your enquiry, {{name}}!')
+  const defaultBody = APPOINTMENT_DEFAULT_BODY[initial?.trigger ?? trigger]
+    ?? (initial?.trigger === 'pending_quote_followup'
+      ? 'Hi {{name}},\n\nI just wanted to follow up on the quote we sent you{{service ? " for " + service : ""}}. Please let us know if you have any questions or if you\'d like to proceed.\n\nBest regards'
+      : 'Hi {{name}},\n\nThank you for reaching out. We\'ve received your enquiry{{service ? " about " + service : ""}} and will be in touch shortly.\n\nBest regards')
 
   const [subject, setSubject] = useState(initAc.subject ?? defaultSubject)
   const [body, setBody] = useState(initAc.body ?? defaultBody)
@@ -74,7 +85,7 @@ function AutomationModal({ initial, onSave, onDelete, onClose }: ModalProps) {
       const triggerConfig =
         trigger === 'lead_status_changed' ? { toStatus } :
         trigger === 'pending_quote_followup' ? { days: followupDays } :
-        {}
+        {} // appointment_booked and appointment_reminder need no config
       const actionConfig = { subject: subject.trim(), body: body.trim() }
       const payload = { name: name.trim(), trigger, triggerConfig, action: 'send_email', actionConfig }
       const res = await fetch(
@@ -141,10 +152,16 @@ function AutomationModal({ initial, onSave, onDelete, onClose }: ModalProps) {
             <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Trigger</p>
             <div>
               <label className={labelCls}>When…</label>
-              <select value={trigger} onChange={(e) => setTrigger(e.target.value)} className={`${inputCls} bg-white`}>
+              <select value={trigger} onChange={(e) => {
+                const t = e.target.value
+                setTrigger(t)
+                if (APPOINTMENT_DEFAULT_SUBJECT[t]) { setSubject(APPOINTMENT_DEFAULT_SUBJECT[t]); setBody(APPOINTMENT_DEFAULT_BODY[t]) }
+              }} className={`${inputCls} bg-white`}>
                 <option value="lead_created">A new lead is created</option>
                 <option value="lead_status_changed">A lead's status changes to…</option>
                 <option value="pending_quote_followup">A sent quote has had no response for…</option>
+                <option value="appointment_booked">An appointment is booked</option>
+                <option value="appointment_reminder">24 hours before an appointment</option>
               </select>
             </div>
             {trigger === 'lead_status_changed' && (
@@ -171,7 +188,7 @@ function AutomationModal({ initial, onSave, onDelete, onClose }: ModalProps) {
                 </div>
                 <p className="text-xs text-slate-400 mt-1.5">
                   Fires once per lead when their sent quote hasn't been accepted or declined after this many days.
-                  Runs daily via <code className="bg-slate-100 px-1 rounded">/api/cron/automations</code>.
+                  Runs via <code className="bg-slate-100 px-1 rounded">/api/cron/automations</code>.
                 </p>
               </div>
             )}
@@ -222,7 +239,8 @@ function AutomationModal({ initial, onSave, onDelete, onClose }: ModalProps) {
 
             <p className="text-xs text-slate-400">
               Requires SMTP email configured in <a href="/settings" className="text-indigo-600 hover:underline">Settings → Integrations</a>.
-              The email is sent to the lead's email address.
+              Email is sent to the lead linked to the appointment.
+              {trigger === 'appointment_reminder' && <> Reminder runs hourly via <code className="bg-slate-100 px-1 rounded">/api/cron/automations</code>.</>}
             </p>
           </div>
 

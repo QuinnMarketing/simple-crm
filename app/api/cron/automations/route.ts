@@ -1,8 +1,8 @@
-import { runPendingQuoteFollowups } from '@/lib/automations'
+import { runPendingQuoteFollowups, runAppointmentReminderAutomations } from '@/lib/automations'
 import { NextResponse } from 'next/server'
 
-// Call this endpoint on a schedule (e.g. daily) to fire pending quote follow-up automations.
-// Protect it with CRON_SECRET in your env — pass as ?secret=... or Authorization: Bearer ...
+// Call this endpoint hourly to fire time-based automations.
+// Protect with CRON_SECRET env var — pass as ?secret=... or Authorization: Bearer ...
 export async function GET(req: Request) {
   const secret = process.env.CRON_SECRET
   if (secret) {
@@ -13,6 +13,10 @@ export async function GET(req: Request) {
     }
   }
 
-  const result = await runPendingQuoteFollowups()
-  return NextResponse.json({ ok: true, ...result })
+  const [quotes, reminders] = await Promise.all([
+    runPendingQuoteFollowups(),
+    runAppointmentReminderAutomations(),
+  ])
+
+  return NextResponse.json({ ok: true, quotes, reminders })
 }

@@ -1,8 +1,9 @@
 import { auth } from '@/auth'
+import { runAppointmentBookedAutomations } from '@/lib/automations'
 import { prisma } from '@/lib/prisma'
 import { getAccountFilter } from '@/lib/account-scope'
 import { getCalendarConfig, createCalendarEvent } from '@/lib/google-calendar'
-import { NextRequest, NextResponse } from 'next/server'
+import { after, NextRequest, NextResponse } from 'next/server'
 
 export async function GET(req: NextRequest) {
   const session = await auth()
@@ -82,5 +83,6 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  after(() => runAppointmentBookedAutomations(appointment))
   return NextResponse.json(appointment)
 }

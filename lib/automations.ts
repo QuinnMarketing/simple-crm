@@ -11,6 +11,22 @@ type LeadContext = {
   accountId: string | null
 }
 
+type AppointmentContext = {
+  id: string
+  title: string
+  startTime: Date
+  location: string | null
+  accountId: string | null
+  leadId: string | null
+}
+
+function fmtDate(dt: Date) {
+  return dt.toLocaleDateString('en-AU', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
+}
+function fmtTime(dt: Date) {
+  return dt.toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit', hour12: true })
+}
+
 function interpolate(template: string, vars: Record<string, string>): string {
   return template.replace(/\{\{(\w+)\}\}/g, (_, key) => vars[key] ?? '')
 }
@@ -86,6 +102,103 @@ export async function runPendingQuoteFollowups(): Promise<{ sent: number; errors
         sent++
       } catch (e) {
         console.error(`Pending quote followup "${automation.name}" failed for lead ${lead.id}:`, e)
+        errors++
+      }
+    }
+  }
+
+  return { sent, errors }
+}
+
+export async function runAppointmentBookedAutomations(appointment: AppointmentContext) {
+  if (!appointment.accountId || !appointment.leadId) return
+
+  const [automations, smtpRow, lead] = await Promise.all([
+    prisma.automation.findMany({
+      where: { accountId: appointment.accountId, enabled: true, trigger: 'appointment_booked' },
+    }),
+    prisma.accountIntegration.findUnique({
+      where: { accountId_platform: { accountId: appointment.accountId, platform: 'email_smtp' } },
+    }),
+    prisma.lead.findUnique({
+      where: { id: appointment.leadId },
+      select: { id: true, name: true, email: true, phone: true, service: true, source: true, status: true },
+    }),
+  ])
+
+  if (automations.length === 0 || !lead?.email) return
+
+  const smtpConfig: SmtpConfig | null = smtpRow?.enabled ? (JSON.parse(smtpRow.config) as SmtpConfig) : null
+  if (!smtpConfig?.host || !smtpConfig?.user || !smtpConfig?.pass) return
+
+  const vars: Record<string, string> = {
+    name: lead.name, email: lead.email, phone: lead.phone ?? '',
+    service: lead.service ?? '', source: lead.source ?? '', status: lead.status,
+    title: appointment.title, date: fmtDate(appointment.startTime),
+    time: fmtTime(appointment.startTime), location: appointment.location ?? '',
+  }
+
+  for (const automation of automations) {
+    const ac = JSON.parse(automation.actionConfig) as { subject?: string; body?: string }
+    try {
+      await sendEmail(smtpConfig, lead.email, interpolate(ac.subject ?? '', vars), interpolate(ac.body ?? '', vars))
+    } catch (e) {
+      console.error(`Appointment booked automation "${automation.name}" failed:`, e)
+    }
+  }
+}
+
+export async function runAppointmentReminderAutomations(): Promise<{ sent: number; errors: number }> {
+  let sent = 0; let errors = 0
+
+  const automations = await prisma.automation.findMany({
+    where: { enabled: true, trigger: 'appointment_reminder' },
+    include: { logs: { select: { leadId: true } } },
+  })
+
+  const now = new Date()
+  // Window: appointments starting between 23h and 25h from now
+  const windowStart = new Date(now.getTime() + 23 * 60 * 60 * 1000)
+  const windowEnd = new Date(now.getTime() + 25 * 60 * 60 * 1000)
+
+  for (const automation of automations) {
+    if (!automation.accountId) continue
+
+    // leadId column stores appointmentId for appointment automations (no FK constraint)
+    const alreadyFiredIds = new Set(automation.logs.map((l) => l.leadId))
+
+    const [appointments, smtpRow] = await Promise.all([
+      prisma.appointment.findMany({
+        where: { accountId: automation.accountId, startTime: { gte: windowStart, lte: windowEnd }, leadId: { not: null } },
+        include: { lead: { select: { id: true, name: true, email: true, phone: true, service: true, source: true, status: true } } },
+      }),
+      prisma.accountIntegration.findUnique({
+        where: { accountId_platform: { accountId: automation.accountId, platform: 'email_smtp' } },
+      }),
+    ])
+
+    const smtpConfig: SmtpConfig | null = smtpRow?.enabled ? (JSON.parse(smtpRow.config) as SmtpConfig) : null
+    if (!smtpConfig?.host || !smtpConfig?.user || !smtpConfig?.pass) continue
+
+    const ac = JSON.parse(automation.actionConfig) as { subject?: string; body?: string }
+
+    for (const appt of appointments) {
+      if (alreadyFiredIds.has(appt.id)) continue
+      const lead = appt.lead
+      if (!lead?.email) continue
+
+      const vars: Record<string, string> = {
+        name: lead.name, email: lead.email, phone: lead.phone ?? '',
+        service: lead.service ?? '', source: lead.source ?? '', status: lead.status,
+        title: appt.title, date: fmtDate(appt.startTime),
+        time: fmtTime(appt.startTime), location: appt.location ?? '',
+      }
+      try {
+        await sendEmail(smtpConfig, lead.email, interpolate(ac.subject ?? '', vars), interpolate(ac.body ?? '', vars))
+        await prisma.automationLog.create({ data: { automationId: automation.id, leadId: appt.id } })
+        sent++
+      } catch (e) {
+        console.error(`Appointment reminder "${automation.name}" failed for appointment ${appt.id}:`, e)
         errors++
       }
     }
