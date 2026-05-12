@@ -96,6 +96,30 @@ function flatten(obj: Record<string, unknown>, prefix = ''): Record<string, stri
   return result
 }
 
+function extractAttribution(url: string): Record<string, string> {
+  try {
+    const params = new URL(url).searchParams
+    const result: Record<string, string> = {}
+    const pick = (keys: string[]) => {
+      for (const k of keys) {
+        const v = params.get(k)
+        if (v) return v
+      }
+    }
+    const gclid = pick(['gclid'])
+    const fbclid = pick(['fbclid'])
+    const fbp = pick(['_fbp', 'fbp'])
+    const fbc = pick(['_fbc', 'fbc'])
+    if (gclid) result.gclid = gclid
+    if (fbclid) result.fbclid = fbclid
+    if (fbp) result.fbp = fbp
+    if (fbc) result.fbc = fbc
+    return result
+  } catch {
+    return {}
+  }
+}
+
 export function parseWebhookPayload(body: Record<string, unknown>): ParsedLead {
   const raw = JSON.stringify(body)
 
@@ -113,11 +137,15 @@ export function parseWebhookPayload(body: Record<string, unknown>): ParsedLead {
   const phone = findField(flat, PHONE_KEYS)
   const service = findField(flat, SERVICE_KEYS)
   const notes = findField(flat, MESSAGE_KEYS)
-  const gclid = flat.gclid
-  const fbclid = flat.fbclid
-  const fbp = flat['_fbp'] ?? flat.fbp
-  const fbc = flat['_fbc'] ?? flat.fbc
   const pageUrl = flat.page_url ?? flat.pageUrl ?? flat.url ?? flat.source_url ?? flat.referrer
+    ?? flat.embed_url ?? flat.current_url ?? flat.entry_url ?? flat.form_url
+
+  // Attribution: prefer explicit flat fields, fall back to parsing the page URL query string
+  const urlAttrib = pageUrl ? extractAttribution(pageUrl) : {}
+  const gclid = flat.gclid ?? urlAttrib.gclid
+  const fbclid = flat.fbclid ?? urlAttrib.fbclid
+  const fbp = flat['_fbp'] ?? flat.fbp ?? urlAttrib.fbp
+  const fbc = flat['_fbc'] ?? flat.fbc ?? urlAttrib.fbc
 
   return { name, email, phone, service, notes, gclid, fbclid, fbp, fbc, pageUrl, formData: raw }
 }
