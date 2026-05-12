@@ -18,6 +18,7 @@ export default async function LeadsPage({
 
   const accountFilter = getAccountFilter(session!.user, account)
   const companyFilter = company ? { companyId: company } : {}
+  const isAllAccounts = session!.user.role === 'master_admin' && !account
 
   const [leads, activeCompany] = await Promise.all([
     prisma.lead.findMany({
@@ -30,6 +31,7 @@ export default async function LeadsPage({
       include: {
         company: { select: { name: true, color: true } },
         conversions: { where: { status: 'sent' }, select: { platform: true } },
+        ...(isAllAccounts ? { account: { select: { name: true } } } : {}),
       },
       orderBy: { createdAt: 'desc' },
     }),
@@ -122,6 +124,9 @@ export default async function LeadsPage({
                       <Link href={`/leads/${lead.id}`} className="font-medium text-slate-900 hover:text-indigo-600 transition-colors">
                         {lead.name}
                       </Link>
+                      {'account' in lead && lead.account && (
+                        <p className="text-xs text-indigo-600 font-medium mt-0.5">{(lead.account as { name: string }).name}</p>
+                      )}
                     </td>
                     <td className="px-4 py-3 hidden md:table-cell">
                       <div className="text-sm text-slate-700">{lead.email ?? '—'}</div>
