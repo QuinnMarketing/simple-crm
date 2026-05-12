@@ -59,6 +59,7 @@ export async function POST(req: NextRequest) {
       name: parsed.name,
       email: parsed.email ?? null,
       phone: parsed.phone ?? null,
+      address: parsed.address ?? null,
       service: parsed.service ?? null,
       notes: parsed.notes ?? null,
       source: 'webhook',

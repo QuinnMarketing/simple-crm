@@ -2,6 +2,7 @@ export interface ParsedLead {
   name: string
   email?: string
   phone?: string
+  address?: string
   service?: string
   notes?: string
   source?: string
@@ -16,6 +17,7 @@ export interface ParsedLead {
 const NAME_KEYS = ['name', 'full_name', 'fullname', 'full name', 'your_name', 'contact_name', 'firstname', 'first_name', 'customer_name']
 const EMAIL_KEYS = ['email', 'email_address', 'your_email', 'contact_email', 'emailaddress']
 const PHONE_KEYS = ['phone', 'phone_number', 'mobile', 'mobile_number', 'contact_phone', 'tel', 'telephone', 'phonenumber']
+const ADDRESS_KEYS = ['address', 'street_address', 'street', 'home_address', 'your_address', 'location', 'suburb', 'city', 'postcode', 'zip', 'state']
 const SERVICE_KEYS = ['service', 'service_type', 'services', 'what_service', 'interested_in', 'job_type', 'project_type']
 const MESSAGE_KEYS = ['message', 'notes', 'comment', 'comments', 'description', 'enquiry', 'inquiry', 'details', 'how_can_we_help']
 
@@ -135,6 +137,7 @@ export function parseWebhookPayload(body: Record<string, unknown>): ParsedLead {
   const name = findField(flat, NAME_KEYS) ?? 'Unknown'
   const email = findField(flat, EMAIL_KEYS)
   const phone = findField(flat, PHONE_KEYS)
+  const address = findField(flat, ADDRESS_KEYS)
   const service = findField(flat, SERVICE_KEYS)
   const notes = findField(flat, MESSAGE_KEYS)
   const pageUrl = flat.page_url ?? flat.pageUrl ?? flat.url ?? flat.source_url ?? flat.referrer
@@ -147,5 +150,5 @@ export function parseWebhookPayload(body: Record<string, unknown>): ParsedLead {
   const fbp = flat['_fbp'] ?? flat.fbp ?? urlAttrib.fbp
   const fbc = flat['_fbc'] ?? flat.fbc ?? urlAttrib.fbc
 
-  return { name, email, phone, service, notes, gclid, fbclid, fbp, fbc, pageUrl, formData: raw }
+  return { name, email, phone, address, service, notes, gclid, fbclid, fbp, fbc, pageUrl, formData: raw }
 }
