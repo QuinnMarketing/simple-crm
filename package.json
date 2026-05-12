@@ -19,6 +19,7 @@
     "@prisma/client": "^6.0.0",
     "@types/nodemailer": "^8.0.0",
     "bcryptjs": "^2.4.3",
+    "docx": "^9.6.1",
     "docxtemplater": "^3.68.7",
     "lucide-react": "^0.511.0",
     "next": "^15.3.0",

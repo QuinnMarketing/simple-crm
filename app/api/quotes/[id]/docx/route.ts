@@ -2,6 +2,7 @@ import { auth } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import { getAccountFilter } from '@/lib/account-scope'
 import { fillTemplate } from '@/lib/docx-template'
+import { generateDefaultDocx } from '@/lib/docx-default'
 import { NextResponse } from 'next/server'
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -25,30 +26,38 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
 
   const [template, account] = await Promise.all([
     prisma.documentTemplate.findUnique({ where: { accountId_type: { accountId, type: quote.type } } }),
-    prisma.account.findUnique({ where: { id: accountId }, select: { name: true } }),
+    prisma.account.findUnique({
+      where: { id: accountId },
+      select: { name: true, abn: true, businessAddress: true, businessPhone: true, businessEmail: true, businessWebsite: true },
+    }),
   ])
 
-  if (!template) {
-    return NextResponse.json(
-      { error: `No ${quote.type} template configured — upload one in Settings.` },
-      { status: 404 }
-    )
+  const lead = quote.lead ?? { name: '', email: null, phone: null, address: null, service: null }
+  const business = {
+    accountName: account?.name ?? '',
+    abn: account?.abn,
+    businessAddress: account?.businessAddress,
+    businessPhone: account?.businessPhone,
+    businessEmail: account?.businessEmail,
+    businessWebsite: account?.businessWebsite,
   }
 
   try {
-    const filled = fillTemplate(template.data as Buffer, {
-      quote,
-      lead: quote.lead ?? { name: '', email: null, phone: null, address: null, service: null },
-      accountName: account?.name ?? '',
-    })
+    let buffer: Buffer
 
-    return new NextResponse(filled.buffer as ArrayBuffer, {
+    if (template) {
+      buffer = fillTemplate(template.data as Buffer, { quote, lead, accountName: business.accountName })
+    } else {
+      buffer = await generateDefaultDocx(business, quote, lead)
+    }
+
+    return new NextResponse(buffer.buffer as ArrayBuffer, {
       headers: {
         'Content-Type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
         'Content-Disposition': `attachment; filename="${quote.number}.docx"`,
       },
     })
   } catch (err) {
-    return NextResponse.json({ error: `Template rendering failed: ${String(err)}` }, { status: 500 })
+    return NextResponse.json({ error: `Document generation failed: ${String(err)}` }, { status: 500 })
   }
 }

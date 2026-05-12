@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation'
 import IntegrationsForm from './IntegrationsForm'
 import CopyButton from './CopyButton'
 import DocumentTemplatesSection from './DocumentTemplatesSection'
+import BusinessInfoForm from './BusinessInfoForm'
 
 export default async function SettingsPage({
   searchParams,
@@ -50,6 +51,7 @@ export default async function SettingsPage({
   const account = await prisma.account.findUnique({
     where: { id: accountId },
     include: { integrations: true },
+    // business info fields are included by default
   })
 
   if (!account) redirect('/accounts')
@@ -116,6 +118,17 @@ export default async function SettingsPage({
             </div>
           </div>
         </div>
+
+        <BusinessInfoForm
+          accountId={accountId}
+          initial={{
+            abn: account.abn ?? '',
+            businessAddress: account.businessAddress ?? '',
+            businessPhone: account.businessPhone ?? '',
+            businessEmail: account.businessEmail ?? '',
+            businessWebsite: account.businessWebsite ?? '',
+          }}
+        />
 
         <DocumentTemplatesSection />
 

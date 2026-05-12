@@ -8,14 +8,19 @@ datasource db {
 }
 
 model Account {
-  id           String   @id @default(cuid())
-  name         String
-  slug         String   @unique
-  webhookToken String   @unique @default(cuid())
-  plan         String   @default("starter")
-  isActive     Boolean  @default(true)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id              String   @id @default(cuid())
+  name            String
+  slug            String   @unique
+  webhookToken    String   @unique @default(cuid())
+  plan            String   @default("starter")
+  isActive        Boolean  @default(true)
+  abn             String?
+  businessAddress String?
+  businessPhone   String?
+  businessEmail   String?
+  businessWebsite String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
   users              User[]
   leads              Lead[]
   companies          Company[]

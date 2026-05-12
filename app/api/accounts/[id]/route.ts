@@ -29,17 +29,29 @@ export async function GET(_req: NextRequest, { params }: Params) {
 export async function PATCH(req: NextRequest, { params }: Params) {
   const session = await auth()
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  if (session.user.role !== 'master_admin') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   const { id } = await params
-  const { name, plan, isActive } = await req.json()
+  const isMasterAdmin = session.user.role === 'master_admin'
+  const isOwnAccount = session.user.accountId === id
+
+  if (!isMasterAdmin && !isOwnAccount) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+
+  const body = await req.json()
+  const { name, plan, isActive, abn, businessAddress, businessPhone, businessEmail, businessWebsite } = body
 
   const account = await prisma.account.update({
     where: { id },
     data: {
-      ...(name?.trim() ? { name: name.trim() } : {}),
-      ...(plan ? { plan } : {}),
-      ...(isActive !== undefined ? { isActive } : {}),
+      // Master admin only fields
+      ...(isMasterAdmin && name?.trim() ? { name: name.trim() } : {}),
+      ...(isMasterAdmin && plan ? { plan } : {}),
+      ...(isMasterAdmin && isActive !== undefined ? { isActive } : {}),
+      // Business info — any account user can update
+      ...('abn' in body ? { abn: abn?.trim() || null } : {}),
+      ...('businessAddress' in body ? { businessAddress: businessAddress?.trim() || null } : {}),
+      ...('businessPhone' in body ? { businessPhone: businessPhone?.trim() || null } : {}),
+      ...('businessEmail' in body ? { businessEmail: businessEmail?.trim() || null } : {}),
+      ...('businessWebsite' in body ? { businessWebsite: businessWebsite?.trim() || null } : {}),
     },
     include: { _count: { select: { users: true, leads: true } } },
   })
