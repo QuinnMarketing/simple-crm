@@ -2,6 +2,7 @@ import { auth } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import { getAccountFilter } from '@/lib/account-scope'
 import { generateInvoicePdf } from '@/lib/pdf-invoice'
+// Uses pdfkit — pure Node.js, no native deps, works on Vercel serverless
 import { NextResponse } from 'next/server'
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
