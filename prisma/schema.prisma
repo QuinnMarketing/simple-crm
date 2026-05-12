@@ -30,6 +30,7 @@ model Account {
   automations        Automation[]
   timeEntries        TimeEntry[]
   documentTemplates  DocumentTemplate[]
+  emailCampaigns     EmailCampaign[]
 }
 
 model AccountIntegration {
@@ -88,19 +89,21 @@ model Lead {
   userAgent   String?
   ipAddress   String?
   pageUrl     String?
-  nextStep    String?
-  nextStepDue String?
-  companyId   String?
+  nextStep            String?
+  nextStepDue         String?
+  unsubscribed        Boolean               @default(false)
+  companyId           String?
   company     Company? @relation(fields: [companyId], references: [id])
   accountId   String?
   account     Account? @relation(fields: [accountId], references: [id])
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  conversions  ConversionEvent[]
-  appointments Appointment[]
-  quotes       Quote[]
-  timeEntries  TimeEntry[]
+  conversions         ConversionEvent[]
+  appointments        Appointment[]
+  quotes              Quote[]
+  timeEntries         TimeEntry[]
+  emailCampaignSends  EmailCampaignSend[]
 }
 
 model Appointment {
@@ -222,4 +225,41 @@ model ConversionEvent {
   response     String?
   errorMessage String?
   sentAt       DateTime @default(now())
+}
+
+model EmailCampaign {
+  id            String   @id @default(cuid())
+  name          String
+  subject       String   @default("")
+  bodyHtml      String   @default("")
+  bodyText      String   @default("")
+  status        String   @default("draft") // draft | scheduled | sending | sent
+  segmentFilter String   @default("{}") // JSON: { statuses, sources, leadIds }
+  trackOpens    Boolean  @default(false)
+  trackClicks   Boolean  @default(false)
+  scheduledAt   DateTime?
+  sentAt        DateTime?
+  totalSent     Int      @default(0)
+  totalFailed   Int      @default(0)
+  accountId     String?
+  account       Account? @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  sends         EmailCampaignSend[]
+}
+
+model EmailCampaignSend {
+  id         String        @id @default(cuid())
+  campaignId String
+  campaign   EmailCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  leadId     String?
+  lead       Lead?         @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  email      String
+  name       String?
+  status     String        @default("pending") // pending | sent | failed
+  error      String?
+  openedAt   DateTime?
+  clickedAt  DateTime?
+  sentAt     DateTime?
+  createdAt  DateTime      @default(now())
 }

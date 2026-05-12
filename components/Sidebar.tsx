@@ -2,7 +2,7 @@
 import Link from 'next/link'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { useState } from 'react'
-import { LayoutDashboard, Users, Settings, LogOut, Zap, Building2, ChevronDown, Layers, CalendarDays, FileText, Bot, Clock } from 'lucide-react'
+import { LayoutDashboard, Users, Settings, LogOut, Zap, Building2, ChevronDown, Layers, CalendarDays, FileText, Bot, Clock, Mail } from 'lucide-react'
 import { signOut } from 'next-auth/react'
 
 type SidebarUser = {
@@ -20,6 +20,7 @@ const NAV = [
   { href: '/calendar', icon: CalendarDays, label: 'Calendar' },
   { href: '/quotes', icon: FileText, label: 'Quotes & Invoices' },
   { href: '/automations', icon: Bot, label: 'Automations' },
+  { href: '/campaigns', icon: Mail, label: 'Campaigns' },
   { href: '/time', icon: Clock, label: 'Time Tracking' },
   { href: '/companies', icon: Building2, label: 'Companies' },
   { href: '/settings', icon: Settings, label: 'Settings' },

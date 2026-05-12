@@ -1,4 +1,6 @@
 import { runPendingQuoteFollowups, runAppointmentReminderAutomations } from '@/lib/automations'
+import { sendCampaign } from '@/lib/email-campaign'
+import { prisma } from '@/lib/prisma'
 import { NextResponse } from 'next/server'
 
 // Runs hourly via Vercel cron (vercel.json). Can also be called manually.
@@ -18,10 +20,19 @@ export async function GET(req: Request) {
     }
   }
 
+  // Fire any scheduled campaigns that are due
+  const dueCampaigns = await prisma.emailCampaign.findMany({
+    where: { status: 'scheduled', scheduledAt: { lte: new Date() } },
+    select: { id: true },
+  })
+  const campaignResults = await Promise.allSettled(dueCampaigns.map((c) => sendCampaign(c.id)))
+  const campaignsSent = campaignResults.filter((r) => r.status === 'fulfilled').length
+  const campaignsFailed = campaignResults.filter((r) => r.status === 'rejected').length
+
   const [quotes, reminders] = await Promise.all([
     runPendingQuoteFollowups(),
     runAppointmentReminderAutomations(),
   ])
 
-  return NextResponse.json({ ok: true, quotes, reminders })
+  return NextResponse.json({ ok: true, quotes, reminders, campaigns: { sent: campaignsSent, failed: campaignsFailed } })
 }
