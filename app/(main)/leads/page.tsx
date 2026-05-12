@@ -2,9 +2,9 @@ import { auth } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import { getAccountFilter } from '@/lib/account-scope'
 import Link from 'next/link'
-import StatusBadge from '@/components/StatusBadge'
 import LeadsSearch from './LeadsSearch'
 import LeadsCsvButtons from './LeadsCsvButtons'
+import LeadsTable from './LeadsTable'
 import { Kanban } from 'lucide-react'
 
 const STATUSES = ['all', 'new', 'contacted', 'qualified', 'won', 'lost']
@@ -104,88 +104,11 @@ export default async function LeadsPage({
           </div>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-slate-100">
-                {[
-                  { label: 'Name', cls: '' },
-                  { label: 'Email / Phone', cls: 'hidden md:table-cell' },
-                  { label: 'Service', cls: 'hidden lg:table-cell' },
-                  { label: 'Company', cls: 'hidden lg:table-cell' },
-                  { label: 'Value', cls: 'hidden sm:table-cell' },
-                  { label: 'Status', cls: '' },
-                  { label: 'Platforms', cls: 'hidden xl:table-cell' },
-                  { label: 'Added', cls: 'hidden sm:table-cell' },
-                ].map(({ label, cls }) => (
-                  <th key={label} className={`text-left text-xs font-medium text-slate-500 px-4 py-3 uppercase tracking-wide whitespace-nowrap ${cls}`}>
-                    {label}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {leads.map((lead) => {
-                const platforms = lead.conversions.map((c) => c.platform)
-                return (
-                  <tr key={lead.id} className="border-b border-slate-50 hover:bg-slate-50 transition-colors last:border-0">
-                    <td className="px-4 py-3">
-                      <Link href={`/leads/${lead.id}`} className="font-medium text-slate-900 hover:text-indigo-600 transition-colors">
-                        {lead.name}
-                      </Link>
-                      {'account' in lead && lead.account && (
-                        <p className="text-xs text-indigo-600 font-medium mt-0.5">{(lead.account as { name: string }).name}</p>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 hidden md:table-cell">
-                      <div className="text-sm text-slate-700">{lead.email ?? '—'}</div>
-                      <div className="text-xs text-slate-400">{lead.phone ?? ''}</div>
-                    </td>
-                    <td className="px-4 py-3 text-sm text-slate-600 hidden lg:table-cell">{lead.service ?? '—'}</td>
-                    <td className="px-4 py-3 hidden lg:table-cell">
-                      {lead.company ? (
-                        <span className="text-xs font-medium px-2 py-0.5 rounded-full whitespace-nowrap" style={{ backgroundColor: lead.company.color + '20', color: lead.company.color }}>
-                          {lead.company.name}
-                        </span>
-                      ) : <span className="text-slate-400 text-sm">—</span>}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-slate-600 hidden sm:table-cell">
-                      {lead.value ? `$${lead.value.toLocaleString()}` : '—'}
-                    </td>
-                    <td className="px-4 py-3"><StatusBadge status={lead.status} /></td>
-                    <td className="px-4 py-3 hidden xl:table-cell">
-                      <div className="flex gap-1">
-                        {(['google_ga4', 'google_ads', 'facebook'] as const).map((p) => (
-                          <span key={p} title={p} className={`text-xs px-1.5 py-0.5 rounded font-medium ${platforms.includes(p) ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-400'}`}>
-                            {p === 'google_ga4' ? 'GA4' : p === 'google_ads' ? 'ADS' : 'FB'}
-                          </span>
-                        ))}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap hidden sm:table-cell">
-                      <p className="text-xs text-slate-500">{new Date(lead.createdAt).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: '2-digit' })}</p>
-                      {lead.updatedAt > lead.createdAt && (
-                        <p className="text-xs text-slate-400 mt-0.5">edited {new Date(lead.updatedAt).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: '2-digit' })}</p>
-                      )}
-                    </td>
-                  </tr>
-                )
-              })}
-              {leads.length === 0 && (
-                <tr>
-                  <td colSpan={8} className="px-5 py-12 text-center text-slate-400 text-sm">
-                    No leads found.{' '}
-                    {q || status ? (
-                      <Link href={`/leads${company ? `?company=${company}` : ''}`} className="text-indigo-600 hover:underline">Clear filters</Link>
-                    ) : (
-                      <Link href={newLeadHref} className="text-indigo-600 hover:underline">Add one manually</Link>
-                    )}
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+        <LeadsTable
+          leads={leads as Parameters<typeof LeadsTable>[0]['leads']}
+          addHref={newLeadHref}
+          clearHref={(q || status) ? `/leads${company ? `?company=${company}` : ''}${account ? `${company ? '&' : '?'}account=${account}` : ''}` : undefined}
+        />
       </div>
     </div>
   )
