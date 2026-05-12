@@ -1,6 +1,6 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
-import { Plus, X, Loader2, Trash2, FileText, CheckCircle } from 'lucide-react'
+import { Plus, X, Loader2, Trash2, FileText, CheckCircle, Download } from 'lucide-react'
 
 type LineItem = { description: string; quantity: number; unitPrice: number }
 
@@ -400,29 +400,39 @@ export default function QuotesSection({ leadId, onValueChange }: Props) {
                 )}
                 <div className="divide-y divide-slate-50">
                   {list.map((q) => (
-                    <button
-                      key={q.id}
-                      onClick={() => openEdit(q)}
-                      className="w-full flex items-center justify-between px-6 py-3.5 hover:bg-slate-50 transition-colors text-left"
-                    >
-                      <div className="flex items-center gap-3 min-w-0">
-                        <FileText className="w-4 h-4 text-slate-400 flex-shrink-0" />
-                        <div className="min-w-0">
-                          <p className="text-sm font-medium text-slate-900">{q.number}</p>
-                          {q.issuedAt && (
-                            <p className="text-xs text-slate-400 mt-0.5">
-                              Issued {new Date(q.issuedAt).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' })}
-                            </p>
-                          )}
+                    <div key={q.id} className="flex items-center hover:bg-slate-50 transition-colors">
+                      <button
+                        onClick={() => openEdit(q)}
+                        className="flex-1 flex items-center justify-between px-6 py-3.5 text-left min-w-0"
+                      >
+                        <div className="flex items-center gap-3 min-w-0">
+                          <FileText className="w-4 h-4 text-slate-400 flex-shrink-0" />
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium text-slate-900">{q.number}</p>
+                            {q.issuedAt && (
+                              <p className="text-xs text-slate-400 mt-0.5">
+                                Issued {new Date(q.issuedAt).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' })}
+                              </p>
+                            )}
+                          </div>
+                          <span className={`text-xs px-2 py-0.5 rounded-full font-medium capitalize flex-shrink-0 ${STATUS_STYLES[q.status] ?? 'bg-slate-100 text-slate-600'}`}>
+                            {q.status}
+                          </span>
                         </div>
-                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium capitalize flex-shrink-0 ${STATUS_STYLES[q.status] ?? 'bg-slate-100 text-slate-600'}`}>
-                          {q.status}
-                        </span>
-                      </div>
-                      <p className="text-sm font-semibold text-slate-900 tabular-nums ml-4 flex-shrink-0">
-                        {fmtAUD(q.total)}
-                      </p>
-                    </button>
+                        <p className="text-sm font-semibold text-slate-900 tabular-nums ml-4 flex-shrink-0">
+                          {fmtAUD(q.total)}
+                        </p>
+                      </button>
+                      <a
+                        href={`/api/quotes/${q.id}/docx`}
+                        download
+                        title="Download as .docx"
+                        className="pr-5 pl-2 py-3.5 text-slate-400 hover:text-indigo-600 transition-colors flex-shrink-0"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <Download className="w-4 h-4" />
+                      </a>
+                    </div>
                   ))}
                 </div>
               </div>

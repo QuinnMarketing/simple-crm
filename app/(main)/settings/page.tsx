@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { redirect } from 'next/navigation'
 import IntegrationsForm from './IntegrationsForm'
 import CopyButton from './CopyButton'
+import DocumentTemplatesSection from './DocumentTemplatesSection'
 
 export default async function SettingsPage({
   searchParams,
@@ -115,6 +116,8 @@ export default async function SettingsPage({
             </div>
           </div>
         </div>
+
+        <DocumentTemplatesSection />
 
         <IntegrationsForm accountId={accountId} initialConfigs={integrationConfigs} />
       </div>
