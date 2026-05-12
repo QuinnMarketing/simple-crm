@@ -105,7 +105,7 @@ export default async function LeadsPage({
         </div>
 
         <LeadsTable
-          leads={leads as Parameters<typeof LeadsTable>[0]['leads']}
+          leads={leads as unknown as Parameters<typeof LeadsTable>[0]['leads']}
           addHref={newLeadHref}
           clearHref={(q || status) ? `/leads${company ? `?company=${company}` : ''}${account ? `${company ? '&' : '?'}account=${account}` : ''}` : undefined}
         />
