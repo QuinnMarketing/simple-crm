@@ -1,0 +1,190 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Account {
+  id           String   @id @default(cuid())
+  name         String
+  slug         String   @unique
+  webhookToken String   @unique @default(cuid())
+  plan         String   @default("starter")
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  users        User[]
+  leads        Lead[]
+  companies    Company[]
+  integrations AccountIntegration[]
+  appointments Appointment[]
+  quotes       Quote[]
+  automations  Automation[]
+  timeEntries  TimeEntry[]
+}
+
+model AccountIntegration {
+  id        String   @id @default(cuid())
+  accountId String
+  account   Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  platform  String
+  config    String   @default("{}")
+  enabled   Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([accountId, platform])
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  name      String?
+  role      String   @default("account_user")
+  accountId   String?
+  account     Account?    @relation(fields: [accountId], references: [id])
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  timeEntries TimeEntry[]
+}
+
+model Company {
+  id        String   @id @default(cuid())
+  name      String
+  color     String   @default("#6366f1")
+  accountId String?
+  account   Account? @relation(fields: [accountId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  leads     Lead[]
+}
+
+model Lead {
+  id          String   @id @default(cuid())
+  name        String
+  email       String?
+  phone       String?
+  source      String?
+  status      String   @default("new")
+  service     String?
+  notes       String?
+  address     String?
+  value       Float?
+  formData    String?
+  gclid       String?
+  fbclid      String?
+  fbp         String?
+  fbc         String?
+  userAgent   String?
+  ipAddress   String?
+  pageUrl     String?
+  companyId   String?
+  company     Company? @relation(fields: [companyId], references: [id])
+  accountId   String?
+  account     Account? @relation(fields: [accountId], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  conversions  ConversionEvent[]
+  appointments Appointment[]
+  quotes       Quote[]
+  timeEntries  TimeEntry[]
+}
+
+model Appointment {
+  id            String   @id @default(cuid())
+  title         String
+  description   String?
+  startTime     DateTime
+  endTime       DateTime
+  allDay        Boolean  @default(false)
+  location      String?
+  leadId        String?
+  lead          Lead?    @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  accountId     String?
+  account       Account? @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  googleEventId String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model Automation {
+  id            String   @id @default(cuid())
+  name          String
+  enabled       Boolean  @default(true)
+  trigger       String   // 'lead_created' | 'lead_status_changed' | 'pending_quote_followup'
+  triggerConfig String   @default("{}") // JSON: { toStatus: 'won' } | { days: 3 }
+  action        String   // 'send_email'
+  actionConfig  String   @default("{}") // JSON: { subject, body }
+  accountId     String?
+  account       Account? @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  logs          AutomationLog[]
+}
+
+model AutomationLog {
+  id           String     @id @default(cuid())
+  automationId String
+  automation   Automation @relation(fields: [automationId], references: [id], onDelete: Cascade)
+  leadId       String
+  firedAt      DateTime   @default(now())
+
+  @@unique([automationId, leadId])
+}
+
+model Quote {
+  id        String    @id @default(cuid())
+  type      String    // 'quote' | 'invoice'
+  number    String
+  status    String    @default("draft")
+  lineItems String    @default("[]") // JSON: [{description,quantity,unitPrice}]
+  subtotal  Float     @default(0)
+  taxRate   Float     @default(10)
+  taxAmount Float     @default(0)
+  total     Float     @default(0)
+  notes     String?
+  issuedAt  DateTime?
+  dueAt     DateTime?
+  leadId    String?
+  lead      Lead?     @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  accountId String?
+  account   Account?  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
+model TimeEntry {
+  id          String   @id @default(cuid())
+  type        String   // 'call' | 'meeting' | 'work' | 'email' | 'admin' | 'other'
+  description String?
+  durationMin Int      // minutes
+  startedAt   DateTime
+  assignedTo  String?  // free-text name — works for non-registered employees/contractors
+  leadId      String?
+  lead        Lead?    @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  userId      String?
+  user        User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  accountId   String?
+  account     Account? @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model ConversionEvent {
+  id           String   @id @default(cuid())
+  leadId       String
+  lead         Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  platform     String
+  eventName    String
+  value        Float?
+  currency     String   @default("AUD")
+  status       String   @default("pending")
+  response     String?
+  errorMessage String?
+  sentAt       DateTime @default(now())
+}
