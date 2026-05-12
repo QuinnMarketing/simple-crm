@@ -4,6 +4,7 @@ import { getAccountFilter } from '@/lib/account-scope'
 import Link from 'next/link'
 import StatusBadge from '@/components/StatusBadge'
 import LeadsSearch from './LeadsSearch'
+import LeadsCsvButtons from './LeadsCsvButtons'
 import { Kanban } from 'lucide-react'
 
 const STATUSES = ['all', 'new', 'contacted', 'qualified', 'won', 'lost']
@@ -49,6 +50,13 @@ export default async function LeadsPage({
 
   const newLeadHref = `/leads/new${company ? `?company=${company}` : ''}`
 
+  const exportParams = new URLSearchParams()
+  if (status && status !== 'all') exportParams.set('status', status)
+  if (q) exportParams.set('q', q)
+  if (company) exportParams.set('company', company)
+  if (account) exportParams.set('account', account)
+  const exportHref = `/api/leads/export${exportParams.toString() ? `?${exportParams}` : ''}`
+
   return (
     <div>
       <div className="mb-6 flex items-center justify-between gap-4">
@@ -63,7 +71,7 @@ export default async function LeadsPage({
           </div>
           <p className="text-slate-500 mt-1 text-sm">{leads.length} lead{leads.length !== 1 ? 's' : ''}</p>
         </div>
-        <div className="flex items-center gap-2 flex-shrink-0">
+        <div className="flex items-center gap-2 flex-shrink-0 flex-wrap">
           <Link
             href={`/leads/pipeline${company ? `?company=${company}` : ''}${account ? `${company ? '&' : '?'}account=${account}` : ''}`}
             className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-slate-600 border border-slate-200 hover:bg-slate-50 transition-colors"
@@ -71,6 +79,7 @@ export default async function LeadsPage({
             <Kanban className="w-4 h-4" />
             <span className="hidden sm:inline">Pipeline</span>
           </Link>
+          <LeadsCsvButtons exportHref={exportHref} />
           <Link href={newLeadHref} className="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors">
             + <span className="hidden sm:inline">Add Lead</span><span className="sm:hidden">Add</span>
           </Link>
