@@ -424,9 +424,10 @@ export default function QuotesSection({ leadId, onValueChange }: Props) {
                         </p>
                       </button>
                       <a
-                        href={`/api/quotes/${q.id}/docx`}
-                        download
-                        title="Download as .docx"
+                        href={`/api/quotes/${q.id}/pdf`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        title="Open PDF"
                         className="pr-5 pl-2 py-3.5 text-slate-400 hover:text-indigo-600 transition-colors flex-shrink-0"
                         onClick={(e) => e.stopPropagation()}
                       >
