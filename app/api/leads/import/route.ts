@@ -10,18 +10,36 @@ export async function POST(req: NextRequest) {
   const session = await auth()
   if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const accountId = session.user.accountId ?? null
+  const contentType = req.headers.get('content-type') ?? ''
 
   let csvText: string
-  const contentType = req.headers.get('content-type') ?? ''
+  let requestedAccountId: string | null = null
 
   if (contentType.includes('multipart/form-data')) {
     const form = await req.formData()
     const file = form.get('file')
     if (!file || typeof file === 'string') return NextResponse.json({ error: 'No file provided' }, { status: 400 })
     csvText = await (file as File).text()
+    const acct = form.get('accountId')
+    if (acct && typeof acct === 'string') requestedAccountId = acct
   } else {
     csvText = await req.text()
+  }
+
+  // Resolve which account to import into:
+  // - master_admin: use the accountId from the request (must be a real account)
+  // - regular user: always use their own accountId, ignore any request param
+  let accountId: string | null
+  if (session.user.role === 'master_admin') {
+    if (requestedAccountId) {
+      const exists = await prisma.account.findUnique({ where: { id: requestedAccountId }, select: { id: true } })
+      if (!exists) return NextResponse.json({ error: 'Account not found' }, { status: 404 })
+      accountId = requestedAccountId
+    } else {
+      accountId = null
+    }
+  } else {
+    accountId = session.user.accountId ?? null
   }
 
   if (!csvText.trim()) return NextResponse.json({ error: 'Empty file' }, { status: 400 })

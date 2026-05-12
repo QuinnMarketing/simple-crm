@@ -4,7 +4,7 @@ import { Download, Upload, X, CheckCircle, AlertCircle, Loader2 } from 'lucide-r
 
 type ImportResult = { created: number; skipped: number; errors: string[] }
 
-export default function LeadsCsvButtons({ exportHref }: { exportHref: string }) {
+export default function LeadsCsvButtons({ exportHref, accountId }: { exportHref: string; accountId?: string | null }) {
   const fileRef = useRef<HTMLInputElement>(null)
   const [importing, setImporting] = useState(false)
   const [result, setResult] = useState<ImportResult | null>(null)
@@ -21,6 +21,7 @@ export default function LeadsCsvButtons({ exportHref }: { exportHref: string }) 
 
     const form = new FormData()
     form.append('file', file)
+    if (accountId) form.append('accountId', accountId)
 
     try {
       const res = await fetch('/api/leads/import', { method: 'POST', body: form })

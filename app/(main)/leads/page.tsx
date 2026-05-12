@@ -79,7 +79,7 @@ export default async function LeadsPage({
             <Kanban className="w-4 h-4" />
             <span className="hidden sm:inline">Pipeline</span>
           </Link>
-          <LeadsCsvButtons exportHref={exportHref} />
+          <LeadsCsvButtons exportHref={exportHref} accountId={account ?? session!.user.accountId} />
           <Link href={newLeadHref} className="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors">
             + <span className="hidden sm:inline">Add Lead</span><span className="sm:hidden">Add</span>
           </Link>
