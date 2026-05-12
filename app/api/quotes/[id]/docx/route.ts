@@ -51,7 +51,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       buffer = await generateDefaultDocx(business, quote, lead)
     }
 
-    return new NextResponse(buffer.buffer as ArrayBuffer, {
+    return new NextResponse(new Uint8Array(buffer), {
       headers: {
         'Content-Type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
         'Content-Disposition': `attachment; filename="${quote.number}.docx"`,
