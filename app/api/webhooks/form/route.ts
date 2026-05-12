@@ -1,5 +1,7 @@
+import { runAutomations } from '@/lib/automations'
 import { prisma } from '@/lib/prisma'
 import { parseWebhookPayload } from '@/lib/webhook-parser'
+import { after } from 'next/server'
 import { NextRequest, NextResponse } from 'next/server'
 
 export async function POST(req: NextRequest) {
@@ -62,6 +64,8 @@ export async function POST(req: NextRequest) {
       accountId,
     },
   })
+
+  after(() => runAutomations('lead_created', lead))
 
   return NextResponse.json({ success: true, leadId: lead.id }, { status: 201 })
 }
