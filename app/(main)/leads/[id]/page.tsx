@@ -397,6 +397,8 @@ export default function LeadDetailPage() {
             )}
           </div>
 
+          <LeadTimeline leadId={id} />
+
           <div className="bg-white rounded-xl border border-slate-200 p-5">
             <h2 className="font-semibold text-slate-900 mb-4">Push to Platforms</h2>
             <div className="space-y-3">
@@ -458,8 +460,6 @@ export default function LeadDetailPage() {
               })}
             </div>
           </div>
-
-          <LeadTimeline leadId={id} />
 
           {/* Conversion History */}
           {lead.conversions.length > 0 && (

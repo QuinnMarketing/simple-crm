@@ -18,7 +18,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   const { id } = await params
   const filter = getAccountFilter(session.user)
 
-  const lead = await prisma.lead.findFirst({ where: { id, ...filter }, select: { id: true, createdAt: true } })
+  const lead = await prisma.lead.findFirst({ where: { id, ...filter }, select: { id: true, createdAt: true, source: true, pageUrl: true } })
   if (!lead) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
   const [auditLogs, appointments, quotes, conversions] = await Promise.all([
@@ -43,13 +43,36 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     }),
   ])
 
+  const SOURCE_LABELS: Record<string, string> = {
+    website: 'Website', referral: 'Referral', google_ads: 'Google Ads',
+    facebook_ads: 'Facebook Ads', cold_outreach: 'Cold Outreach', webhook: 'Webhook', other: 'Other',
+  }
+
   const events: TimelineEvent[] = []
 
-  // Lead created
+  // Lead created — show page + source if available
+  let createdTitle = 'Lead created'
+  let createdDetail: string | undefined
+
+  if (lead.pageUrl) {
+    try {
+      const { hostname, pathname } = new URL(lead.pageUrl)
+      const page = pathname.length > 1 ? pathname : hostname
+      createdTitle = `Submitted form on ${page}`
+      if (lead.source) createdDetail = SOURCE_LABELS[lead.source] ?? lead.source
+    } catch {
+      createdTitle = 'Submitted form'
+      createdDetail = lead.pageUrl
+    }
+  } else if (lead.source) {
+    createdDetail = `Via ${SOURCE_LABELS[lead.source] ?? lead.source}`
+  }
+
   events.push({
     id: `created-${lead.id}`,
     type: 'created',
-    title: 'Lead created',
+    title: createdTitle,
+    detail: createdDetail,
     date: lead.createdAt.toISOString(),
   })
 
