@@ -157,9 +157,11 @@ export async function runAppointmentReminderAutomations(): Promise<{ sent: numbe
   })
 
   const now = new Date()
-  // Window: appointments starting between 23h and 25h from now
-  const windowStart = new Date(now.getTime() + 23 * 60 * 60 * 1000)
-  const windowEnd = new Date(now.getTime() + 25 * 60 * 60 * 1000)
+  // Window: 12–36h from now. Cron runs daily at 21:00 UTC (7am AEST).
+  // This covers all appointments in the next calendar day regardless of time.
+  // AutomationLog deduplication prevents sending twice if an appointment falls in two consecutive windows.
+  const windowStart = new Date(now.getTime() + 12 * 60 * 60 * 1000)
+  const windowEnd = new Date(now.getTime() + 36 * 60 * 60 * 1000)
 
   for (const automation of automations) {
     if (!automation.accountId) continue
