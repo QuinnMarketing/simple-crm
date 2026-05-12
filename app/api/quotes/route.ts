@@ -1,7 +1,8 @@
 import { auth } from '@/auth'
+import { logAudit, getIp } from '@/lib/audit'
 import { prisma } from '@/lib/prisma'
 import { getAccountFilter } from '@/lib/account-scope'
-import { NextRequest, NextResponse } from 'next/server'
+import { after, NextRequest, NextResponse } from 'next/server'
 
 const INACTIVE = new Set(['cancelled', 'declined'])
 
@@ -74,5 +75,6 @@ export async function POST(req: NextRequest) {
     await syncLeadValue(leadId)
   }
 
+  after(() => logAudit({ accountId, userId: session.user.id, userEmail: session.user.email, action: 'quote.created', entityType: 'quote', entityId: quote.id, entityLabel: `${quote.type === 'invoice' ? 'Invoice' : 'Quote'} ${quote.number}`, ipAddress: getIp(req) }))
   return NextResponse.json(quote, { status: 201 })
 }

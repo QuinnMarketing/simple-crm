@@ -1,8 +1,9 @@
 import { auth } from '@/auth'
+import { logAudit, getIp } from '@/lib/audit'
 import { prisma } from '@/lib/prisma'
 import { getAccountFilter } from '@/lib/account-scope'
 import bcrypt from 'bcryptjs'
-import { NextRequest, NextResponse } from 'next/server'
+import { after, NextRequest, NextResponse } from 'next/server'
 
 type Params = { params: Promise<{ id: string }> }
 
@@ -42,10 +43,11 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     select: { id: true, email: true, name: true, role: true, accountId: true, createdAt: true },
   })
 
+  after(() => logAudit({ accountId: existing.accountId, userId: session.user.id, userEmail: session.user.email, action: 'user.updated', entityType: 'user', entityId: user.id, entityLabel: user.email, ipAddress: getIp(req) }))
   return NextResponse.json(user)
 }
 
-export async function DELETE(_req: NextRequest, { params }: Params) {
+export async function DELETE(req: NextRequest, { params }: Params) {
   const session = await auth()
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
@@ -74,5 +76,6 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
   }
 
   await prisma.user.delete({ where: { id } })
+  after(() => logAudit({ accountId: existing.accountId, userId: session.user.id, userEmail: session.user.email, action: 'user.deleted', entityType: 'user', entityId: id, entityLabel: existing.email, ipAddress: getIp(req) }))
   return NextResponse.json({ success: true })
 }

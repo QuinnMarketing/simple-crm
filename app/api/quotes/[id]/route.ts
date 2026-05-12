@@ -1,7 +1,8 @@
 import { auth } from '@/auth'
+import { logAudit, auditDiff, getIp } from '@/lib/audit'
 import { prisma } from '@/lib/prisma'
 import { getAccountFilter } from '@/lib/account-scope'
-import { NextRequest, NextResponse } from 'next/server'
+import { after, NextRequest, NextResponse } from 'next/server'
 
 type Params = { params: Promise<{ id: string }> }
 
@@ -48,10 +49,11 @@ export async function PATCH(req: NextRequest, { params }: Params) {
 
   if (existing.leadId) await syncLeadValue(existing.leadId)
 
+  after(() => logAudit({ accountId: existing.accountId, userId: session.user.id, userEmail: session.user.email, action: 'quote.updated', entityType: 'quote', entityId: quote.id, entityLabel: `${quote.type === 'invoice' ? 'Invoice' : 'Quote'} ${quote.number}`, changes: auditDiff({ status: existing.status, total: existing.total } as Record<string, unknown>, { status: quote.status, total: quote.total } as Record<string, unknown>), ipAddress: getIp(req) }))
   return NextResponse.json(quote)
 }
 
-export async function DELETE(_req: NextRequest, { params }: Params) {
+export async function DELETE(req: NextRequest, { params }: Params) {
   const session = await auth()
   if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
@@ -64,5 +66,6 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
 
   if (existing.leadId) await syncLeadValue(existing.leadId)
 
+  after(() => logAudit({ accountId: existing.accountId, userId: session.user.id, userEmail: session.user.email, action: 'quote.deleted', entityType: 'quote', entityId: id, entityLabel: `${existing.type === 'invoice' ? 'Invoice' : 'Quote'} ${existing.number}`, ipAddress: getIp(req) }))
   return NextResponse.json({ success: true })
 }

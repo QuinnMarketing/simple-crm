@@ -1,7 +1,8 @@
 import { auth } from '@/auth'
+import { logAudit, getIp } from '@/lib/audit'
 import { prisma } from '@/lib/prisma'
 import { getAccountFilter } from '@/lib/account-scope'
-import { NextRequest, NextResponse } from 'next/server'
+import { after, NextRequest, NextResponse } from 'next/server'
 
 type Params = { params: Promise<{ id: string }> }
 
@@ -23,10 +24,11 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   if ('actionConfig' in body) updates.actionConfig = JSON.stringify(body.actionConfig)
 
   const automation = await prisma.automation.update({ where: { id }, data: updates })
+  after(() => logAudit({ accountId: existing.accountId, userId: session.user.id, userEmail: session.user.email, action: 'automation.updated', entityType: 'automation', entityId: automation.id, entityLabel: automation.name, ipAddress: getIp(req) }))
   return NextResponse.json(automation)
 }
 
-export async function DELETE(_req: NextRequest, { params }: Params) {
+export async function DELETE(req: NextRequest, { params }: Params) {
   const session = await auth()
   if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
@@ -36,5 +38,6 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
   if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
   await prisma.automation.delete({ where: { id } })
+  after(() => logAudit({ accountId: existing.accountId, userId: session.user.id, userEmail: session.user.email, action: 'automation.deleted', entityType: 'automation', entityId: id, entityLabel: existing.name, ipAddress: getIp(req) }))
   return NextResponse.json({ success: true })
 }

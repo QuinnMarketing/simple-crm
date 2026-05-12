@@ -1,8 +1,9 @@
 import { auth } from '@/auth'
+import { logAudit, getIp } from '@/lib/audit'
 import { prisma } from '@/lib/prisma'
 import { getAccountFilter } from '@/lib/account-scope'
 import bcrypt from 'bcryptjs'
-import { NextRequest, NextResponse } from 'next/server'
+import { after, NextRequest, NextResponse } from 'next/server'
 
 const VALID_ROLES = ['master_admin', 'account_admin', 'account_user', 'admin', 'user']
 
@@ -62,5 +63,6 @@ export async function POST(req: NextRequest) {
     select: { id: true, email: true, name: true, role: true, accountId: true, createdAt: true },
   })
 
+  after(() => logAudit({ accountId, userId: session.user.id, userEmail: session.user.email, action: 'user.created', entityType: 'user', entityId: user.id, entityLabel: user.email, ipAddress: getIp(req) }))
   return NextResponse.json(user, { status: 201 })
 }

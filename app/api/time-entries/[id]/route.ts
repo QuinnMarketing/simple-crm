@@ -1,7 +1,8 @@
 import { auth } from '@/auth'
+import { logAudit, getIp } from '@/lib/audit'
 import { prisma } from '@/lib/prisma'
 import { getAccountFilter } from '@/lib/account-scope'
-import { NextResponse } from 'next/server'
+import { after, NextResponse } from 'next/server'
 
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth()
@@ -28,16 +29,19 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     },
   })
 
+  after(() => logAudit({ accountId: entry.accountId, userId: session.user.id, userEmail: session.user.email, action: 'time_entry.updated', entityType: 'time_entry', entityId: entry.id, entityLabel: `${entry.type} — ${entry.durationMin}m`, ipAddress: getIp(req) }))
   return NextResponse.json(entry)
 }
 
-export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function DELETE(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth()
   if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { id } = await params
   const accountFilter = getAccountFilter(session.user, undefined)
+  const existing = await prisma.timeEntry.findFirst({ where: { id, ...accountFilter } })
 
   await prisma.timeEntry.delete({ where: { id, ...accountFilter } })
+  after(() => logAudit({ accountId: existing?.accountId, userId: session.user.id, userEmail: session.user.email, action: 'time_entry.deleted', entityType: 'time_entry', entityId: id, entityLabel: existing ? `${existing.type} — ${existing.durationMin}m` : id, ipAddress: getIp(req) }))
   return NextResponse.json({ ok: true })
 }

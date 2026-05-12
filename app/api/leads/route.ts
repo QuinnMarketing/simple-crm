@@ -1,4 +1,5 @@
 import { auth } from '@/auth'
+import { logAudit, getIp } from '@/lib/audit'
 import { prisma } from '@/lib/prisma'
 import { getAccountFilter } from '@/lib/account-scope'
 import { runAutomations } from '@/lib/automations'
@@ -62,5 +63,6 @@ export async function POST(req: NextRequest) {
   })
 
   after(() => runAutomations('lead_created', lead))
+  after(() => logAudit({ accountId, userId: session.user.id, userEmail: session.user.email, action: 'lead.created', entityType: 'lead', entityId: lead.id, entityLabel: lead.name, ipAddress: getIp(req) }))
   return NextResponse.json(lead, { status: 201 })
 }

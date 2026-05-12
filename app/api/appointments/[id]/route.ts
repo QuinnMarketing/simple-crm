@@ -1,4 +1,5 @@
 import { auth } from '@/auth'
+import { logAudit, auditDiff, getIp } from '@/lib/audit'
 import { prisma } from '@/lib/prisma'
 import { getAccountFilter } from '@/lib/account-scope'
 import {
@@ -7,7 +8,7 @@ import {
   updateCalendarEvent,
   deleteCalendarEvent,
 } from '@/lib/google-calendar'
-import { NextRequest, NextResponse } from 'next/server'
+import { after, NextRequest, NextResponse } from 'next/server'
 
 async function getAppointment(id: string, userId: Parameters<typeof getAccountFilter>[0]) {
   return prisma.appointment.findFirst({
@@ -71,10 +72,11 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     }
   }
 
+  after(() => logAudit({ accountId: updated.accountId, userId: session.user.id, userEmail: session.user.email, action: 'appointment.updated', entityType: 'appointment', entityId: updated.id, entityLabel: updated.title, changes: auditDiff(existing as Record<string, unknown>, updated as Record<string, unknown>), ipAddress: getIp(req) }))
   return NextResponse.json(updated)
 }
 
-export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth()
   if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   const { id } = await params
@@ -89,5 +91,6 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
   }
 
   await prisma.appointment.delete({ where: { id } })
+  after(() => logAudit({ accountId: existing.accountId, userId: session.user.id, userEmail: session.user.email, action: 'appointment.deleted', entityType: 'appointment', entityId: id, entityLabel: existing.title, ipAddress: getIp(req) }))
   return NextResponse.json({ success: true })
 }

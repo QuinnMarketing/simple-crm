@@ -1,7 +1,8 @@
 import { auth } from '@/auth'
+import { logAudit, getIp } from '@/lib/audit'
 import { prisma } from '@/lib/prisma'
 import { getAccountFilter } from '@/lib/account-scope'
-import { NextRequest, NextResponse } from 'next/server'
+import { after, NextRequest, NextResponse } from 'next/server'
 
 export async function GET(_req: NextRequest) {
   const session = await auth()
@@ -37,5 +38,6 @@ export async function POST(req: NextRequest) {
       accountId,
     },
   })
+  after(() => logAudit({ accountId, userId: session.user.id, userEmail: session.user.email, action: 'automation.created', entityType: 'automation', entityId: automation.id, entityLabel: automation.name, ipAddress: getIp(req) }))
   return NextResponse.json(automation, { status: 201 })
 }

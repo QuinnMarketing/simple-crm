@@ -1,7 +1,8 @@
 import { auth } from '@/auth'
+import { logAudit, getIp } from '@/lib/audit'
 import { prisma } from '@/lib/prisma'
 import { getAccountFilter } from '@/lib/account-scope'
-import { NextResponse } from 'next/server'
+import { after, NextResponse } from 'next/server'
 
 export async function GET(req: Request) {
   const session = await auth()
@@ -66,5 +67,6 @@ export async function POST(req: Request) {
     },
   })
 
+  after(() => logAudit({ accountId, userId: session.user.id, userEmail: session.user.email, action: 'time_entry.created', entityType: 'time_entry', entityId: entry.id, entityLabel: `${entry.type} — ${entry.durationMin}m`, ipAddress: getIp(req as Request) }))
   return NextResponse.json(entry, { status: 201 })
 }

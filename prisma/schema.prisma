@@ -175,6 +175,20 @@ model TimeEntry {
   updatedAt   DateTime @updatedAt
 }
 
+model AuditLog {
+  id          String   @id @default(cuid())
+  accountId   String?
+  userId      String?
+  userEmail   String?
+  action      String   // 'lead.created' | 'lead.updated' | 'lead.deleted' | etc.
+  entityType  String   // 'lead' | 'quote' | 'appointment' | 'company' | 'user' | 'automation' | 'time_entry'
+  entityId    String
+  entityLabel String?  // human-readable name at time of action
+  changes     String?  // JSON: { field: [oldVal, newVal], ... }
+  ipAddress   String?
+  createdAt   DateTime @default(now())
+}
+
 model ConversionEvent {
   id           String   @id @default(cuid())
   leadId       String

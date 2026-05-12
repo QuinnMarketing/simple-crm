@@ -1,4 +1,5 @@
 import { auth } from '@/auth'
+import { logAudit, auditDiff, getIp } from '@/lib/audit'
 import { prisma } from '@/lib/prisma'
 import { getAccountFilter } from '@/lib/account-scope'
 import { pushToGoogleAds, type GoogleAdsConfig } from '@/lib/google-ads'
@@ -119,10 +120,11 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     after(() => runAutomations('lead_status_changed', lead, { previousStatus: existing.status }))
   }
 
+  after(() => logAudit({ accountId: lead.accountId, userId: session.user.id, userEmail: session.user.email, action: 'lead.updated', entityType: 'lead', entityId: lead.id, entityLabel: lead.name, changes: auditDiff(existing as Record<string, unknown>, lead as Record<string, unknown>), ipAddress: getIp(req) }))
   return NextResponse.json(lead)
 }
 
-export async function DELETE(_req: NextRequest, { params }: Params) {
+export async function DELETE(req: NextRequest, { params }: Params) {
   const session = await auth()
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
@@ -133,5 +135,6 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
   if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
   await prisma.lead.delete({ where: { id } })
+  after(() => logAudit({ accountId: existing.accountId, userId: session.user.id, userEmail: session.user.email, action: 'lead.deleted', entityType: 'lead', entityId: id, entityLabel: existing.name, ipAddress: getIp(req) }))
   return NextResponse.json({ success: true })
 }

@@ -1,4 +1,5 @@
 import { auth } from '@/auth'
+import { logAudit, getIp } from '@/lib/audit'
 import { runAppointmentBookedAutomations } from '@/lib/automations'
 import { prisma } from '@/lib/prisma'
 import { getAccountFilter } from '@/lib/account-scope'
@@ -84,5 +85,6 @@ export async function POST(req: NextRequest) {
   }
 
   after(() => runAppointmentBookedAutomations(appointment))
+  after(() => logAudit({ accountId, userId: session.user.id, userEmail: session.user.email, action: 'appointment.created', entityType: 'appointment', entityId: appointment.id, entityLabel: appointment.title, ipAddress: getIp(req) }))
   return NextResponse.json(appointment)
 }
