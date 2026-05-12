@@ -128,7 +128,7 @@ export default function IntegrationsForm({ accountId, initialConfigs }: Integrat
               <Mail className="w-4 h-4 text-indigo-500" />
               Email (SMTP)
             </h2>
-            <p className="text-slate-500 text-sm mt-0.5">Used by Automations to send emails to leads</p>
+            <p className="text-slate-500 text-sm mt-0.5">Used by Automations and Campaigns to send emails to leads</p>
           </div>
           <IntegrationBadge configured={smtpOk} label="SMTP" />
         </div>
