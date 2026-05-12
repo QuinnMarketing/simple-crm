@@ -3,7 +3,7 @@ import { useParams, useRouter } from 'next/navigation'
 import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import {
-  ArrowLeft, Loader2, Save, Trash2, CheckCircle, XCircle, AlertCircle, ChevronDown, ChevronUp, Plus, CalendarDays,
+  ArrowLeft, Loader2, Save, Trash2, CheckCircle, XCircle, AlertCircle, ChevronDown, ChevronUp, Plus, CalendarDays, Navigation,
 } from 'lucide-react'
 import StatusBadge from '@/components/StatusBadge'
 import AppointmentModal, { type Appointment } from '@/app/(main)/calendar/AppointmentModal'
@@ -211,6 +211,30 @@ export default function LeadDetailPage() {
                   placeholder="123 Example St, Sydney NSW 2000"
                 />
               </div>
+
+              {lead.address && (
+                <div className="col-span-2">
+                  <div className="rounded-lg overflow-hidden border border-slate-200 relative">
+                    <iframe
+                      title="Lead address map"
+                      src={`https://maps.google.com/maps?q=${encodeURIComponent(lead.address)}&output=embed&zoom=15`}
+                      className="w-full h-44"
+                      loading="lazy"
+                      referrerPolicy="no-referrer-when-downgrade"
+                    />
+                    <a
+                      href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(lead.address)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="absolute bottom-2 right-2 flex items-center gap-1.5 bg-white text-slate-800 text-xs font-medium px-3 py-1.5 rounded-full shadow-md border border-slate-200 hover:bg-slate-50 transition-colors"
+                    >
+                      <Navigation className="w-3.5 h-3.5 text-indigo-600" />
+                      Navigate
+                    </a>
+                  </div>
+                </div>
+              )}
+
               <div className="col-span-2">
                 <label className="block text-xs font-medium text-slate-500 mb-1.5 uppercase tracking-wide">Company</label>
                 <select
