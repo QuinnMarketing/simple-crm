@@ -14,19 +14,20 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   const quote = await prisma.quote.findFirst({
     where: { id, ...filter },
     include: {
-      lead: { select: { name: true, email: true, phone: true, address: true, service: true } },
+      lead: { select: { name: true, email: true, phone: true, address: true, service: true, accountId: true } },
     },
   })
 
   if (!quote) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
-  const accountId = quote.accountId ?? session.user.accountId ?? null
-  if (!accountId) return NextResponse.json({ error: 'No account' }, { status: 400 })
+  const accountId = quote.accountId ?? session.user.accountId ?? quote.lead?.accountId ?? null
 
-  const account = await prisma.account.findUnique({
-    where: { id: accountId },
-    select: { name: true, abn: true, businessAddress: true, businessPhone: true, businessEmail: true, businessWebsite: true },
-  })
+  const account = accountId
+    ? await prisma.account.findUnique({
+        where: { id: accountId },
+        select: { name: true, abn: true, businessAddress: true, businessPhone: true, businessEmail: true, businessWebsite: true },
+      })
+    : null
 
   try {
     const buffer = await generateInvoicePdf({
