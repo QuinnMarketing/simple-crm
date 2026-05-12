@@ -4,6 +4,11 @@ import { parseWebhookPayload } from '@/lib/webhook-parser'
 import { after } from 'next/server'
 import { NextRequest, NextResponse } from 'next/server'
 
+// Some platforms (Elementor, WPForms, etc.) ping with GET to verify the URL
+export async function GET() {
+  return NextResponse.json({ ok: true })
+}
+
 export async function POST(req: NextRequest) {
   let body: Record<string, unknown>
   const contentType = req.headers.get('content-type') ?? ''
@@ -11,6 +16,11 @@ export async function POST(req: NextRequest) {
     if (contentType.includes('application/x-www-form-urlencoded')) {
       const text = await req.text()
       body = Object.fromEntries(new URLSearchParams(text).entries())
+    } else if (contentType.includes('multipart/form-data')) {
+      const formData = await req.formData()
+      body = Object.fromEntries(
+        Array.from(formData.entries()).map(([k, v]) => [k, v.toString()])
+      )
     } else {
       body = await req.json()
     }
@@ -67,5 +77,6 @@ export async function POST(req: NextRequest) {
 
   after(() => runAutomations('lead_created', lead))
 
-  return NextResponse.json({ success: true, leadId: lead.id }, { status: 201 })
+  // Return 200 (not 201) — some platforms treat anything other than 200 as an error
+  return NextResponse.json({ success: true, leadId: lead.id })
 }
