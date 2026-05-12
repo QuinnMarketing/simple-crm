@@ -112,10 +112,12 @@ function extractAttribution(url: string): Record<string, string> {
     const fbclid = pick(['fbclid'])
     const fbp = pick(['_fbp', 'fbp'])
     const fbc = pick(['_fbc', 'fbc'])
+    const utmSource = pick(['utm_source'])
     if (gclid) result.gclid = gclid
     if (fbclid) result.fbclid = fbclid
     if (fbp) result.fbp = fbp
     if (fbc) result.fbc = fbc
+    if (utmSource) result.utm_source = utmSource
     return result
   } catch {
     return {}
@@ -149,6 +151,7 @@ export function parseWebhookPayload(body: Record<string, unknown>): ParsedLead {
   const fbclid = flat.fbclid ?? urlAttrib.fbclid
   const fbp = flat['_fbp'] ?? flat.fbp ?? urlAttrib.fbp
   const fbc = flat['_fbc'] ?? flat.fbc ?? urlAttrib.fbc
+  const source = flat.utm_source ?? flat['utm source'] ?? urlAttrib.utm_source
 
-  return { name, email, phone, address, service, notes, gclid, fbclid, fbp, fbc, pageUrl, formData: raw }
+  return { name, email, phone, address, service, notes, source, gclid, fbclid, fbp, fbc, pageUrl, formData: raw }
 }

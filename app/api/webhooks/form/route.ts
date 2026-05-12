@@ -62,7 +62,7 @@ export async function POST(req: NextRequest) {
       address: parsed.address ?? null,
       service: parsed.service ?? null,
       notes: parsed.notes ?? null,
-      source: 'webhook',
+      source: parsed.source ?? 'webhook',
       status: 'new',
       gclid: parsed.gclid ?? null,
       fbclid: parsed.fbclid ?? null,
