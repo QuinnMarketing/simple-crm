@@ -8,6 +8,7 @@ import {
 import StatusBadge from '@/components/StatusBadge'
 import AppointmentModal, { type Appointment } from '@/app/(main)/calendar/AppointmentModal'
 import QuotesSection from './QuotesSection'
+import LeadTimeline from './LeadTimeline'
 
 type Company = { id: string; name: string; color: string }
 
@@ -457,6 +458,8 @@ export default function LeadDetailPage() {
               })}
             </div>
           </div>
+
+          <LeadTimeline leadId={id} />
 
           {/* Conversion History */}
           {lead.conversions.length > 0 && (

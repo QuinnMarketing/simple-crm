@@ -5,6 +5,8 @@ import IntegrationsForm from './IntegrationsForm'
 import CopyButton from './CopyButton'
 import DocumentTemplatesSection from './DocumentTemplatesSection'
 import BusinessInfoForm from './BusinessInfoForm'
+import Link from 'next/link'
+import { UserCog, History } from 'lucide-react'
 
 export default async function SettingsPage({
   searchParams,
@@ -129,6 +131,34 @@ export default async function SettingsPage({
             businessWebsite: account.businessWebsite ?? '',
           }}
         />
+
+        {/* Users + Audit Log quick links */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <Link
+            href={`/users${accountParam ? `?account=${accountParam}` : ''}`}
+            className="bg-white rounded-xl border border-slate-200 p-5 flex items-center gap-4 hover:border-indigo-300 hover:bg-indigo-50/40 transition-colors group"
+          >
+            <div className="w-10 h-10 bg-slate-100 group-hover:bg-indigo-100 rounded-lg flex items-center justify-center flex-shrink-0 transition-colors">
+              <UserCog className="w-5 h-5 text-slate-500 group-hover:text-indigo-600 transition-colors" />
+            </div>
+            <div>
+              <p className="font-semibold text-slate-900 text-sm">Users</p>
+              <p className="text-xs text-slate-500 mt-0.5">Manage team members and roles</p>
+            </div>
+          </Link>
+          <Link
+            href={`/audit${accountParam ? `?account=${accountParam}` : ''}`}
+            className="bg-white rounded-xl border border-slate-200 p-5 flex items-center gap-4 hover:border-indigo-300 hover:bg-indigo-50/40 transition-colors group"
+          >
+            <div className="w-10 h-10 bg-slate-100 group-hover:bg-indigo-100 rounded-lg flex items-center justify-center flex-shrink-0 transition-colors">
+              <History className="w-5 h-5 text-slate-500 group-hover:text-indigo-600 transition-colors" />
+            </div>
+            <div>
+              <p className="font-semibold text-slate-900 text-sm">Audit Log</p>
+              <p className="text-xs text-slate-500 mt-0.5">Full history of all CRM actions</p>
+            </div>
+          </Link>
+        </div>
 
         <DocumentTemplatesSection />
 
