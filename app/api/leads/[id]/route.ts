@@ -99,6 +99,8 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   if ('gclid' in body) updates.gclid = body.gclid || null
   if ('fbclid' in body) updates.fbclid = body.fbclid || null
   if ('companyId' in body) updates.companyId = body.companyId || null
+  if ('nextStep' in body) updates.nextStep = body.nextStep || null
+  if ('nextStepDue' in body) updates.nextStepDue = body.nextStepDue || null
 
   const lead = await prisma.lead.update({
     where: { id },

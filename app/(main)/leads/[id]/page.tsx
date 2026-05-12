@@ -9,6 +9,7 @@ import StatusBadge from '@/components/StatusBadge'
 import AppointmentModal, { type Appointment } from '@/app/(main)/calendar/AppointmentModal'
 import QuotesSection from './QuotesSection'
 import LeadTimeline from './LeadTimeline'
+import NextStepsCard from './NextStepsCard'
 
 type Company = { id: string; name: string; color: string }
 
@@ -18,6 +19,7 @@ type Lead = {
   value: number | null; formData: string | null; gclid: string | null
   fbclid: string | null; fbp: string | null; fbc: string | null
   userAgent: string | null; ipAddress: string | null; pageUrl: string | null
+  nextStep: string | null; nextStepDue: string | null
   companyId: string | null; company: Company | null
   createdAt: string; updatedAt: string
   conversions: Conversion[]
@@ -356,8 +358,15 @@ export default function LeadDetailPage() {
           )}
         </div>
 
-        {/* Right: Appointments + Platform Push */}
+        {/* Right: Next Steps + Appointments + Platform Push */}
         <div className="space-y-5">
+          <NextStepsCard
+            leadId={id}
+            status={lead.status}
+            initialNextStep={lead.nextStep}
+            initialNextStepDue={lead.nextStepDue}
+          />
+
           {/* Appointments */}
           <div className="bg-white rounded-xl border border-slate-200 p-5">
             <div className="flex items-center justify-between mb-4">

@@ -88,6 +88,8 @@ model Lead {
   userAgent   String?
   ipAddress   String?
   pageUrl     String?
+  nextStep    String?
+  nextStepDue String?
   companyId   String?
   company     Company? @relation(fields: [companyId], references: [id])
   accountId   String?
