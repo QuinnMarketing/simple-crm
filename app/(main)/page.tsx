@@ -272,9 +272,6 @@ export default async function DashboardPage({
     }
   }
 
-  const stageOrder = ['new', 'contacted', 'qualified', 'won', 'lost']
-  const maxAvgMs = Math.max(...stageOrder.map((s) => avgStageTime[s]?.avgMs ?? 0), 1)
-
   const fmtCurrency = (v: number) =>
     v >= 1_000_000
       ? `$${(v / 1_000_000).toFixed(1)}M`
@@ -293,13 +290,13 @@ export default async function DashboardPage({
       : '12 weeks'
 
   const statusStats = [
-    { label: 'Total',     value: total,             prev: prevTotal,          color: 'text-slate-900' },
-    { label: 'New',       value: sm.new ?? 0,       prev: pm?.new,            color: 'text-blue-600' },
-    { label: 'Contacted', value: sm.contacted ?? 0, prev: pm?.contacted,      color: 'text-yellow-600' },
-    { label: 'Qualified', value: sm.qualified ?? 0, prev: pm?.qualified,      color: 'text-purple-600' },
-    { label: 'Won',       value: sm.won ?? 0,       prev: pm?.won,            color: 'text-green-600' },
-    { label: 'Lost',      value: sm.lost ?? 0,      prev: pm?.lost,           color: 'text-red-600' },
-    { label: 'Booked',    value: upcomingAppts.length, prev: null,            color: 'text-indigo-600' },
+    { label: 'Total',     value: total,             prev: prevTotal,          color: 'text-slate-900',   avgMs: null as number | null },
+    { label: 'New',       value: sm.new ?? 0,       prev: pm?.new,            color: 'text-blue-600',    avgMs: avgStageTime['new']?.avgMs ?? null },
+    { label: 'Contacted', value: sm.contacted ?? 0, prev: pm?.contacted,      color: 'text-yellow-600',  avgMs: avgStageTime['contacted']?.avgMs ?? null },
+    { label: 'Qualified', value: sm.qualified ?? 0, prev: pm?.qualified,      color: 'text-purple-600',  avgMs: avgStageTime['qualified']?.avgMs ?? null },
+    { label: 'Won',       value: sm.won ?? 0,       prev: pm?.won,            color: 'text-green-600',   avgMs: avgStageTime['won']?.avgMs ?? null },
+    { label: 'Lost',      value: sm.lost ?? 0,      prev: pm?.lost,           color: 'text-red-600',     avgMs: avgStageTime['lost']?.avgMs ?? null },
+    { label: 'Booked',    value: upcomingAppts.length, prev: null,            color: 'text-indigo-600',  avgMs: null },
   ]
 
   const platformStats = [
@@ -358,11 +355,13 @@ export default async function DashboardPage({
             <div key={s.label} className="bg-white rounded-xl border border-slate-200 p-5">
               <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">{s.label}</p>
               <p className={`text-3xl font-bold mt-2 ${s.color}`}>{s.value}</p>
-              {d && (
+              {d ? (
                 <p className={`text-xs mt-1 font-medium ${d.diff >= 0 ? 'text-green-600' : 'text-red-500'}`}>
                   {d.diff >= 0 ? '↑' : '↓'} {Math.abs(d.diff)} ({Math.abs(d.pct)}%)
                 </p>
-              )}
+              ) : s.avgMs != null ? (
+                <p className="text-xs text-slate-400 mt-1">avg {fmtDuration(s.avgMs)}</p>
+              ) : null}
             </div>
           )
         })}
@@ -385,44 +384,6 @@ export default async function DashboardPage({
           <p className="text-xs text-slate-400 mt-1">Leads with booked appointments{total > 0 ? ` · ${apptWithLeadCount}/${total} leads` : ''}</p>
         </div>
       </div>
-
-      {Object.keys(avgStageTime).length > 0 && (
-        <div className="bg-white rounded-xl border border-slate-200 p-5 mb-6">
-          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-4">Avg Time in Stage</p>
-          <div className="space-y-3">
-            {stageOrder.filter((s) => avgStageTime[s]).map((status) => {
-              const { avgMs, count } = avgStageTime[status]
-              const pct = Math.max(2, Math.round((avgMs / maxAvgMs) * 100))
-              const BAR_COLORS: Record<string, string> = {
-                new: 'bg-blue-400', contacted: 'bg-yellow-400',
-                qualified: 'bg-purple-400', won: 'bg-green-400', lost: 'bg-red-400',
-              }
-              const TEXT_COLORS: Record<string, string> = {
-                new: 'text-blue-700 bg-blue-100', contacted: 'text-yellow-700 bg-yellow-100',
-                qualified: 'text-purple-700 bg-purple-100', won: 'text-green-700 bg-green-100',
-                lost: 'text-red-700 bg-red-100',
-              }
-              return (
-                <div key={status} className="grid grid-cols-[90px_1fr_auto] items-center gap-3">
-                  <span className={`text-xs font-medium px-2 py-0.5 rounded-full capitalize text-center ${TEXT_COLORS[status] ?? 'bg-slate-100 text-slate-600'}`}>
-                    {status}
-                  </span>
-                  <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
-                    <div className={`h-full rounded-full ${BAR_COLORS[status] ?? 'bg-slate-400'}`} style={{ width: `${pct}%` }} />
-                  </div>
-                  <div className="text-right">
-                    <span className="text-sm font-semibold text-slate-700 tabular-nums">{fmtDuration(avgMs)}</span>
-                    <span className="text-xs text-slate-400 ml-1.5">{count}×</span>
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-          {stageTimeLeads.length === 500 && (
-            <p className="text-xs text-slate-400 mt-3 pt-3 border-t border-slate-100">Based on most recent 500 leads</p>
-          )}
-        </div>
-      )}
 
       <DashboardCharts
         byStatus={sm}
