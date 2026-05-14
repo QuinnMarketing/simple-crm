@@ -1,5 +1,6 @@
 import { logAudit } from '@/lib/audit'
 import { runAutomations } from '@/lib/automations'
+import { sendPushToAccount } from '@/lib/push'
 import { prisma } from '@/lib/prisma'
 import { parseWebhookPayload } from '@/lib/webhook-parser'
 import { after } from 'next/server'
@@ -79,6 +80,11 @@ export async function POST(req: NextRequest) {
 
   after(() => runAutomations('lead_created', lead))
   after(() => logAudit({ accountId, action: 'lead.created', entityType: 'lead', entityId: lead.id, entityLabel: lead.name, ipAddress: lead.ipAddress }))
+  after(() => sendPushToAccount(accountId, {
+    title: `New Lead: ${lead.name}`,
+    body: [lead.service, lead.source].filter(Boolean).join(' · ') || 'Submitted via website form',
+    url: `/leads/${lead.id}`,
+  }))
 
   // Return 200 (not 201) — some platforms treat anything other than 200 as an error
   return NextResponse.json({ success: true, leadId: lead.id })

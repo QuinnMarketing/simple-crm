@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react'
 import { usePathname } from 'next/navigation'
 import { Menu, Zap } from 'lucide-react'
 import Sidebar from './Sidebar'
+import PushToggle from './PushToggle'
 
 type SidebarUser = { name?: string | null; email?: string | null; role?: string; accountId?: string | null }
 type SidebarAccount = { id: string; name: string }
@@ -40,12 +41,13 @@ export default function SidebarShell({
         >
           <Menu className="w-6 h-6" />
         </button>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-1">
           <div className="w-7 h-7 bg-indigo-600 rounded-lg flex items-center justify-center flex-shrink-0">
             <Zap className="w-3.5 h-3.5 text-white" />
           </div>
           <span className="text-white font-bold">Simple CRM</span>
         </div>
+        <PushToggle />
       </div>
 
       {/* Backdrop */}

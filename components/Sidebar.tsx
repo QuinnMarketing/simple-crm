@@ -4,6 +4,7 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { useState } from 'react'
 import { LayoutDashboard, Users, Settings, LogOut, Zap, Building2, ChevronDown, Layers, CalendarDays, FileText, Bot, Clock, Mail } from 'lucide-react'
 import { signOut } from 'next-auth/react'
+import PushToggle from './PushToggle'
 
 type SidebarUser = {
   name?: string | null
@@ -153,13 +154,16 @@ export default function Sidebar({
           <p className="text-slate-500 text-xs truncate mt-0.5">{user?.email}</p>
           <p className="text-slate-600 text-xs mt-0.5 capitalize">{user?.role?.replace(/_/g, ' ')}</p>
         </div>
-        <button
-          onClick={() => signOut({ callbackUrl: '/login' })}
-          className="flex items-center gap-2 text-slate-400 hover:text-white text-sm transition-colors w-full px-1 py-1"
-        >
-          <LogOut className="w-4 h-4" />
-          Sign out
-        </button>
+        <div className="flex items-center justify-between">
+          <button
+            onClick={() => signOut({ callbackUrl: '/login' })}
+            className="flex items-center gap-2 text-slate-400 hover:text-white text-sm transition-colors px-1 py-1"
+          >
+            <LogOut className="w-4 h-4" />
+            Sign out
+          </button>
+          <PushToggle />
+        </div>
       </div>
     </div>
   )
