@@ -165,12 +165,38 @@ export default function LeadDetailPage() {
             </button>
           </div>
         </div>
-        <p className="text-slate-500 text-sm mt-1">
-          Added {new Date(lead.createdAt).toLocaleDateString('en-AU', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
-          {lead.updatedAt !== lead.createdAt && (
-            <span className="text-slate-400"> · Last edited {new Date(lead.updatedAt).toLocaleDateString('en-AU', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+        <div className="flex flex-wrap items-center gap-2 mt-2">
+          {lead.phone && (
+            <>
+              <a
+                href={`tel:${lead.phone}`}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-green-200 bg-green-50 text-green-700 text-sm font-medium hover:bg-green-100 transition-colors"
+              >
+                <Phone className="w-3.5 h-3.5" /> Call
+              </a>
+              <a
+                href={`sms:${lead.phone}`}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-blue-200 bg-blue-50 text-blue-700 text-sm font-medium hover:bg-blue-100 transition-colors"
+              >
+                <MessageSquare className="w-3.5 h-3.5" /> SMS
+              </a>
+              <a
+                href={`https://wa.me/${lead.phone.replace(/\D/g, '')}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-700 text-sm font-medium hover:bg-emerald-100 transition-colors"
+              >
+                <MessageSquare className="w-3.5 h-3.5" /> WhatsApp
+              </a>
+            </>
           )}
-        </p>
+          <p className="text-slate-400 text-sm">
+            Added {new Date(lead.createdAt).toLocaleDateString('en-AU', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+            {lead.updatedAt !== lead.createdAt && (
+              <span> · Last edited {new Date(lead.updatedAt).toLocaleDateString('en-AU', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+            )}
+          </p>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
