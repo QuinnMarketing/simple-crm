@@ -20,7 +20,7 @@ export default function NewLeadPage() {
   const [form, setForm] = useState({
     name: '', email: '', phone: '', address: '', service: '',
     source: '', status: 'new', value: '', notes: '',
-    companyId: preselectedCompany,
+    bestTimeToContact: '', companyId: preselectedCompany,
   })
 
   useEffect(() => {
@@ -84,6 +84,19 @@ export default function NewLeadPage() {
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1.5">Phone</label>
               <input type="tel" value={form.phone} onChange={(e) => set('phone', e.target.value)} className={inputCls} placeholder="0400 000 000" />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">Best Time to Contact</label>
+              <select value={form.bestTimeToContact} onChange={(e) => set('bestTimeToContact', e.target.value)} className={inputCls + ' bg-white'}>
+                <option value="">— Any time —</option>
+                <option value="Morning (8am–12pm)">Morning (8am–12pm)</option>
+                <option value="Afternoon (12pm–5pm)">Afternoon (12pm–5pm)</option>
+                <option value="Evening (5pm–8pm)">Evening (5pm–8pm)</option>
+                <option value="Weekdays only">Weekdays only</option>
+                <option value="Weekends only">Weekends only</option>
+                <option value="ASAP">ASAP</option>
+              </select>
             </div>
 
             <div className="col-span-2">

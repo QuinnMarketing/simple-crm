@@ -5,7 +5,7 @@ import { toCsv } from '@/lib/csv'
 import { NextRequest, NextResponse } from 'next/server'
 
 const COLUMNS = [
-  'name', 'email', 'phone', 'address', 'company', 'service',
+  'name', 'email', 'phone', 'bestTimeToContact', 'address', 'company', 'service',
   'status', 'source', 'value', 'notes', 'lostReason', 'pageUrl', 'gclid', 'createdAt',
 ]
 
@@ -41,6 +41,7 @@ export async function GET(req: NextRequest) {
     name: l.name,
     email: l.email ?? '',
     phone: l.phone ?? '',
+    bestTimeToContact: l.bestTimeToContact ?? '',
     address: l.address ?? '',
     company: l.company?.name ?? '',
     service: l.service ?? '',

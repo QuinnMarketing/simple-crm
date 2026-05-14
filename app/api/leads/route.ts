@@ -58,6 +58,7 @@ export async function POST(req: NextRequest) {
       status: body.status ?? 'new',
       notes: body.notes || null,
       value: body.value ?? null,
+      bestTimeToContact: body.bestTimeToContact || null,
       companyId: body.companyId || null,
       accountId,
     },

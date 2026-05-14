@@ -22,7 +22,7 @@ type Lead = {
   value: number | null; formData: string | null; gclid: string | null
   fbclid: string | null; fbp: string | null; fbc: string | null
   userAgent: string | null; ipAddress: string | null; pageUrl: string | null
-  nextStep: string | null; nextStepDue: string | null; lostReason: string | null
+  bestTimeToContact: string | null; nextStep: string | null; nextStepDue: string | null; lostReason: string | null
   companyId: string | null; company: Company | null
   createdAt: string; updatedAt: string
   conversions: Conversion[]
@@ -232,6 +232,22 @@ export default function LeadDetailPage() {
                   onChange={(e) => setField('phone', e.target.value || null)}
                   className="w-full px-3 py-2.5 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                 />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-500 mb-1.5 uppercase tracking-wide">Best Time to Contact</label>
+                <select
+                  value={form.bestTimeToContact ?? ''}
+                  onChange={(e) => setField('bestTimeToContact', e.target.value || null)}
+                  className="w-full px-3 py-2.5 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                >
+                  <option value="">— Any time —</option>
+                  <option value="Morning (8am–12pm)">Morning (8am–12pm)</option>
+                  <option value="Afternoon (12pm–5pm)">Afternoon (12pm–5pm)</option>
+                  <option value="Evening (5pm–8pm)">Evening (5pm–8pm)</option>
+                  <option value="Weekdays only">Weekdays only</option>
+                  <option value="Weekends only">Weekends only</option>
+                  <option value="ASAP">ASAP</option>
+                </select>
               </div>
               <div className="col-span-2">
                 <label className="block text-xs font-medium text-slate-500 mb-1.5 uppercase tracking-wide">Address</label>

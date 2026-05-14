@@ -103,6 +103,7 @@ model Lead {
   userAgent   String?
   ipAddress   String?
   pageUrl     String?
+  bestTimeToContact   String?
   nextStep            String?
   nextStepDue         String?
   lostReason          String?
