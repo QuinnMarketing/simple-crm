@@ -82,6 +82,7 @@ export default async function DashboardPage({
 
   const [total, byStatus, recentLeads, conversions, activeCompany, valueByStatus, chartLeads, upcomingAppts, pendingQuoteAgg, invoiceAgg,
     apptWithLeadCount, prevTotal, prevByStatus, prevValueByStatus, prevPendingQuote, prevInvoice,
+    stageTimeLeads,
   ] = await Promise.all([
     prisma.lead.count({ where }),
     prisma.lead.groupBy({ by: ['status'], where, _count: true }),
@@ -133,6 +134,8 @@ export default async function DashboardPage({
     prevWhere ? prisma.lead.groupBy({ by: ['status'], where: prevWhere, _sum: { value: true }, _count: { _all: true } }) : Promise.resolve(null),
     prevDateFilter ? prisma.quote.aggregate({ where: { ...accountFilter, type: 'quote', status: { in: ['draft', 'sent'] }, ...{ createdAt: { gte: prevFromDate, lte: prevToDate } } }, _sum: { total: true } }) : Promise.resolve(null),
     prevDateFilter ? prisma.quote.aggregate({ where: { ...accountFilter, type: 'invoice', ...{ createdAt: { gte: prevFromDate, lte: prevToDate } } }, _sum: { total: true } }) : Promise.resolve(null),
+    // Stage time source — capped at 500 leads to keep audit log query manageable
+    prisma.lead.findMany({ where, select: { id: true, status: true, createdAt: true }, take: 500 }),
   ])
 
   const sm = Object.fromEntries(byStatus.map((s) => [s.status, s._count]))
@@ -200,6 +203,77 @@ export default async function DashboardPage({
   const prevLostCount = pm?.lost ?? 0
   const prevCloseDenominator = prevWonCount + prevLostCount
   const prevCloseRate = prevCloseDenominator > 0 ? Math.round((prevWonCount / prevCloseDenominator) * 100) : null
+
+  // Avg time in stage
+  function fmtDuration(ms: number): string {
+    const m = Math.floor(ms / 60_000)
+    const h = Math.floor(ms / 3_600_000)
+    const d = Math.floor(ms / 86_400_000)
+    const w = Math.floor(d / 7)
+    if (w >= 2) return `${w}w${d % 7 ? ` ${d % 7}d` : ''}`
+    if (d >= 1) return `${d}d${h % 24 ? ` ${h % 24}h` : ''}`
+    if (h >= 1) return `${h}h${m % 60 ? ` ${m % 60}m` : ''}`
+    return m < 1 ? '<1m' : `${m}m`
+  }
+
+  type StageStat = { avgMs: number; count: number }
+  let avgStageTime: Record<string, StageStat> = {}
+
+  if (stageTimeLeads.length > 0) {
+    const stageAuditLogs = await prisma.auditLog.findMany({
+      where: { entityType: 'lead', entityId: { in: stageTimeLeads.map((l) => l.id) } },
+      orderBy: { createdAt: 'asc' },
+      select: { entityId: true, changes: true, createdAt: true },
+    })
+
+    const logsByLead = new Map<string, typeof stageAuditLogs>()
+    for (const log of stageAuditLogs) {
+      if (!logsByLead.has(log.entityId)) logsByLead.set(log.entityId, [])
+      logsByLead.get(log.entityId)!.push(log)
+    }
+
+    const stageTotals: Record<string, { totalMs: number; count: number }> = {}
+
+    for (const lead of stageTimeLeads) {
+      const logs = logsByLead.get(lead.id) ?? []
+      const transitions: { from: string; to: string; at: Date }[] = []
+      for (const log of logs) {
+        try {
+          const changes = log.changes ? JSON.parse(log.changes) : null
+          if (changes?.status) {
+            const [from, to] = changes.status as [string, string]
+            if (from !== to) transitions.push({ from, to, at: log.createdAt })
+          }
+        } catch { /* skip */ }
+      }
+
+      const addStage = (status: string, ms: number) => {
+        if (!stageTotals[status]) stageTotals[status] = { totalMs: 0, count: 0 }
+        stageTotals[status].totalMs += ms
+        stageTotals[status].count++
+      }
+
+      if (transitions.length === 0) {
+        addStage(lead.status, now.getTime() - lead.createdAt.getTime())
+      } else {
+        let curStatus = transitions[0].from
+        let curAt = lead.createdAt
+        for (const t of transitions) {
+          addStage(curStatus, t.at.getTime() - curAt.getTime())
+          curStatus = t.to
+          curAt = t.at
+        }
+        addStage(curStatus, now.getTime() - curAt.getTime())
+      }
+    }
+
+    for (const [status, { totalMs, count }] of Object.entries(stageTotals)) {
+      avgStageTime[status] = { avgMs: Math.round(totalMs / count), count }
+    }
+  }
+
+  const stageOrder = ['new', 'contacted', 'qualified', 'won', 'lost']
+  const maxAvgMs = Math.max(...stageOrder.map((s) => avgStageTime[s]?.avgMs ?? 0), 1)
 
   const fmtCurrency = (v: number) =>
     v >= 1_000_000
@@ -311,6 +385,44 @@ export default async function DashboardPage({
           <p className="text-xs text-slate-400 mt-1">Leads with booked appointments{total > 0 ? ` · ${apptWithLeadCount}/${total} leads` : ''}</p>
         </div>
       </div>
+
+      {Object.keys(avgStageTime).length > 0 && (
+        <div className="bg-white rounded-xl border border-slate-200 p-5 mb-6">
+          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-4">Avg Time in Stage</p>
+          <div className="space-y-3">
+            {stageOrder.filter((s) => avgStageTime[s]).map((status) => {
+              const { avgMs, count } = avgStageTime[status]
+              const pct = Math.max(2, Math.round((avgMs / maxAvgMs) * 100))
+              const BAR_COLORS: Record<string, string> = {
+                new: 'bg-blue-400', contacted: 'bg-yellow-400',
+                qualified: 'bg-purple-400', won: 'bg-green-400', lost: 'bg-red-400',
+              }
+              const TEXT_COLORS: Record<string, string> = {
+                new: 'text-blue-700 bg-blue-100', contacted: 'text-yellow-700 bg-yellow-100',
+                qualified: 'text-purple-700 bg-purple-100', won: 'text-green-700 bg-green-100',
+                lost: 'text-red-700 bg-red-100',
+              }
+              return (
+                <div key={status} className="grid grid-cols-[90px_1fr_auto] items-center gap-3">
+                  <span className={`text-xs font-medium px-2 py-0.5 rounded-full capitalize text-center ${TEXT_COLORS[status] ?? 'bg-slate-100 text-slate-600'}`}>
+                    {status}
+                  </span>
+                  <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                    <div className={`h-full rounded-full ${BAR_COLORS[status] ?? 'bg-slate-400'}`} style={{ width: `${pct}%` }} />
+                  </div>
+                  <div className="text-right">
+                    <span className="text-sm font-semibold text-slate-700 tabular-nums">{fmtDuration(avgMs)}</span>
+                    <span className="text-xs text-slate-400 ml-1.5">{count}×</span>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+          {stageTimeLeads.length === 500 && (
+            <p className="text-xs text-slate-400 mt-3 pt-3 border-t border-slate-100">Based on most recent 500 leads</p>
+          )}
+        </div>
+      )}
 
       <DashboardCharts
         byStatus={sm}
