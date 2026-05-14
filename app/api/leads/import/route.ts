@@ -80,6 +80,7 @@ export async function POST(req: NextRequest) {
           address: row.address?.trim() || null,
           service: row.service?.trim() || null,
           notes: row.notes?.trim() || null,
+          lostReason: row.lostreason?.trim() || row.lostReason?.trim() || null,
           pageUrl: row.pageurl?.trim() || row.pageUrl?.trim() || null,
           gclid: row.gclid?.trim() || null,
           status,

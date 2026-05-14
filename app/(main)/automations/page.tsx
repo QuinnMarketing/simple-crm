@@ -19,6 +19,7 @@ const TRIGGER_LABELS: Record<string, string> = {
   pending_quote_followup: 'Pending quote follow-up',
   appointment_booked: 'Appointment booked',
   appointment_reminder: '24h appointment reminder',
+  idle_deal: 'Idle deal alert',
 }
 
 const STATUS_LABELS: Record<string, string> = {
@@ -34,6 +35,9 @@ function triggerDescription(automation: Automation): string {
   }
   if (automation.trigger === 'pending_quote_followup') {
     return `Quote pending for ${tc.days ?? 3} day${(tc.days ?? 3) !== 1 ? 's' : ''}`
+  }
+  if (automation.trigger === 'idle_deal') {
+    return `No activity for ${tc.days ?? 7} day${(tc.days ?? 7) !== 1 ? 's' : ''}`
   }
   return TRIGGER_LABELS[automation.trigger] ?? automation.trigger
 }
@@ -64,7 +68,7 @@ function AutomationModal({ initial, onSave, onDelete, onClose }: ModalProps) {
   const [name, setName] = useState(initial?.name ?? '')
   const [trigger, setTrigger] = useState(initial?.trigger ?? 'lead_created')
   const [toStatus, setToStatus] = useState(initTc.toStatus ?? 'won')
-  const [followupDays, setFollowupDays] = useState<number>(initTc.days ?? 3)
+  const [followupDays, setFollowupDays] = useState<number>(initTc.days ?? (initial?.trigger === 'idle_deal' ? 7 : 3))
   const defaultSubject = APPOINTMENT_DEFAULT_SUBJECT[initial?.trigger ?? trigger]
     ?? (initial?.trigger === 'pending_quote_followup' ? 'Following up on your quote, {{name}}' : 'Thanks for your enquiry, {{name}}!')
   const defaultBody = APPOINTMENT_DEFAULT_BODY[initial?.trigger ?? trigger]
@@ -85,7 +89,8 @@ function AutomationModal({ initial, onSave, onDelete, onClose }: ModalProps) {
       const triggerConfig =
         trigger === 'lead_status_changed' ? { toStatus } :
         trigger === 'pending_quote_followup' ? { days: followupDays } :
-        {} // appointment_booked and appointment_reminder need no config
+        trigger === 'idle_deal' ? { days: followupDays } :
+        {}
       const actionConfig = { subject: subject.trim(), body: body.trim() }
       const payload = { name: name.trim(), trigger, triggerConfig, action: 'send_email', actionConfig }
       const res = await fetch(
@@ -162,6 +167,7 @@ function AutomationModal({ initial, onSave, onDelete, onClose }: ModalProps) {
                 <option value="pending_quote_followup">A sent quote has had no response for…</option>
                 <option value="appointment_booked">An appointment is booked</option>
                 <option value="appointment_reminder">24 hours before an appointment</option>
+                <option value="idle_deal">A lead has had no activity for…</option>
               </select>
             </div>
             {trigger === 'lead_status_changed' && (
@@ -172,9 +178,9 @@ function AutomationModal({ initial, onSave, onDelete, onClose }: ModalProps) {
                 </select>
               </div>
             )}
-            {trigger === 'pending_quote_followup' && (
+            {(trigger === 'pending_quote_followup' || trigger === 'idle_deal') && (
               <div>
-                <label className={labelCls}>Days since last contact</label>
+                <label className={labelCls}>{trigger === 'idle_deal' ? 'Days without any update' : 'Days since last contact'}</label>
                 <div className="flex items-center gap-2">
                   <input
                     type="number"
@@ -187,8 +193,10 @@ function AutomationModal({ initial, onSave, onDelete, onClose }: ModalProps) {
                   <span className="text-sm text-slate-500">days</span>
                 </div>
                 <p className="text-xs text-slate-400 mt-1.5">
-                  Fires once per lead when their sent quote hasn't been accepted or declined after this many days.
-                  Runs via <code className="bg-slate-100 px-1 rounded">/api/cron/automations</code>.
+                  {trigger === 'idle_deal'
+                    ? 'Fires once per lead when their status hasn\'t changed and they haven\'t been edited for this many days. Skips Won and Lost leads.'
+                    : 'Fires once per lead when their sent quote hasn\'t been accepted or declined after this many days.'}
+                  {' '}Runs via <code className="bg-slate-100 px-1 rounded">/api/cron/automations</code>.
                 </p>
               </div>
             )}

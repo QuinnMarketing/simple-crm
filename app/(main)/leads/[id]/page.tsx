@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import {
   ArrowLeft, Loader2, Save, Trash2, CheckCircle, XCircle, AlertCircle, ChevronDown, ChevronUp, Plus, CalendarDays, Navigation,
+  Phone, MessageSquare,
 } from 'lucide-react'
 import StatusBadge from '@/components/StatusBadge'
 import AppointmentModal, { type Appointment } from '@/app/(main)/calendar/AppointmentModal'
@@ -19,7 +20,7 @@ type Lead = {
   value: number | null; formData: string | null; gclid: string | null
   fbclid: string | null; fbp: string | null; fbc: string | null
   userAgent: string | null; ipAddress: string | null; pageUrl: string | null
-  nextStep: string | null; nextStepDue: string | null
+  nextStep: string | null; nextStepDue: string | null; lostReason: string | null
   companyId: string | null; company: Company | null
   createdAt: string; updatedAt: string
   conversions: Conversion[]
@@ -197,12 +198,30 @@ export default function LeadDetailPage() {
               </div>
               <div>
                 <label className="block text-xs font-medium text-slate-500 mb-1.5 uppercase tracking-wide">Phone</label>
-                <input
-                  type="tel"
-                  value={form.phone ?? ''}
-                  onChange={(e) => setField('phone', e.target.value || null)}
-                  className="w-full px-3 py-2.5 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                />
+                <div className="flex gap-2">
+                  <input
+                    type="tel"
+                    value={form.phone ?? ''}
+                    onChange={(e) => setField('phone', e.target.value || null)}
+                    className="flex-1 min-w-0 px-3 py-2.5 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  />
+                  {form.phone && (
+                    <div className="flex gap-1">
+                      <a href={`tel:${form.phone}`} title="Call"
+                        className="flex items-center justify-center w-10 h-10 rounded-lg border border-slate-200 text-slate-600 hover:bg-green-50 hover:text-green-600 hover:border-green-200 transition-colors">
+                        <Phone className="w-4 h-4" />
+                      </a>
+                      <a href={`sms:${form.phone}`} title="SMS"
+                        className="flex items-center justify-center w-10 h-10 rounded-lg border border-slate-200 text-slate-600 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 transition-colors">
+                        <MessageSquare className="w-4 h-4" />
+                      </a>
+                      <a href={`https://wa.me/${form.phone.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer" title="WhatsApp"
+                        className="flex items-center justify-center w-10 h-10 rounded-lg border border-slate-200 text-slate-600 hover:bg-emerald-50 hover:text-emerald-600 hover:border-emerald-200 transition-colors text-xs font-bold">
+                        WA
+                      </a>
+                    </div>
+                  )}
+                </div>
               </div>
               <div className="col-span-2">
                 <label className="block text-xs font-medium text-slate-500 mb-1.5 uppercase tracking-wide">Address</label>
@@ -291,6 +310,18 @@ export default function LeadDetailPage() {
                   {SOURCES.map((s) => <option key={s} value={s}>{s.replace(/_/g, ' ')}</option>)}
                 </select>
               </div>
+              {form.status === 'lost' && (
+                <div className="col-span-2">
+                  <label className="block text-xs font-medium text-slate-500 mb-1.5 uppercase tracking-wide">Lost Reason</label>
+                  <input
+                    type="text"
+                    value={form.lostReason ?? ''}
+                    onChange={(e) => setField('lostReason', e.target.value || null)}
+                    placeholder="e.g. Price too high, went with competitor, no budget…"
+                    className="w-full px-3 py-2.5 border border-red-200 bg-red-50 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent placeholder:text-slate-400"
+                  />
+                </div>
+              )}
               <div className="col-span-2">
                 <label className="block text-xs font-medium text-slate-500 mb-1.5 uppercase tracking-wide">Notes</label>
                 <textarea

@@ -14,7 +14,7 @@ type Campaign = {
   id: string; name: string; subject: string; bodyHtml: string; bodyText: string
   status: string; totalSent: number; totalFailed: number; sentAt: string | null
   scheduledAt: string | null; trackOpens: boolean; trackClicks: boolean
-  segmentFilter: string; createdAt: string; sends: Send[]
+  segmentFilter: string; createdAt: string; accountId: string | null; sends: Send[]
 }
 
 function StatCard({ value, label, icon: Icon, color }: { value: number | string; label: string; icon: React.ElementType; color: string }) {
@@ -95,6 +95,7 @@ export default function CampaignDetailPage() {
       {(tab === 'edit' && !isSent) ? (
         <CampaignEditor
           campaignId={campaign.id}
+          accountId={campaign.accountId}
           initial={{
             name: campaign.name,
             subject: campaign.subject,

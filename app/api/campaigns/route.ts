@@ -21,7 +21,19 @@ export async function POST(req: NextRequest) {
   if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const body = await req.json()
-  const accountId = session.user.accountId ?? null
+
+  let accountId: string | null
+  if (session.user.role === 'master_admin') {
+    if (body.accountId) {
+      const exists = await prisma.account.findUnique({ where: { id: body.accountId }, select: { id: true } })
+      if (!exists) return NextResponse.json({ error: 'Account not found' }, { status: 404 })
+      accountId = body.accountId
+    } else {
+      accountId = null
+    }
+  } else {
+    accountId = session.user.accountId ?? null
+  }
 
   const campaign = await prisma.emailCampaign.create({
     data: {

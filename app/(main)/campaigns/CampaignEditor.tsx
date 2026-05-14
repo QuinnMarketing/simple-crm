@@ -13,6 +13,7 @@ type SegmentFilter = { statuses?: string[]; sources?: string[]; leadIds?: string
 
 type Props = {
   campaignId?: string
+  accountId?: string | null
   initial?: {
     name: string; subject: string; bodyHtml: string; bodyText: string
     segmentFilter: string; trackOpens: boolean; trackClicks: boolean
@@ -44,7 +45,7 @@ function StatusBadge({ status }: { status: string }) {
   )
 }
 
-export default function CampaignEditor({ campaignId, initial }: Props) {
+export default function CampaignEditor({ campaignId, accountId, initial }: Props) {
   const router = useRouter()
   const editorRef = useRef<HTMLDivElement>(null)
 
@@ -76,13 +77,15 @@ export default function CampaignEditor({ campaignId, initial }: Props) {
 
   // Load leads
   useEffect(() => {
-    fetch('/api/leads?limit=1000')
+    const qs = accountId ? `?account=${accountId}` : ''
+    fetch(`/api/leads${qs}`)
       .then((r) => r.json())
       .then((d) => {
         if (Array.isArray(d)) setLeads(d)
         else if (Array.isArray(d.leads)) setLeads(d.leads)
       })
       .catch(() => {})
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   // Restore selected from initial segmentFilter
@@ -187,6 +190,7 @@ export default function CampaignEditor({ campaignId, initial }: Props) {
       segmentFilter: { leadIds: Array.from(selectedIds) } as SegmentFilter,
       trackOpens, trackClicks,
       scheduledAt: sendMode === 'scheduled' && scheduledAt ? scheduledAt : null,
+      ...(accountId ? { accountId } : {}),
     }
   }
 

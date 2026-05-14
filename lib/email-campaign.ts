@@ -66,7 +66,8 @@ export async function sendCampaign(campaignId: string): Promise<{ sent: number; 
     where: { id: campaignId },
     include: { account: { select: { name: true, businessEmail: true, integrations: true } } },
   })
-  if (!campaign || !campaign.accountId) throw new Error('Campaign not found')
+  if (!campaign) throw new Error('Campaign not found')
+  if (!campaign.accountId) throw new Error('Campaign has no account — re-save the campaign to fix this')
 
   const smtpRow = campaign.account?.integrations.find((i) => i.platform === 'email_smtp' && i.enabled)
   const smtpConfig: SmtpConfig | null = smtpRow ? (JSON.parse(smtpRow.config) as SmtpConfig) : null

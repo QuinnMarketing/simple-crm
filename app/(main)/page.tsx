@@ -57,6 +57,19 @@ export default async function DashboardPage({
 
   const where = { ...accountFilter, ...companyFilter, ...dateFilter }
 
+  // Previous period for comparison — only when both bounds are set
+  let prevFromDate: Date | undefined
+  let prevToDate: Date | undefined
+  if (fromDate && toDate) {
+    const durationMs = toDate.getTime() - fromDate.getTime()
+    prevToDate = new Date(fromDate.getTime() - 1)
+    prevFromDate = new Date(fromDate.getTime() - durationMs - 1)
+  }
+  const prevDateFilter = prevFromDate && prevToDate
+    ? { [activeField]: { gte: prevFromDate, lte: prevToDate } }
+    : null
+  const prevWhere = prevDateFilter ? { ...accountFilter, ...companyFilter, ...prevDateFilter } : null
+
   // For the weekly chart: use the period if set, otherwise last 12 weeks
   const chartFrom = fromDate ?? (() => { const d = new Date(); d.setDate(d.getDate() - 84); return d })()
   const chartTo = toDate ?? new Date()
@@ -67,7 +80,9 @@ export default async function DashboardPage({
     ? { createdAt: { ...(fromDate ? { gte: fromDate } : {}), ...(toDate ? { lte: toDate } : {}) } }
     : {}
 
-  const [total, byStatus, recentLeads, conversions, activeCompany, valueByStatus, chartLeads, upcomingAppts, pendingQuoteAgg, invoiceAgg] = await Promise.all([
+  const [total, byStatus, recentLeads, conversions, activeCompany, valueByStatus, chartLeads, upcomingAppts, pendingQuoteAgg, invoiceAgg,
+    apptWithLeadCount, prevTotal, prevByStatus, prevValueByStatus, prevPendingQuote, prevInvoice,
+  ] = await Promise.all([
     prisma.lead.count({ where }),
     prisma.lead.groupBy({ by: ['status'], where, _count: true }),
     prisma.lead.findMany({
@@ -110,10 +125,25 @@ export default async function DashboardPage({
       where: { ...accountFilter, type: 'invoice', ...quoteDateFilter },
       _sum: { total: true },
     }),
+    // Appointments linked to a lead (for lead→appt conversion rate)
+    prisma.appointment.count({ where: { ...accountFilter, leadId: { not: null }, ...(fromDate || toDate ? { createdAt: { ...(fromDate ? { gte: fromDate } : {}), ...(toDate ? { lte: toDate } : {}) } } : {}) } }),
+    // Previous period comparisons
+    prevWhere ? prisma.lead.count({ where: prevWhere }) : Promise.resolve(null),
+    prevWhere ? prisma.lead.groupBy({ by: ['status'], where: prevWhere, _count: true }) : Promise.resolve(null),
+    prevWhere ? prisma.lead.groupBy({ by: ['status'], where: prevWhere, _sum: { value: true }, _count: { _all: true } }) : Promise.resolve(null),
+    prevDateFilter ? prisma.quote.aggregate({ where: { ...accountFilter, type: 'quote', status: { in: ['draft', 'sent'] }, ...{ createdAt: { gte: prevFromDate, lte: prevToDate } } }, _sum: { total: true } }) : Promise.resolve(null),
+    prevDateFilter ? prisma.quote.aggregate({ where: { ...accountFilter, type: 'invoice', ...{ createdAt: { gte: prevFromDate, lte: prevToDate } } }, _sum: { total: true } }) : Promise.resolve(null),
   ])
 
   const sm = Object.fromEntries(byStatus.map((s) => [s.status, s._count]))
   const cm = Object.fromEntries(conversions.map((c) => [c.platform, c._count]))
+  const pm = prevByStatus ? Object.fromEntries(prevByStatus.map((s) => [s.status, s._count])) : null
+
+  function delta(curr: number, prev: number | null | undefined): { diff: number; pct: number } | null {
+    if (prev == null || prev === 0) return null
+    const diff = curr - prev
+    return { diff, pct: Math.round((diff / prev) * 100) }
+  }
 
   // Build week buckets between chartFrom and chartTo
   const buckets: Record<string, { leads: number; won: number }> = {}
@@ -152,6 +182,25 @@ export default async function DashboardPage({
   const pendingQuoteValue = pendingQuoteAgg._sum.total ?? 0
   const totalInvoiceValue = invoiceAgg._sum.total ?? 0
 
+  // Previous period pipeline values
+  const prevActivePipelineValue = prevValueByStatus
+    ? prevValueByStatus.filter((v) => !['won', 'lost'].includes(v.status)).reduce((s, v) => s + (v._sum.value ?? 0), 0)
+    : null
+  const prevPendingQuoteValue = prevPendingQuote?._sum.total ?? null
+  const prevTotalInvoiceValue = prevInvoice?._sum.total ?? null
+
+  // Conversion rates
+  const wonCount = sm.won ?? 0
+  const lostCount = sm.lost ?? 0
+  const closeRateDenominator = wonCount + lostCount
+  const closeRate = closeRateDenominator > 0 ? Math.round((wonCount / closeRateDenominator) * 100) : null
+  const leadToApptRate = total > 0 ? Math.round((apptWithLeadCount / total) * 100) : null
+
+  const prevWonCount = pm?.won ?? 0
+  const prevLostCount = pm?.lost ?? 0
+  const prevCloseDenominator = prevWonCount + prevLostCount
+  const prevCloseRate = prevCloseDenominator > 0 ? Math.round((prevWonCount / prevCloseDenominator) * 100) : null
+
   const fmtCurrency = (v: number) =>
     v >= 1_000_000
       ? `$${(v / 1_000_000).toFixed(1)}M`
@@ -170,13 +219,13 @@ export default async function DashboardPage({
       : '12 weeks'
 
   const statusStats = [
-    { label: 'Total',     value: total,               color: 'text-slate-900' },
-    { label: 'New',       value: sm.new ?? 0,         color: 'text-blue-600' },
-    { label: 'Contacted', value: sm.contacted ?? 0,   color: 'text-yellow-600' },
-    { label: 'Qualified', value: sm.qualified ?? 0,   color: 'text-purple-600' },
-    { label: 'Won',       value: sm.won ?? 0,         color: 'text-green-600' },
-    { label: 'Lost',      value: sm.lost ?? 0,        color: 'text-red-600' },
-    { label: 'Booked',    value: upcomingAppts.length,    color: 'text-indigo-600' },
+    { label: 'Total',     value: total,             prev: prevTotal,          color: 'text-slate-900' },
+    { label: 'New',       value: sm.new ?? 0,       prev: pm?.new,            color: 'text-blue-600' },
+    { label: 'Contacted', value: sm.contacted ?? 0, prev: pm?.contacted,      color: 'text-yellow-600' },
+    { label: 'Qualified', value: sm.qualified ?? 0, prev: pm?.qualified,      color: 'text-purple-600' },
+    { label: 'Won',       value: sm.won ?? 0,       prev: pm?.won,            color: 'text-green-600' },
+    { label: 'Lost',      value: sm.lost ?? 0,      prev: pm?.lost,           color: 'text-red-600' },
+    { label: 'Booked',    value: upcomingAppts.length, prev: null,            color: 'text-indigo-600' },
   ]
 
   const platformStats = [
@@ -208,30 +257,59 @@ export default async function DashboardPage({
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-        <div className="bg-white rounded-xl border border-slate-200 p-5">
-          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Pipeline Value</p>
-          <p className="text-3xl font-bold text-slate-900 mt-2">{fmtCurrency(activePipelineValue)}</p>
-          <p className="text-xs text-slate-400 mt-2">Active leads (excl. Won &amp; Lost)</p>
-        </div>
-        <div className="bg-white rounded-xl border border-slate-200 p-5">
-          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Pending Quotes</p>
-          <p className="text-3xl font-bold text-violet-600 mt-2">{fmtCurrency(pendingQuoteValue)}</p>
-          <p className="text-xs text-slate-400 mt-2">Draft &amp; sent quotes</p>
-        </div>
-        <div className="bg-white rounded-xl border border-slate-200 p-5">
-          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Invoice Value</p>
-          <p className="text-3xl font-bold text-amber-600 mt-2">{fmtCurrency(totalInvoiceValue)}</p>
-          <p className="text-xs text-slate-400 mt-2">All invoices in period</p>
-        </div>
+        {[
+          { label: 'Pipeline Value',  value: activePipelineValue,  prev: prevActivePipelineValue, color: 'text-slate-900',   sub: 'Active leads (excl. Won & Lost)' },
+          { label: 'Pending Quotes',  value: pendingQuoteValue,    prev: prevPendingQuoteValue,   color: 'text-violet-600',  sub: 'Draft & sent quotes' },
+          { label: 'Invoice Value',   value: totalInvoiceValue,    prev: prevTotalInvoiceValue,   color: 'text-amber-600',   sub: 'All invoices in period' },
+        ].map(({ label, value, prev, color, sub }) => {
+          const d = delta(value, prev)
+          return (
+            <div key={label} className="bg-white rounded-xl border border-slate-200 p-5">
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">{label}</p>
+              <p className={`text-3xl font-bold mt-2 ${color}`}>{fmtCurrency(value)}</p>
+              {d ? (
+                <p className={`text-xs mt-2 font-medium ${d.diff >= 0 ? 'text-green-600' : 'text-red-500'}`}>
+                  {d.diff >= 0 ? '↑' : '↓'} {Math.abs(d.pct)}% vs prev period
+                </p>
+              ) : <p className="text-xs text-slate-400 mt-2">{sub}</p>}
+            </div>
+          )
+        })}
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3 mb-6">
-        {statusStats.map((s) => (
-          <div key={s.label} className="bg-white rounded-xl border border-slate-200 p-5">
-            <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">{s.label}</p>
-            <p className={`text-3xl font-bold mt-2 ${s.color}`}>{s.value}</p>
-          </div>
-        ))}
+        {statusStats.map((s) => {
+          const d = delta(s.value, s.prev ?? null)
+          return (
+            <div key={s.label} className="bg-white rounded-xl border border-slate-200 p-5">
+              <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">{s.label}</p>
+              <p className={`text-3xl font-bold mt-2 ${s.color}`}>{s.value}</p>
+              {d && (
+                <p className={`text-xs mt-1 font-medium ${d.diff >= 0 ? 'text-green-600' : 'text-red-500'}`}>
+                  {d.diff >= 0 ? '↑' : '↓'} {Math.abs(d.diff)} ({Math.abs(d.pct)}%)
+                </p>
+              )}
+            </div>
+          )
+        })}
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+        <div className="bg-white rounded-xl border border-slate-200 p-5">
+          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Close Rate</p>
+          <p className="text-3xl font-bold text-slate-900 mt-2">{closeRate != null ? `${closeRate}%` : '—'}</p>
+          <p className="text-xs text-slate-400 mt-1">Won ÷ (Won + Lost){closeRateDenominator > 0 ? ` · ${wonCount}/${closeRateDenominator} leads` : ''}</p>
+          {prevWhere && prevCloseRate != null && closeRate != null && (
+            <p className={`text-xs mt-1 font-medium ${closeRate >= prevCloseRate ? 'text-green-600' : 'text-red-500'}`}>
+              {closeRate >= prevCloseRate ? '↑' : '↓'} vs prev period ({prevCloseRate}%)
+            </p>
+          )}
+        </div>
+        <div className="bg-white rounded-xl border border-slate-200 p-5">
+          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Lead → Appointment</p>
+          <p className="text-3xl font-bold text-slate-900 mt-2">{leadToApptRate != null ? `${leadToApptRate}%` : '—'}</p>
+          <p className="text-xs text-slate-400 mt-1">Leads with booked appointments{total > 0 ? ` · ${apptWithLeadCount}/${total} leads` : ''}</p>
+        </div>
       </div>
 
       <DashboardCharts

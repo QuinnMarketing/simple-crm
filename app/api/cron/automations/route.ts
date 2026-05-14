@@ -1,4 +1,4 @@
-import { runPendingQuoteFollowups, runAppointmentReminderAutomations } from '@/lib/automations'
+import { runPendingQuoteFollowups, runAppointmentReminderAutomations, runIdleDealAlerts } from '@/lib/automations'
 import { sendCampaign } from '@/lib/email-campaign'
 import { prisma } from '@/lib/prisma'
 import { NextResponse } from 'next/server'
@@ -29,10 +29,11 @@ export async function GET(req: Request) {
   const campaignsSent = campaignResults.filter((r) => r.status === 'fulfilled').length
   const campaignsFailed = campaignResults.filter((r) => r.status === 'rejected').length
 
-  const [quotes, reminders] = await Promise.all([
+  const [quotes, reminders, idleDeals] = await Promise.all([
     runPendingQuoteFollowups(),
     runAppointmentReminderAutomations(),
+    runIdleDealAlerts(),
   ])
 
-  return NextResponse.json({ ok: true, quotes, reminders, campaigns: { sent: campaignsSent, failed: campaignsFailed } })
+  return NextResponse.json({ ok: true, quotes, reminders, idleDeals, campaigns: { sent: campaignsSent, failed: campaignsFailed } })
 }

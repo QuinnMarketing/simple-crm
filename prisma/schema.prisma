@@ -91,6 +91,7 @@ model Lead {
   pageUrl     String?
   nextStep            String?
   nextStepDue         String?
+  lostReason          String?
   unsubscribed        Boolean               @default(false)
   companyId           String?
   company     Company? @relation(fields: [companyId], references: [id])

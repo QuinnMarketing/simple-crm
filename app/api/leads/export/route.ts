@@ -6,7 +6,7 @@ import { NextRequest, NextResponse } from 'next/server'
 
 const COLUMNS = [
   'name', 'email', 'phone', 'address', 'company', 'service',
-  'status', 'source', 'value', 'notes', 'pageUrl', 'gclid', 'createdAt',
+  'status', 'source', 'value', 'notes', 'lostReason', 'pageUrl', 'gclid', 'createdAt',
 ]
 
 export async function GET(req: NextRequest) {
@@ -48,6 +48,7 @@ export async function GET(req: NextRequest) {
     source: l.source ?? '',
     value: l.value ?? '',
     notes: l.notes ?? '',
+    lostReason: l.lostReason ?? '',
     pageUrl: l.pageUrl ?? '',
     gclid: l.gclid ?? '',
     createdAt: l.createdAt.toISOString(),

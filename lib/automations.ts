@@ -209,6 +209,68 @@ export async function runAppointmentReminderAutomations(): Promise<{ sent: numbe
   return { sent, errors }
 }
 
+export async function runIdleDealAlerts(): Promise<{ sent: number; errors: number }> {
+  let sent = 0
+  let errors = 0
+
+  const automations = await prisma.automation.findMany({
+    where: { enabled: true, trigger: 'idle_deal' },
+    include: { logs: { select: { leadId: true } } },
+  })
+
+  for (const automation of automations) {
+    if (!automation.accountId) continue
+    const tc = JSON.parse(automation.triggerConfig) as { days?: number; statuses?: string[] }
+    const days = tc.days ?? 7
+    const statuses = tc.statuses?.length ? tc.statuses : ['new', 'contacted', 'qualified']
+    const cutoff = new Date(Date.now() - days * 24 * 60 * 60 * 1000)
+
+    const alreadyFiredLeadIds = new Set(automation.logs.map((l) => l.leadId))
+
+    const [leads, smtpRow] = await Promise.all([
+      prisma.lead.findMany({
+        where: {
+          accountId: automation.accountId,
+          status: { in: statuses },
+          updatedAt: { lte: cutoff },
+          email: { not: null },
+          id: { notIn: Array.from(alreadyFiredLeadIds) },
+        },
+        select: { id: true, name: true, email: true, phone: true, service: true, source: true, status: true },
+      }),
+      prisma.accountIntegration.findUnique({
+        where: { accountId_platform: { accountId: automation.accountId, platform: 'email_smtp' } },
+      }),
+    ])
+
+    const smtpConfig: SmtpConfig | null = smtpRow?.enabled
+      ? (JSON.parse(smtpRow.config) as SmtpConfig)
+      : null
+    if (!smtpConfig?.host || !smtpConfig?.user || !smtpConfig?.pass) continue
+
+    const ac = JSON.parse(automation.actionConfig) as { subject?: string; body?: string }
+
+    for (const lead of leads) {
+      if (!lead.email) continue
+      const vars: Record<string, string> = {
+        name: lead.name, email: lead.email, phone: lead.phone ?? '',
+        service: lead.service ?? '', source: lead.source ?? '',
+        status: lead.status, days: String(days),
+      }
+      try {
+        await sendEmail(smtpConfig, lead.email, interpolate(ac.subject ?? '', vars), interpolate(ac.body ?? '', vars))
+        await prisma.automationLog.create({ data: { automationId: automation.id, leadId: lead.id } })
+        sent++
+      } catch (e) {
+        console.error(`Idle deal alert "${automation.name}" failed for lead ${lead.id}:`, e)
+        errors++
+      }
+    }
+  }
+
+  return { sent, errors }
+}
+
 export async function runAutomations(
   trigger: 'lead_created' | 'lead_status_changed',
   lead: LeadContext,

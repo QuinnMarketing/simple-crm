@@ -1,8 +1,16 @@
+import { auth } from '@/auth'
 import Link from 'next/link'
 import { ArrowLeft } from 'lucide-react'
 import CampaignEditor from '../CampaignEditor'
 
-export default function NewCampaignPage() {
+export default async function NewCampaignPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ account?: string }>
+}) {
+  const [session, { account }] = await Promise.all([auth(), searchParams])
+  const accountId = account ?? session?.user?.accountId ?? null
+
   return (
     <div>
       <div className="mb-6">
@@ -12,7 +20,7 @@ export default function NewCampaignPage() {
         <h1 className="text-2xl font-bold text-slate-900">New Campaign</h1>
         <p className="text-slate-500 text-sm mt-1">Compose an email and choose who receives it</p>
       </div>
-      <CampaignEditor />
+      <CampaignEditor accountId={accountId} />
     </div>
   )
 }
