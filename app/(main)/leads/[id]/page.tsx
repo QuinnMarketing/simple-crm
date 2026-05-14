@@ -4,8 +4,9 @@ import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import {
   ArrowLeft, Loader2, Save, Trash2, CheckCircle, XCircle, AlertCircle, ChevronDown, ChevronUp, Plus, CalendarDays, Navigation,
-  Phone, MessageSquare,
+  Phone, MessageSquare, Mail,
 } from 'lucide-react'
+import EmailModal from './EmailModal'
 import StatusBadge from '@/components/StatusBadge'
 import AppointmentModal, { type Appointment } from '@/app/(main)/calendar/AppointmentModal'
 import QuotesSection from './QuotesSection'
@@ -60,6 +61,7 @@ export default function LeadDetailPage() {
   const [dirty, setDirty] = useState(false)
   const [showAttribution, setShowAttribution] = useState(false)
   const [showFormData, setShowFormData] = useState(false)
+  const [emailModal, setEmailModal] = useState(false)
   const [pushState, setPushState] = useState<Record<string, PushState>>({
     google_ga4: { status: 'idle' },
     google_ads: { status: 'idle' },
@@ -233,6 +235,14 @@ export default function LeadDetailPage() {
               </a>
             </>
           )}
+          {lead.email && (
+            <button
+              onClick={() => setEmailModal(true)}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-indigo-200 bg-indigo-50 text-indigo-700 text-sm font-medium hover:bg-indigo-100 transition-colors"
+            >
+              <Mail className="w-3.5 h-3.5" /> Email
+            </button>
+          )}
           <p className="text-slate-400 text-sm">
             Added {new Date(lead.createdAt).toLocaleDateString('en-AU', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
             {lead.updatedAt !== lead.createdAt && (
@@ -405,6 +415,8 @@ export default function LeadDetailPage() {
 
           <QuotesSection
             leadId={id}
+            leadEmail={lead.email}
+            leadName={lead.name}
             onValueChange={(value) => {
               setForm((f) => ({ ...f, value }))
               setLead((l) => l ? { ...l, value } : l)
@@ -596,6 +608,15 @@ export default function LeadDetailPage() {
           )}
         </div>
       </div>
+
+      {emailModal && lead && (
+        <EmailModal
+          leadId={id}
+          leadEmail={lead.email}
+          leadName={lead.name}
+          onClose={() => setEmailModal(false)}
+        />
+      )}
 
       {apptModal.open && lead && (
         <AppointmentModal

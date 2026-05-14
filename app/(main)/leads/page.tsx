@@ -12,14 +12,15 @@ const STATUSES = ['all', 'new', 'contacted', 'qualified', 'won', 'lost']
 export default async function LeadsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string; q?: string; company?: string; account?: string }>
+  searchParams: Promise<{ status?: string; q?: string; company?: string; account?: string; idle?: string }>
 }) {
   const session = await auth()
-  const { status, q, company, account } = await searchParams
+  const { status, q, company, account, idle } = await searchParams
 
   const accountFilter = getAccountFilter(session!.user, account)
   const companyFilter = company ? { companyId: company } : {}
   const isAllAccounts = session!.user.role === 'master_admin' && !account
+  const isIdle = idle === '1'
 
   const accountId = session!.user.role === 'master_admin' ? (account ?? null) : (session!.user.accountId ?? null)
 
@@ -28,8 +29,12 @@ export default async function LeadsPage({
       where: {
         ...accountFilter,
         ...companyFilter,
-        ...(status && status !== 'all' ? { status } : {}),
-        ...(q ? { OR: [{ name: { contains: q } }, { email: { contains: q } }, { phone: { contains: q } }, { service: { contains: q } }] } : {}),
+        ...(isIdle
+          ? { status: { in: ['new', 'contacted', 'qualified'] }, updatedAt: { lte: new Date(Date.now() - 7 * 86_400_000) } }
+          : {
+              ...(status && status !== 'all' ? { status } : {}),
+              ...(q ? { OR: [{ name: { contains: q } }, { email: { contains: q } }, { phone: { contains: q } }, { service: { contains: q } }] } : {}),
+            }),
       },
       include: {
         company: { select: { name: true, color: true } },
@@ -72,7 +77,10 @@ export default async function LeadsPage({
               </span>
             )}
           </div>
-          <p className="text-slate-500 mt-1 text-sm">{leads.length} lead{leads.length !== 1 ? 's' : ''}</p>
+          <p className="text-slate-500 mt-1 text-sm">
+            {isIdle && <span className="inline-flex items-center gap-1 text-amber-600 font-medium mr-1">⏳ Idle deals ·</span>}
+            {leads.length} lead{leads.length !== 1 ? 's' : ''}
+          </p>
         </div>
         <div className="flex items-center gap-2 flex-shrink-0 flex-wrap">
           <Link
@@ -110,7 +118,7 @@ export default async function LeadsPage({
         <LeadsTable
           leads={leads as unknown as Parameters<typeof LeadsTable>[0]['leads']}
           addHref={newLeadHref}
-          clearHref={(q || status) ? `/leads${company ? `?company=${company}` : ''}${account ? `${company ? '&' : '?'}account=${account}` : ''}` : undefined}
+          clearHref={(q || status || isIdle) ? `/leads${company ? `?company=${company}` : ''}${account ? `${company ? '&' : '?'}account=${account}` : ''}` : undefined}
           slaHours={accountSettings?.slaHours}
         />
       </div>

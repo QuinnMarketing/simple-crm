@@ -2,7 +2,7 @@
 import Link from 'next/link'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { useState } from 'react'
-import { LayoutDashboard, Users, Settings, LogOut, Zap, Building2, ChevronDown, Layers, CalendarDays, FileText, Bot, Clock, Mail } from 'lucide-react'
+import { LayoutDashboard, Users, Settings, LogOut, Zap, Building2, ChevronDown, Layers, CalendarDays, FileText, Bot, Clock, Mail, TrendingUp, BarChart2, Share2, GanttChartSquare } from 'lucide-react'
 import { signOut } from 'next-auth/react'
 import PushToggle from './PushToggle'
 
@@ -18,10 +18,14 @@ type SidebarAccount = { id: string; name: string }
 const NAV = [
   { href: '/', icon: LayoutDashboard, label: 'Dashboard' },
   { href: '/leads', icon: Users, label: 'Leads' },
+  { href: '/analytics', icon: TrendingUp, label: 'Analytics' },
+  { href: '/reports', icon: BarChart2, label: 'Reports' },
   { href: '/calendar', icon: CalendarDays, label: 'Calendar' },
   { href: '/quotes', icon: FileText, label: 'Quotes & Invoices' },
   { href: '/automations', icon: Bot, label: 'Automations' },
   { href: '/campaigns', icon: Mail, label: 'Campaigns' },
+  { href: '/social', icon: Share2, label: 'Social' },
+  { href: '/gantt', icon: GanttChartSquare, label: 'Gantt Charts' },
   { href: '/time', icon: Clock, label: 'Time Tracking' },
   { href: '/companies', icon: Building2, label: 'Companies' },
   { href: '/settings', icon: Settings, label: 'Settings' },
@@ -129,7 +133,7 @@ export default function Sidebar({
         )}
       </div>
 
-      <nav className="flex-1 p-4 space-y-0.5" onClick={() => setAccountOpen(false)}>
+      <nav className="flex-1 p-4 space-y-0.5 overflow-y-auto" onClick={() => setAccountOpen(false)}>
         {allNav.map(({ href, icon: Icon, label }) => {
           const active = href === '/' ? pathname === '/' : pathname.startsWith(href)
           return (

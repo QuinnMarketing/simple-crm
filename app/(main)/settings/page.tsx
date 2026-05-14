@@ -12,12 +12,12 @@ import { UserCog, History } from 'lucide-react'
 export default async function SettingsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ account?: string; gcal?: string }>
+  searchParams: Promise<{ account?: string; gcal?: string; ganalytics?: string }>
 }) {
   const session = await auth()
   if (!session) redirect('/login')
 
-  const { account: accountParam, gcal } = await searchParams
+  const { account: accountParam, gcal, ganalytics } = await searchParams
 
   let accountId: string | null = null
 
@@ -62,6 +62,17 @@ export default async function SettingsPage({
   const baseUrl = process.env.NEXTAUTH_URL ?? 'http://localhost:3000'
   const webhookUrl = `${baseUrl}/api/webhooks/form?token=${account.webhookToken}`
 
+  const smtpDefaults: Record<string, string> = {
+    host: process.env.SMTP_HOST ?? '',
+    port: process.env.SMTP_PORT ?? '587',
+  }
+  const googleAdsDefaults: Record<string, string> = {
+    developerToken: process.env.GOOGLE_ADS_DEVELOPER_TOKEN ?? '',
+    clientId: process.env.GOOGLE_ADS_CLIENT_ID ?? '',
+    clientSecret: process.env.GOOGLE_ADS_CLIENT_SECRET ?? '',
+    refreshToken: process.env.GOOGLE_ADS_REFRESH_TOKEN ?? '',
+  }
+
   const integrationConfigs: Record<string, Record<string, string>> = {}
   for (const integration of account.integrations) {
     try {
@@ -70,6 +81,9 @@ export default async function SettingsPage({
       integrationConfigs[integration.platform] = {}
     }
   }
+  // Fill empty fields with hardcoded defaults
+  integrationConfigs.email_smtp = { ...smtpDefaults, ...integrationConfigs.email_smtp }
+  integrationConfigs.google_ads = { ...googleAdsDefaults, ...integrationConfigs.google_ads }
 
   return (
     <div>
@@ -86,6 +100,16 @@ export default async function SettingsPage({
       {gcal === 'error' && (
         <div className="mb-6 bg-red-50 border border-red-200 rounded-xl px-5 py-3 text-sm text-red-800 font-medium">
           Google Calendar connection failed. Check your credentials and try again.
+        </div>
+      )}
+      {ganalytics === 'connected' && (
+        <div className="mb-6 bg-green-50 border border-green-200 rounded-xl px-5 py-3 text-sm text-green-800 font-medium">
+          Google Analytics connected. Enter your GA4 Property ID below to start pulling data.
+        </div>
+      )}
+      {ganalytics === 'error' && (
+        <div className="mb-6 bg-red-50 border border-red-200 rounded-xl px-5 py-3 text-sm text-red-800 font-medium">
+          Google Analytics connection failed. Check your credentials and try again.
         </div>
       )}
 
@@ -131,6 +155,7 @@ export default async function SettingsPage({
             businessEmail: account.businessEmail ?? '',
             businessWebsite: account.businessWebsite ?? '',
             slaHours: account.slaHours != null ? String(account.slaHours) : '',
+            idleAlertDays: account.idleAlertDays != null ? String(account.idleAlertDays) : '',
           }}
         />
 

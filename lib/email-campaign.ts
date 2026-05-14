@@ -1,6 +1,7 @@
 import { prisma } from './prisma'
 import nodemailer from 'nodemailer'
 import type { SmtpConfig } from './email'
+import { mergeSmtp } from './platform-defaults'
 
 const BASE_URL = process.env.NEXTAUTH_URL ?? 'http://localhost:3000'
 
@@ -26,7 +27,7 @@ function buildHtml(opts: {
   let body = interpolate(opts.bodyHtml, opts.vars)
   if (opts.trackClicks) body = wrapLinksForTracking(body, opts.sendId)
   const pixel = opts.trackOpens
-    ? `<img src="${BASE_URL}/api/track/open?s=${opts.sendId}" width="1" height="1" style="display:none" alt="" />`
+    ? `<img src="${BASE_URL}/api/track/open?s=${opts.sendId}" width="1" height="1" border="0" alt="" style="height:1px;width:1px;border:0;" />`
     : ''
   const unsubUrl = `${BASE_URL}/api/unsubscribe?s=${opts.sendId}`
 
@@ -70,7 +71,8 @@ export async function sendCampaign(campaignId: string): Promise<{ sent: number; 
   if (!campaign.accountId) throw new Error('Campaign has no account — re-save the campaign to fix this')
 
   const smtpRow = campaign.account?.integrations.find((i) => i.platform === 'email_smtp' && i.enabled)
-  const smtpConfig: SmtpConfig | null = smtpRow ? (JSON.parse(smtpRow.config) as SmtpConfig) : null
+  const savedSmtp: SmtpConfig | null = smtpRow ? (JSON.parse(smtpRow.config) as SmtpConfig) : null
+  const smtpConfig = mergeSmtp(savedSmtp)
   if (!smtpConfig?.host || !smtpConfig?.user || !smtpConfig?.pass) {
     throw new Error('SMTP not configured — add email settings in Integrations')
   }

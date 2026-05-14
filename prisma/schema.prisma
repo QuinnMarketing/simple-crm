@@ -33,6 +33,11 @@ model Account {
   emailCampaigns     EmailCampaign[]
   customFields       CustomField[]
   slaHours           Int?
+  idleAlertDays      Int?
+  lastIdleAlertAt    DateTime?
+  socialAccounts     SocialAccount[]
+  socialPosts        SocialPost[]
+  ganttProjects      GanttProject[]
 }
 
 model AccountIntegration {
@@ -195,6 +200,8 @@ model TimeEntry {
   durationMin Int      // minutes
   startedAt   DateTime
   assignedTo  String?  // free-text name — works for non-registered employees/contractors
+  latitude    Float?
+  longitude   Float?
   leadId      String?
   lead        Lead?    @relation(fields: [leadId], references: [id], onDelete: SetNull)
   userId      String?
@@ -307,4 +314,79 @@ model CustomFieldValue {
   updatedAt     DateTime    @updatedAt
 
   @@unique([leadId, customFieldId])
+}
+
+model SocialAccount {
+  id          String   @id @default(cuid())
+  accountId   String
+  account     Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  platform    String   // 'facebook' | 'instagram' | 'google_business' | 'linkedin'
+  platformId  String   // page/profile ID on the platform
+  name        String
+  pictureUrl  String?
+  accessToken String
+  refreshToken String?
+  expiresAt   DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  targets     SocialPostTarget[]
+
+  @@unique([accountId, platform, platformId])
+}
+
+model SocialPost {
+  id          String    @id @default(cuid())
+  accountId   String
+  account     Account   @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  content     String
+  mediaUrls   String    @default("[]") // JSON array of image URLs
+  link        String?
+  scheduledAt DateTime?
+  status      String    @default("draft") // draft | scheduled | publishing | published | failed | partial
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  targets     SocialPostTarget[]
+}
+
+model SocialPostTarget {
+  id              String        @id @default(cuid())
+  postId          String
+  post            SocialPost    @relation(fields: [postId], references: [id], onDelete: Cascade)
+  socialAccountId String
+  socialAccount   SocialAccount @relation(fields: [socialAccountId], references: [id], onDelete: Cascade)
+  status          String        @default("pending") // pending | published | failed
+  platformPostId  String?
+  error           String?
+  publishedAt     DateTime?
+  createdAt       DateTime      @default(now())
+}
+
+model GanttProject {
+  id          String      @id @default(cuid())
+  accountId   String
+  account     Account     @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  name        String
+  description String?
+  color       String      @default("#6366f1")
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  tasks       GanttTask[]
+
+  @@index([accountId])
+}
+
+model GanttTask {
+  id        String       @id @default(cuid())
+  projectId String
+  project   GanttProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  name      String
+  startDate String       // YYYY-MM-DD
+  endDate   String       // YYYY-MM-DD
+  assignee  String?
+  status    String       @default("not_started")
+  progress  Int          @default(0)
+  color     String?
+  notes     String?
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
 }

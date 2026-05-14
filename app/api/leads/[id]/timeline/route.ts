@@ -5,7 +5,7 @@ import { NextResponse } from 'next/server'
 
 export type TimelineEvent = {
   id: string
-  type: 'created' | 'status' | 'updated' | 'appointment' | 'quote' | 'conversion' | 'note'
+  type: 'created' | 'status' | 'updated' | 'appointment' | 'quote' | 'conversion' | 'note' | 'email_sent' | 'email_opened' | 'email_clicked'
   title: string
   detail?: string
   date: string
@@ -21,7 +21,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   const lead = await prisma.lead.findFirst({ where: { id, ...filter }, select: { id: true, createdAt: true, source: true, pageUrl: true } })
   if (!lead) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
-  const [auditLogs, appointments, quotes, conversions] = await Promise.all([
+  const [auditLogs, appointments, quotes, conversions, emailSends] = await Promise.all([
     prisma.auditLog.findMany({
       where: { entityType: 'lead', entityId: id },
       orderBy: { createdAt: 'desc' },
@@ -40,6 +40,11 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       where: { leadId: id },
       orderBy: { sentAt: 'desc' },
       select: { id: true, platform: true, status: true, sentAt: true },
+    }),
+    prisma.emailCampaignSend.findMany({
+      where: { leadId: id, status: 'sent' },
+      select: { id: true, sentAt: true, openedAt: true, clickedAt: true, campaign: { select: { id: true, name: true } } },
+      orderBy: { createdAt: 'desc' },
     }),
   ])
 
@@ -100,6 +105,17 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
         detail: log.userEmail ?? undefined,
         date: log.createdAt.toISOString(),
       })
+    } else if (log.action === 'lead.email_sent') {
+      const subject = (changes as Record<string, unknown>)?.subject as string | undefined
+      const to = (changes as Record<string, unknown>)?.to as string | undefined
+      const attachment = (changes as Record<string, unknown>)?.attachment as string | undefined
+      events.push({
+        id: log.id,
+        type: 'email_sent',
+        title: subject ? `Email sent — ${subject}` : 'Email sent',
+        detail: attachment ? `To: ${to} · ${attachment}` : to ? `To: ${to}` : undefined,
+        date: log.createdAt.toISOString(),
+      })
     } else if (log.action === 'lead.updated' && changes && Object.keys(changes).length > 0) {
       const fields = Object.keys(changes).filter(f => f !== 'updatedAt').join(', ')
       if (fields) {
@@ -149,6 +165,20 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       detail: c.status === 'sent' ? 'Sent successfully' : 'Failed',
       date: c.sentAt.toISOString(),
     })
+  }
+
+  // Email campaign events
+  for (const s of emailSends) {
+    const campaignName = s.campaign?.name ?? 'Campaign'
+    if (s.sentAt) {
+      events.push({ id: `email-sent-${s.id}`, type: 'email_sent', title: `Email sent — ${campaignName}`, date: s.sentAt.toISOString() })
+    }
+    if (s.openedAt) {
+      events.push({ id: `email-opened-${s.id}`, type: 'email_opened', title: `Opened email — ${campaignName}`, date: s.openedAt.toISOString() })
+    }
+    if (s.clickedAt) {
+      events.push({ id: `email-clicked-${s.id}`, type: 'email_clicked', title: `Clicked link — ${campaignName}`, date: s.clickedAt.toISOString() })
+    }
   }
 
   // Sort newest first

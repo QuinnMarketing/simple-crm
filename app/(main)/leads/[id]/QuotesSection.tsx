@@ -1,6 +1,7 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
-import { Plus, X, Loader2, Trash2, FileText, CheckCircle, Download } from 'lucide-react'
+import { Plus, X, Loader2, Trash2, FileText, CheckCircle, Download, Send } from 'lucide-react'
+import EmailModal from './EmailModal'
 
 type LineItem = { description: string; quantity: number; unitPrice: number }
 
@@ -49,14 +50,17 @@ interface ModalProps {
   prefill?: Quote | null
   type: 'quote' | 'invoice'
   leadId: string
+  leadEmail?: string | null
+  leadName?: string
   onSave: (q: Quote, newValue: number | null) => void
   onDelete: (id: string) => void
   onClose: () => void
 }
 
-function QuoteModal({ initial, prefill, type, leadId, onSave, onDelete, onClose }: ModalProps) {
+function QuoteModal({ initial, prefill, type, leadId, leadEmail, leadName = '', onSave, onDelete, onClose }: ModalProps) {
   const isEdit = !!initial
   const [status, setStatus] = useState(initial?.status ?? 'draft')
+  const [sendEmail, setSendEmail] = useState(false)
   const [taxRate, setTaxRate] = useState(initial?.taxRate ?? prefill?.taxRate ?? 10)
   const [notes, setNotes] = useState(initial?.notes ?? prefill?.notes ?? '')
   const [issuedAt, setIssuedAt] = useState(toDateInput(initial?.issuedAt ?? null))
@@ -293,6 +297,14 @@ function QuoteModal({ initial, prefill, type, leadId, onSave, onDelete, onClose 
             <button onClick={onClose} className="px-4 py-2 text-sm text-slate-600 hover:bg-slate-50 rounded-lg border border-slate-200 transition-colors">
               Cancel
             </button>
+            {isEdit && leadEmail && (
+              <button
+                onClick={() => setSendEmail(true)}
+                className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-indigo-700 border border-indigo-200 bg-indigo-50 rounded-lg hover:bg-indigo-100 transition-colors"
+              >
+                <Send className="w-3.5 h-3.5" /> Email
+              </button>
+            )}
             <button
               onClick={handleSave}
               disabled={saving}
@@ -304,6 +316,17 @@ function QuoteModal({ initial, prefill, type, leadId, onSave, onDelete, onClose 
           </div>
         </div>
       </div>
+
+      {sendEmail && initial && (
+        <EmailModal
+          leadId={leadId}
+          leadEmail={leadEmail ?? null}
+          leadName={leadName}
+          quoteId={initial.id}
+          quoteNumber={initial.number}
+          onClose={() => setSendEmail(false)}
+        />
+      )}
     </div>
   )
 }
@@ -312,15 +335,18 @@ function QuoteModal({ initial, prefill, type, leadId, onSave, onDelete, onClose 
 
 interface Props {
   leadId: string
+  leadEmail?: string | null
+  leadName?: string
   onValueChange: (value: number | null) => void
 }
 
-export default function QuotesSection({ leadId, onValueChange }: Props) {
+export default function QuotesSection({ leadId, leadEmail, leadName = '', onValueChange }: Props) {
   const [quotes, setQuotes] = useState<Quote[]>([])
   const [loading, setLoading] = useState(true)
   const [modal, setModal] = useState<{ open: boolean; quote: Quote | null; type: 'quote' | 'invoice'; prefill?: Quote | null }>({
     open: false, quote: null, type: 'quote',
   })
+  const [emailModal, setEmailModal] = useState<{ open: boolean; quoteId?: string; quoteNumber?: string }>({ open: false })
   const [invoicePrompt, setInvoicePrompt] = useState<Quote | null>(null)
 
   const fetchQuotes = useCallback(async () => {
@@ -423,6 +449,15 @@ export default function QuotesSection({ leadId, onValueChange }: Props) {
                           {fmtAUD(q.total)}
                         </p>
                       </button>
+                      {leadEmail && (
+                        <button
+                          title="Email to lead"
+                          onClick={(e) => { e.stopPropagation(); setEmailModal({ open: true, quoteId: q.id, quoteNumber: q.number }) }}
+                          className="pl-2 py-3.5 text-slate-400 hover:text-indigo-600 transition-colors flex-shrink-0"
+                        >
+                          <Send className="w-4 h-4" />
+                        </button>
+                      )}
                       <a
                         href={`/api/quotes/${q.id}/pdf`}
                         target="_blank"
@@ -448,9 +483,22 @@ export default function QuotesSection({ leadId, onValueChange }: Props) {
           prefill={modal.prefill}
           type={modal.type}
           leadId={leadId}
+          leadEmail={leadEmail}
+          leadName={leadName}
           onSave={handleSave}
           onDelete={handleDelete}
           onClose={() => setModal({ open: false, quote: null, type: 'quote' })}
+        />
+      )}
+
+      {emailModal.open && (
+        <EmailModal
+          leadId={leadId}
+          leadEmail={leadEmail ?? null}
+          leadName={leadName}
+          quoteId={emailModal.quoteId}
+          quoteNumber={emailModal.quoteNumber}
+          onClose={() => setEmailModal({ open: false })}
         />
       )}
 

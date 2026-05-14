@@ -1,7 +1,9 @@
 'use client'
-import { useState, useEffect, useRef, useCallback } from 'react'
-import { Play, Square, Plus, Trash2, Edit2, X, Loader2, Clock, Phone, Users, Wrench, Mail, ClipboardList, MoreHorizontal, Check } from 'lucide-react'
+import { useState, useEffect, useRef, useCallback, lazy, Suspense } from 'react'
+import { Play, Square, Plus, Trash2, Edit2, X, Loader2, Clock, Phone, Users, Wrench, Mail, ClipboardList, MoreHorizontal, MapPin } from 'lucide-react'
 import Link from 'next/link'
+
+const TimeMap = lazy(() => import('./TimeMap'))
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -17,6 +19,8 @@ interface TimeEntry {
   durationMin: number
   startedAt: string
   assignedTo: string | null
+  latitude: number | null
+  longitude: number | null
   lead: Lead | null
   user: User | null
 }
@@ -62,6 +66,8 @@ interface ModalProps {
   initial?: TimeEntry | null
   prefillDuration?: number
   prefillStartedAt?: string
+  prefillLat?: number | null
+  prefillLng?: number | null
   leads: Lead[]
   users: User[]
   currentUserId: string
@@ -70,7 +76,7 @@ interface ModalProps {
   onClose: () => void
 }
 
-function EntryModal({ initial, prefillDuration, prefillStartedAt, leads, users, currentUserId, onSave, onDelete, onClose }: ModalProps) {
+function EntryModal({ initial, prefillDuration, prefillStartedAt, prefillLat, prefillLng, leads, users, currentUserId, onSave, onDelete, onClose }: ModalProps) {
   const isEdit = !!initial
   const inputCls = 'w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent'
   const labelCls = 'block text-xs font-medium text-slate-500 mb-1.5 uppercase tracking-wide'
@@ -106,6 +112,8 @@ function EntryModal({ initial, prefillDuration, prefillStartedAt, leads, users, 
         leadId: leadId || null,
         assignedTo: assignedTo.trim() || null,
         userId: matchedUser?.id || null,
+        latitude: initial ? (initial.latitude ?? null) : (prefillLat ?? null),
+        longitude: initial ? (initial.longitude ?? null) : (prefillLng ?? null),
       }
       const res = await fetch(
         isEdit ? `/api/time-entries/${initial!.id}` : '/api/time-entries',
@@ -249,6 +257,8 @@ function EntryModal({ initial, prefillDuration, prefillStartedAt, leads, users, 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 const TIMER_KEY = 'crm_timer_start'
+const TIMER_LAT_KEY = 'crm_timer_lat'
+const TIMER_LNG_KEY = 'crm_timer_lng'
 
 export default function TimePage() {
   const [entries, setEntries] = useState<TimeEntry[]>([])
@@ -256,7 +266,7 @@ export default function TimePage() {
   const [users, setUsers] = useState<User[]>([])
   const [currentUserId, setCurrentUserId] = useState('')
   const [loading, setLoading] = useState(true)
-  const [modal, setModal] = useState<{ open: boolean; entry?: TimeEntry | null; prefillDuration?: number; prefillStartedAt?: string }>({ open: false })
+  const [modal, setModal] = useState<{ open: boolean; entry?: TimeEntry | null; prefillDuration?: number; prefillStartedAt?: string; prefillLat?: number | null; prefillLng?: number | null }>({ open: false })
   const [filterType, setFilterType] = useState<EntryType | 'all'>('all')
 
   // Live timer
@@ -284,20 +294,45 @@ export default function TimePage() {
   function startTimer() {
     const now = Date.now()
     localStorage.setItem(TIMER_KEY, String(now))
+    localStorage.removeItem(TIMER_LAT_KEY)
+    localStorage.removeItem(TIMER_LNG_KEY)
     setTimerStart(now)
+
+    if (typeof navigator !== 'undefined' && navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          localStorage.setItem(TIMER_LAT_KEY, String(pos.coords.latitude))
+          localStorage.setItem(TIMER_LNG_KEY, String(pos.coords.longitude))
+        },
+        () => { /* permission denied or unavailable — silently skip */ },
+        { enableHighAccuracy: true, timeout: 10000 }
+      )
+    }
   }
 
   function stopTimer() {
     if (!timerStart) return
     const durationMin = Math.max(1, Math.round(elapsed / 60))
     const startedAt = new Date(timerStart).toISOString()
+    const lat = localStorage.getItem(TIMER_LAT_KEY)
+    const lng = localStorage.getItem(TIMER_LNG_KEY)
     localStorage.removeItem(TIMER_KEY)
+    localStorage.removeItem(TIMER_LAT_KEY)
+    localStorage.removeItem(TIMER_LNG_KEY)
     setTimerStart(null)
-    setModal({ open: true, prefillDuration: durationMin, prefillStartedAt: startedAt })
+    setModal({
+      open: true,
+      prefillDuration: durationMin,
+      prefillStartedAt: startedAt,
+      prefillLat: lat ? parseFloat(lat) : null,
+      prefillLng: lng ? parseFloat(lng) : null,
+    })
   }
 
   function cancelTimer() {
     localStorage.removeItem(TIMER_KEY)
+    localStorage.removeItem(TIMER_LAT_KEY)
+    localStorage.removeItem(TIMER_LNG_KEY)
     setTimerStart(null)
   }
 
@@ -462,6 +497,29 @@ export default function TimePage() {
         })}
       </div>
 
+      {/* Location map */}
+      {!loading && (() => {
+        const mapped = filtered.filter(e => e.latitude != null && e.longitude != null).map(e => ({
+          id: e.id,
+          type: e.type,
+          typeLabel: TYPE_META[e.type]?.label ?? e.type,
+          typeColor: TYPE_META[e.type]?.color ?? 'text-slate-700',
+          durationMin: e.durationMin,
+          startedAt: e.startedAt,
+          description: e.description,
+          assignedTo: e.assignedTo ?? e.user?.name ?? e.user?.email ?? null,
+          leadName: e.lead?.name ?? null,
+          latitude: e.latitude!,
+          longitude: e.longitude!,
+        }))
+        if (mapped.length === 0) return null
+        return (
+          <Suspense fallback={null}>
+            <TimeMap entries={mapped} />
+          </Suspense>
+        )
+      })()}
+
       {/* Entries list */}
       {loading ? (
         <div className="flex items-center justify-center py-24 text-slate-400">
@@ -515,6 +573,18 @@ export default function TimePage() {
                             {(entry.assignedTo ?? entry.user?.name ?? entry.user?.email) && (
                               <span> · {entry.assignedTo ?? entry.user?.name ?? entry.user?.email}</span>
                             )}
+                            {entry.latitude != null && entry.longitude != null && (
+                              <a
+                                href={`https://www.google.com/maps?q=${entry.latitude},${entry.longitude}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-0.5 ml-1.5 text-indigo-500 hover:text-indigo-700"
+                                onClick={(e) => e.stopPropagation()}
+                                title={`${entry.latitude.toFixed(5)}, ${entry.longitude.toFixed(5)}`}
+                              >
+                                <MapPin className="w-3 h-3" />
+                              </a>
+                            )}
                           </p>
                         </div>
                         <div className="flex items-center gap-3 flex-shrink-0">
@@ -541,6 +611,8 @@ export default function TimePage() {
           initial={modal.entry}
           prefillDuration={modal.prefillDuration}
           prefillStartedAt={modal.prefillStartedAt}
+          prefillLat={modal.prefillLat}
+          prefillLng={modal.prefillLng}
           leads={leads}
           users={users}
           currentUserId={currentUserId}

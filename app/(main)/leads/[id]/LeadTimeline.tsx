@@ -1,16 +1,19 @@
 'use client'
 import { useState, useEffect } from 'react'
-import { UserPlus, ArrowRightLeft, Pencil, CalendarDays, FileText, Zap, StickyNote, Loader2 } from 'lucide-react'
+import { UserPlus, ArrowRightLeft, Pencil, CalendarDays, FileText, Zap, StickyNote, Loader2, Mail, MailOpen, MousePointerClick } from 'lucide-react'
 import type { TimelineEvent } from '@/app/api/leads/[id]/timeline/route'
 
 const TYPE_CONFIG = {
-  created:     { icon: UserPlus,       bg: 'bg-emerald-100', color: 'text-emerald-600' },
-  status:      { icon: ArrowRightLeft, bg: 'bg-indigo-100',  color: 'text-indigo-600'  },
-  updated:     { icon: Pencil,         bg: 'bg-slate-100',   color: 'text-slate-500'   },
-  note:        { icon: StickyNote,     bg: 'bg-amber-100',   color: 'text-amber-600'   },
-  appointment: { icon: CalendarDays,   bg: 'bg-blue-100',    color: 'text-blue-600'    },
-  quote:       { icon: FileText,       bg: 'bg-violet-100',  color: 'text-violet-600'  },
-  conversion:  { icon: Zap,            bg: 'bg-orange-100',  color: 'text-orange-600'  },
+  created:       { icon: UserPlus,          bg: 'bg-emerald-100', color: 'text-emerald-600' },
+  status:        { icon: ArrowRightLeft,    bg: 'bg-indigo-100',  color: 'text-indigo-600'  },
+  updated:       { icon: Pencil,            bg: 'bg-slate-100',   color: 'text-slate-500'   },
+  note:          { icon: StickyNote,        bg: 'bg-amber-100',   color: 'text-amber-600'   },
+  appointment:   { icon: CalendarDays,      bg: 'bg-blue-100',    color: 'text-blue-600'    },
+  quote:         { icon: FileText,          bg: 'bg-violet-100',  color: 'text-violet-600'  },
+  conversion:    { icon: Zap,              bg: 'bg-orange-100',  color: 'text-orange-600'  },
+  email_sent:    { icon: Mail,             bg: 'bg-sky-100',     color: 'text-sky-600'     },
+  email_opened:  { icon: MailOpen,         bg: 'bg-emerald-100', color: 'text-emerald-600' },
+  email_clicked: { icon: MousePointerClick, bg: 'bg-indigo-100',  color: 'text-indigo-600'  },
 }
 
 function timeAgo(iso: string) {

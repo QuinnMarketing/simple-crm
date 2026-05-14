@@ -75,6 +75,7 @@ export default async function DashboardPage({
   const chartTo = toDate ?? new Date()
 
   const now = new Date()
+  const accountId = session!.user.role === 'master_admin' ? (account ?? null) : (session!.user.accountId ?? null)
   const apptFilter = { ...accountFilter, startTime: { gte: now } }
   const quoteDateFilter = fromDate || toDate
     ? { createdAt: { ...(fromDate ? { gte: fromDate } : {}), ...(toDate ? { lte: toDate } : {}) } }
@@ -82,7 +83,7 @@ export default async function DashboardPage({
 
   const [total, byStatus, recentLeads, conversions, activeCompany, valueByStatus, chartLeads, upcomingAppts, pendingQuoteAgg, invoiceAgg,
     apptWithLeadCount, prevTotal, prevByStatus, prevValueByStatus, prevPendingQuote, prevInvoice,
-    stageTimeLeads,
+    stageTimeLeads, accountSettings, respondedLeads, idleCount,
   ] = await Promise.all([
     prisma.lead.count({ where }),
     prisma.lead.groupBy({ by: ['status'], where, _count: true }),
@@ -136,6 +137,9 @@ export default async function DashboardPage({
     prevDateFilter ? prisma.quote.aggregate({ where: { ...accountFilter, type: 'invoice', ...{ createdAt: { gte: prevFromDate, lte: prevToDate } } }, _sum: { total: true } }) : Promise.resolve(null),
     // Stage time source — capped at 500 leads to keep audit log query manageable
     prisma.lead.findMany({ where, select: { id: true, status: true, createdAt: true }, take: 500 }),
+    accountId ? prisma.account.findUnique({ where: { id: accountId }, select: { slaHours: true, idleAlertDays: true } }) : Promise.resolve(null),
+    prisma.lead.findMany({ where: { ...accountFilter, firstRespondedAt: { not: null }, ...dateFilter }, select: { createdAt: true, firstRespondedAt: true } }),
+    prisma.lead.count({ where: { ...accountFilter, status: { in: ['new', 'contacted', 'qualified'] }, updatedAt: { lte: new Date(now.getTime() - 7 * 86_400_000) } } }),
   ])
 
   const sm = Object.fromEntries(byStatus.map((s) => [s.status, s._count]))
@@ -275,6 +279,30 @@ export default async function DashboardPage({
     }
   }
 
+  const slaHours = accountSettings?.slaHours ?? null
+  let avgResponseMs: number | null = null
+  let slaCompliancePct: number | null = null
+  let overdueCount: number | null = null
+
+  if (respondedLeads.length > 0) {
+    const responseTimes = respondedLeads.map(
+      (l) => l.firstRespondedAt!.getTime() - l.createdAt.getTime()
+    )
+    avgResponseMs = Math.round(responseTimes.reduce((a, b) => a + b, 0) / responseTimes.length)
+    if (slaHours) {
+      const slaMs = slaHours * 3_600_000
+      const metCount = responseTimes.filter((ms) => ms <= slaMs).length
+      slaCompliancePct = Math.round((metCount / respondedLeads.length) * 100)
+    }
+  }
+
+  if (slaHours) {
+    const slaDeadline = new Date(now.getTime() - slaHours * 3_600_000)
+    overdueCount = await prisma.lead.count({
+      where: { ...accountFilter, status: 'new', firstRespondedAt: null, createdAt: { lte: slaDeadline } },
+    })
+  }
+
   const fmtCurrency = (v: number) =>
     v >= 1_000_000
       ? `$${(v / 1_000_000).toFixed(1)}M`
@@ -386,6 +414,33 @@ export default async function DashboardPage({
           <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Lead → Appointment</p>
           <p className="text-3xl font-bold text-slate-900 mt-2">{leadToApptRate != null ? `${leadToApptRate}%` : '—'}</p>
           <p className="text-xs text-slate-400 mt-1">Leads with booked appointments{total > 0 ? ` · ${apptWithLeadCount}/${total} leads` : ''}</p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
+        <Link href="/leads?idle=1" className="bg-white rounded-xl border border-slate-200 p-5 hover:border-amber-300 hover:bg-amber-50/40 transition-colors group">
+          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide group-hover:text-amber-700">Idle Deals</p>
+          <p className={`text-3xl font-bold mt-2 ${idleCount > 0 ? 'text-amber-600' : 'text-slate-900'}`}>{idleCount}</p>
+          <p className="text-xs text-slate-400 mt-1">
+            {idleCount > 0
+              ? `Active leads with no update in 7+ days`
+              : 'No stale deals — pipeline is moving'}
+          </p>
+        </Link>
+        <div className="bg-white rounded-xl border border-slate-200 p-5">
+          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Avg First Response</p>
+          <p className="text-3xl font-bold text-slate-900 mt-2">{avgResponseMs !== null ? fmtDuration(avgResponseMs) : '—'}</p>
+          <p className="text-xs text-slate-400 mt-1">{respondedLeads.length > 0 ? `${respondedLeads.length} responded lead${respondedLeads.length !== 1 ? 's' : ''}` : 'No responses yet'}</p>
+        </div>
+        <div className="bg-white rounded-xl border border-slate-200 p-5">
+          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">SLA Met</p>
+          <p className="text-3xl font-bold text-slate-900 mt-2">{slaCompliancePct !== null ? `${slaCompliancePct}%` : '—'}</p>
+          <p className="text-xs text-slate-400 mt-1">{slaHours ? `Within ${fmtDuration(slaHours * 3_600_000)}` : 'Set SLA target in Settings'}</p>
+        </div>
+        <div className="bg-white rounded-xl border border-slate-200 p-5">
+          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">SLA Overdue</p>
+          <p className={`text-3xl font-bold mt-2 ${overdueCount ? 'text-red-600' : 'text-slate-900'}`}>{overdueCount ?? '—'}</p>
+          <p className="text-xs text-slate-400 mt-1">{slaHours ? `New leads past ${fmtDuration(slaHours * 3_600_000)} target` : 'Set SLA target in Settings'}</p>
         </div>
       </div>
 

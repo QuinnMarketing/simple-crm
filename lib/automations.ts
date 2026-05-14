@@ -1,5 +1,6 @@
 import { prisma } from './prisma'
 import { sendEmail, type SmtpConfig } from './email'
+import { mergeSmtp } from './platform-defaults'
 
 type LeadContext = {
   name: string
@@ -77,11 +78,9 @@ export async function runPendingQuoteFollowups(): Promise<{ sent: number; errors
       }),
     ])
 
-    const smtpConfig: SmtpConfig | null = smtpRow?.enabled
-      ? (JSON.parse(smtpRow.config) as SmtpConfig)
-      : null
+    const smtpConfig = mergeSmtp(smtpRow?.enabled ? (() => { try { return JSON.parse(smtpRow.config) as SmtpConfig } catch { return null } })() : null)
 
-    if (!smtpConfig?.host || !smtpConfig?.user || !smtpConfig?.pass) continue
+    if (!smtpConfig.host || !smtpConfig.user || !smtpConfig.pass) continue
 
     const ac = JSON.parse(automation.actionConfig) as { subject?: string; body?: string }
 
@@ -128,8 +127,8 @@ export async function runAppointmentBookedAutomations(appointment: AppointmentCo
 
   if (automations.length === 0 || !lead?.email) return
 
-  const smtpConfig: SmtpConfig | null = smtpRow?.enabled ? (JSON.parse(smtpRow.config) as SmtpConfig) : null
-  if (!smtpConfig?.host || !smtpConfig?.user || !smtpConfig?.pass) return
+  const smtpConfig = mergeSmtp(smtpRow?.enabled ? (() => { try { return JSON.parse(smtpRow.config) as SmtpConfig } catch { return null } })() : null)
+  if (!smtpConfig.host || !smtpConfig.user || !smtpConfig.pass) return
 
   const vars: Record<string, string> = {
     name: lead.name, email: lead.email, phone: lead.phone ?? '',
@@ -179,8 +178,8 @@ export async function runAppointmentReminderAutomations(): Promise<{ sent: numbe
       }),
     ])
 
-    const smtpConfig: SmtpConfig | null = smtpRow?.enabled ? (JSON.parse(smtpRow.config) as SmtpConfig) : null
-    if (!smtpConfig?.host || !smtpConfig?.user || !smtpConfig?.pass) continue
+    const smtpConfig = mergeSmtp(smtpRow?.enabled ? (() => { try { return JSON.parse(smtpRow.config) as SmtpConfig } catch { return null } })() : null)
+    if (!smtpConfig.host || !smtpConfig.user || !smtpConfig.pass) continue
 
     const ac = JSON.parse(automation.actionConfig) as { subject?: string; body?: string }
 
@@ -243,10 +242,8 @@ export async function runIdleDealAlerts(): Promise<{ sent: number; errors: numbe
       }),
     ])
 
-    const smtpConfig: SmtpConfig | null = smtpRow?.enabled
-      ? (JSON.parse(smtpRow.config) as SmtpConfig)
-      : null
-    if (!smtpConfig?.host || !smtpConfig?.user || !smtpConfig?.pass) continue
+    const smtpConfig = mergeSmtp(smtpRow?.enabled ? (() => { try { return JSON.parse(smtpRow.config) as SmtpConfig } catch { return null } })() : null)
+    if (!smtpConfig.host || !smtpConfig.user || !smtpConfig.pass) continue
 
     const ac = JSON.parse(automation.actionConfig) as { subject?: string; body?: string }
 
@@ -271,6 +268,44 @@ export async function runIdleDealAlerts(): Promise<{ sent: number; errors: numbe
   return { sent, errors }
 }
 
+export async function runIdlePushAlerts(): Promise<{ alerts: number }> {
+  let alerts = 0
+  const now = new Date()
+  const minIntervalMs = 22 * 3_600_000 // 22h debounce — cron runs hourly, only push once per day
+
+  const accounts = await prisma.account.findMany({
+    where: { idleAlertDays: { not: null } },
+    select: { id: true, idleAlertDays: true, lastIdleAlertAt: true },
+  })
+
+  for (const account of accounts) {
+    if (!account.idleAlertDays) continue
+    if (account.lastIdleAlertAt && now.getTime() - account.lastIdleAlertAt.getTime() < minIntervalMs) continue
+
+    const cutoff = new Date(now.getTime() - account.idleAlertDays * 86_400_000)
+    const idleCount = await prisma.lead.count({
+      where: { accountId: account.id, status: { in: ['new', 'contacted', 'qualified'] }, updatedAt: { lte: cutoff } },
+    })
+    if (idleCount === 0) continue
+
+    try {
+      const { sendPushToAccount } = await import('./push')
+      const label = idleCount === 1 ? '1 deal has' : `${idleCount} deals have`
+      await sendPushToAccount(account.id, {
+        title: '⏳ Idle Deals',
+        body: `${label} had no activity for ${account.idleAlertDays}+ days`,
+        url: '/leads?idle=1',
+      })
+      await prisma.account.update({ where: { id: account.id }, data: { lastIdleAlertAt: now } })
+      alerts++
+    } catch (e) {
+      console.error(`Idle push alert failed for account ${account.id}:`, e)
+    }
+  }
+
+  return { alerts }
+}
+
 export async function runAutomations(
   trigger: 'lead_created' | 'lead_status_changed',
   lead: LeadContext,
@@ -289,9 +324,7 @@ export async function runAutomations(
 
   if (automations.length === 0) return
 
-  const smtpConfig: SmtpConfig | null = smtpRow?.enabled
-    ? (JSON.parse(smtpRow.config) as SmtpConfig)
-    : null
+  const smtpConfig = mergeSmtp(smtpRow?.enabled ? (() => { try { return JSON.parse(smtpRow.config) as SmtpConfig } catch { return null } })() : null)
 
   const vars: Record<string, string> = {
     name: lead.name,
@@ -313,7 +346,7 @@ export async function runAutomations(
     }
 
     if (automation.action === 'send_email') {
-      if (!lead.email || !smtpConfig?.host || !smtpConfig?.user || !smtpConfig?.pass) continue
+      if (!lead.email || !smtpConfig.host || !smtpConfig.user || !smtpConfig.pass) continue
       const subject = interpolate(actionConfig.subject ?? '', vars)
       const body = interpolate(actionConfig.body ?? '', vars)
       try {

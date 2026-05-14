@@ -9,6 +9,7 @@ type BusinessInfo = {
   businessEmail: string
   businessWebsite: string
   slaHours: string
+  idleAlertDays: string
 }
 
 export default function BusinessInfoForm({ accountId, initial }: { accountId: string; initial: BusinessInfo }) {
@@ -35,6 +36,7 @@ export default function BusinessInfoForm({ accountId, initial }: { accountId: st
         businessEmail: form.businessEmail,
         businessWebsite: form.businessWebsite,
         slaHours: form.slaHours ? Number(form.slaHours) : null,
+        idleAlertDays: form.idleAlertDays ? Number(form.idleAlertDays) : null,
       }),
     })
     if (res.ok) {
@@ -124,6 +126,21 @@ export default function BusinessInfoForm({ accountId, initial }: { accountId: st
             <option value="48">48 hours</option>
           </select>
           <p className="text-xs text-slate-400 mt-1">How quickly new leads should receive a first response.</p>
+        </div>
+        <div>
+          <label className={labelCls}>Idle Deal Alert</label>
+          <select
+            value={form.idleAlertDays}
+            onChange={(e) => setField('idleAlertDays', e.target.value)}
+            className={inputCls + ' bg-white'}
+          >
+            <option value="">Off</option>
+            <option value="3">3 days</option>
+            <option value="7">7 days</option>
+            <option value="14">14 days</option>
+            <option value="30">30 days</option>
+          </select>
+          <p className="text-xs text-slate-400 mt-1">Send a daily push notification when deals have had no activity for this long.</p>
         </div>
       </div>
 

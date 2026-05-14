@@ -53,6 +53,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       ...('businessEmail' in body ? { businessEmail: businessEmail?.trim() || null } : {}),
       ...('businessWebsite' in body ? { businessWebsite: businessWebsite?.trim() || null } : {}),
       ...('slaHours' in body ? { slaHours: body.slaHours != null ? Number(body.slaHours) || null : null } : {}),
+      ...('idleAlertDays' in body ? { idleAlertDays: body.idleAlertDays != null ? Number(body.idleAlertDays) || null : null } : {}),
     },
     include: { _count: { select: { users: true, leads: true } } },
   })

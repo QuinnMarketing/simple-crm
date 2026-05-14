@@ -24,12 +24,13 @@ export async function POST(req: NextRequest) {
 
   let accountId: string | null
   if (session.user.role === 'master_admin') {
-    if (body.accountId) {
-      const exists = await prisma.account.findUnique({ where: { id: body.accountId }, select: { id: true } })
+    const candidate = body.accountId || req.nextUrl.searchParams.get('account')
+    if (candidate) {
+      const exists = await prisma.account.findUnique({ where: { id: candidate }, select: { id: true } })
       if (!exists) return NextResponse.json({ error: 'Account not found' }, { status: 404 })
-      accountId = body.accountId
+      accountId = candidate
     } else {
-      accountId = null
+      return NextResponse.json({ error: 'account required for master_admin' }, { status: 400 })
     }
   } else {
     accountId = session.user.accountId ?? null
