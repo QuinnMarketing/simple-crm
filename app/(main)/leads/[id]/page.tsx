@@ -11,6 +11,7 @@ import AppointmentModal, { type Appointment } from '@/app/(main)/calendar/Appoin
 import QuotesSection from './QuotesSection'
 import LeadTimeline from './LeadTimeline'
 import NextStepsCard from './NextStepsCard'
+import TimeInStageCard from './TimeInStageCard'
 
 type Company = { id: string; name: string; color: string }
 
@@ -437,6 +438,7 @@ export default function LeadDetailPage() {
             )}
           </div>
 
+          <TimeInStageCard leadId={id} />
           <LeadTimeline leadId={id} />
 
           <div className="bg-white rounded-xl border border-slate-200 p-5">
