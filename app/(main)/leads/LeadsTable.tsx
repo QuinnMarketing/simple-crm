@@ -8,15 +8,19 @@ import StatusBadge from '@/components/StatusBadge'
 type Lead = {
   id: string; name: string; email: string | null; phone: string | null
   service: string | null; status: string; value: number | null
+  firstRespondedAt: string | null
   createdAt: string; updatedAt: string
   company: { name: string; color: string } | null
   conversions: { platform: string }[]
   account?: { name: string } | null
 }
 
+export default function LeadsTable({ leads, addHref, clearHref, slaHours }: {
+  leads: Lead[]; addHref?: string; clearHref?: string; slaHours?: number | null
+}) {
+
 const STATUSES = ['new', 'contacted', 'qualified', 'won', 'lost']
 
-export default function LeadsTable({ leads, addHref, clearHref }: { leads: Lead[]; addHref?: string; clearHref?: string }) {
   const router = useRouter()
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [isPending, startTransition] = useTransition()
@@ -114,9 +118,17 @@ export default function LeadsTable({ leads, addHref, clearHref }: { leads: Lead[
                     />
                   </td>
                   <td className="px-4 py-3">
-                    <Link href={`/leads/${lead.id}`} className="font-medium text-slate-900 hover:text-indigo-600 transition-colors">
-                      {lead.name}
-                    </Link>
+                    <div className="flex items-center gap-1.5">
+                      <Link href={`/leads/${lead.id}`} className="font-medium text-slate-900 hover:text-indigo-600 transition-colors">
+                        {lead.name}
+                      </Link>
+                      {(() => {
+                        if (lead.firstRespondedAt || lead.status !== 'new' || !slaHours) return null
+                        const overdue = Date.now() > new Date(lead.createdAt).getTime() + slaHours * 3_600_000
+                        if (!overdue) return null
+                        return <span className="flex-shrink-0 w-2 h-2 rounded-full bg-red-500" title="SLA overdue" />
+                      })()}
+                    </div>
                     {lead.account && (
                       <p className="text-xs text-indigo-600 font-medium mt-0.5">{lead.account.name}</p>
                     )}

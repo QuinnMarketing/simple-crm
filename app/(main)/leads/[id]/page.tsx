@@ -22,8 +22,10 @@ type Lead = {
   value: number | null; formData: string | null; gclid: string | null
   fbclid: string | null; fbp: string | null; fbc: string | null
   userAgent: string | null; ipAddress: string | null; pageUrl: string | null
-  bestTimeToContact: string | null; nextStep: string | null; nextStepDue: string | null; lostReason: string | null
+  bestTimeToContact: string | null; firstRespondedAt: string | null
+  nextStep: string | null; nextStepDue: string | null; lostReason: string | null
   companyId: string | null; company: Company | null
+  account: { slaHours: number | null } | null
   createdAt: string; updatedAt: string
   conversions: Conversion[]
   appointments: Appointment[]
@@ -136,6 +138,38 @@ export default function LeadDetailPage() {
   const lastPushed = (platform: string) =>
     lead.conversions.filter((c) => c.platform === platform).sort((a, b) => b.sentAt.localeCompare(a.sentAt))[0]
 
+  const slaHours = lead.account?.slaHours ?? null
+  const slaDeadline = slaHours != null ? new Date(new Date(lead.createdAt).getTime() + slaHours * 3_600_000) : null
+  const now = new Date()
+
+  function fmtDuration(ms: number) {
+    const totalMin = Math.floor(ms / 60_000)
+    const h = Math.floor(totalMin / 60)
+    const m = totalMin % 60
+    if (h > 0 && m > 0) return `${h}h ${m}m`
+    if (h > 0) return `${h}h`
+    return `${totalMin}m`
+  }
+
+  let slaBadge: { label: string; cls: string } | null = null
+  if (lead.firstRespondedAt) {
+    const responseMs = new Date(lead.firstRespondedAt).getTime() - new Date(lead.createdAt).getTime()
+    const metSla = slaDeadline ? new Date(lead.firstRespondedAt) <= slaDeadline : true
+    slaBadge = {
+      label: `Responded in ${fmtDuration(responseMs)}`,
+      cls: metSla ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700',
+    }
+  } else if (lead.status === 'new') {
+    if (slaDeadline) {
+      const remaining = slaDeadline.getTime() - now.getTime()
+      if (remaining < 0) {
+        slaBadge = { label: `SLA overdue by ${fmtDuration(-remaining)}`, cls: 'bg-red-100 text-red-700' }
+      } else {
+        slaBadge = { label: `${fmtDuration(remaining)} to respond`, cls: 'bg-yellow-100 text-yellow-700' }
+      }
+    }
+  }
+
   return (
     <div>
       <div className="mb-6">
@@ -146,6 +180,11 @@ export default function LeadDetailPage() {
           <div className="flex flex-wrap items-center gap-2 min-w-0">
             <h1 className="text-2xl font-bold text-slate-900 truncate">{lead.name}</h1>
             <StatusBadge status={lead.status} />
+            {slaBadge && (
+              <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${slaBadge.cls}`}>
+                {slaBadge.label}
+              </span>
+            )}
           </div>
           <div className="flex gap-2 flex-shrink-0">
             {dirty && (

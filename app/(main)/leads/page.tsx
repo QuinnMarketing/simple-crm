@@ -21,7 +21,9 @@ export default async function LeadsPage({
   const companyFilter = company ? { companyId: company } : {}
   const isAllAccounts = session!.user.role === 'master_admin' && !account
 
-  const [leads, activeCompany] = await Promise.all([
+  const accountId = session!.user.role === 'master_admin' ? (account ?? null) : (session!.user.accountId ?? null)
+
+  const [leads, activeCompany, accountSettings] = await Promise.all([
     prisma.lead.findMany({
       where: {
         ...accountFilter,
@@ -37,6 +39,7 @@ export default async function LeadsPage({
       orderBy: { createdAt: 'desc' },
     }),
     company ? prisma.company.findUnique({ where: { id: company }, select: { name: true, color: true } }) : null,
+    accountId ? prisma.account.findUnique({ where: { id: accountId }, select: { slaHours: true } }) : null,
   ])
 
   function statusHref(s: string) {
@@ -108,6 +111,7 @@ export default async function LeadsPage({
           leads={leads as unknown as Parameters<typeof LeadsTable>[0]['leads']}
           addHref={newLeadHref}
           clearHref={(q || status) ? `/leads${company ? `?company=${company}` : ''}${account ? `${company ? '&' : '?'}account=${account}` : ''}` : undefined}
+          slaHours={accountSettings?.slaHours}
         />
       </div>
     </div>

@@ -130,6 +130,7 @@ export default async function SettingsPage({
             businessPhone: account.businessPhone ?? '',
             businessEmail: account.businessEmail ?? '',
             businessWebsite: account.businessWebsite ?? '',
+            slaHours: account.slaHours != null ? String(account.slaHours) : '',
           }}
         />
 

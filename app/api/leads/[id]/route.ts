@@ -67,6 +67,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
         orderBy: { startTime: 'asc' },
         include: { lead: { select: { id: true, name: true } } },
       },
+      account: { select: { slaHours: true } },
     },
   })
 
@@ -104,6 +105,12 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   if ('lostReason' in body) updates.lostReason = body.lostReason || null
   if ('bestTimeToContact' in body) updates.bestTimeToContact = body.bestTimeToContact || null
 
+  // Auto-stamp first response when status moves away from 'new' for the first time
+  const newStatus = body.status as string | undefined
+  if (newStatus && newStatus !== 'new' && existing.status === 'new' && !existing.firstRespondedAt) {
+    updates.firstRespondedAt = new Date()
+  }
+
   const lead = await prisma.lead.update({
     where: { id },
     data: updates,
@@ -113,7 +120,6 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     },
   })
 
-  const newStatus = body.status as string | undefined
   if (newStatus && newStatus !== existing.status) {
     if (newStatus === 'qualified' || newStatus === 'won') {
       after(() => autoConversionPush(

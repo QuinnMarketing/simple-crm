@@ -32,6 +32,7 @@ model Account {
   documentTemplates  DocumentTemplate[]
   emailCampaigns     EmailCampaign[]
   customFields       CustomField[]
+  slaHours           Int?
 }
 
 model AccountIntegration {
@@ -104,6 +105,7 @@ model Lead {
   ipAddress   String?
   pageUrl     String?
   bestTimeToContact   String?
+  firstRespondedAt    DateTime?
   nextStep            String?
   nextStepDue         String?
   lostReason          String?

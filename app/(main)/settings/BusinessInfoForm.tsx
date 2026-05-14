@@ -8,6 +8,7 @@ type BusinessInfo = {
   businessPhone: string
   businessEmail: string
   businessWebsite: string
+  slaHours: string
 }
 
 export default function BusinessInfoForm({ accountId, initial }: { accountId: string; initial: BusinessInfo }) {
@@ -33,6 +34,7 @@ export default function BusinessInfoForm({ accountId, initial }: { accountId: st
         businessPhone: form.businessPhone,
         businessEmail: form.businessEmail,
         businessWebsite: form.businessWebsite,
+        slaHours: form.slaHours ? Number(form.slaHours) : null,
       }),
     })
     if (res.ok) {
@@ -104,6 +106,24 @@ export default function BusinessInfoForm({ accountId, initial }: { accountId: st
             placeholder="www.yourbusiness.com.au"
             className={inputCls}
           />
+        </div>
+        <div>
+          <label className={labelCls}>First Response SLA Target</label>
+          <select
+            value={form.slaHours}
+            onChange={(e) => setField('slaHours', e.target.value)}
+            className={inputCls + ' bg-white'}
+          >
+            <option value="">No SLA</option>
+            <option value="0.5">30 minutes</option>
+            <option value="1">1 hour</option>
+            <option value="2">2 hours</option>
+            <option value="4">4 hours</option>
+            <option value="8">8 hours</option>
+            <option value="24">24 hours</option>
+            <option value="48">48 hours</option>
+          </select>
+          <p className="text-xs text-slate-400 mt-1">How quickly new leads should receive a first response.</p>
         </div>
       </div>
 
