@@ -5,6 +5,7 @@ import IntegrationsForm from './IntegrationsForm'
 import CopyButton from './CopyButton'
 import DocumentTemplatesSection from './DocumentTemplatesSection'
 import BusinessInfoForm from './BusinessInfoForm'
+import CustomFieldsSection from './CustomFieldsSection'
 import Link from 'next/link'
 import { UserCog, History } from 'lucide-react'
 
@@ -159,6 +160,8 @@ export default async function SettingsPage({
             </div>
           </Link>
         </div>
+
+        <CustomFieldsSection accountId={accountId} />
 
         <DocumentTemplatesSection />
 

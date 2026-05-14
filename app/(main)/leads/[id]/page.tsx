@@ -12,6 +12,7 @@ import QuotesSection from './QuotesSection'
 import LeadTimeline from './LeadTimeline'
 import NextStepsCard from './NextStepsCard'
 import TimeInStageCard from './TimeInStageCard'
+import CustomFieldsCard from './CustomFieldsCard'
 
 type Company = { id: string; name: string; color: string }
 
@@ -398,8 +399,9 @@ export default function LeadDetailPage() {
           )}
         </div>
 
-        {/* Right: Next Steps + Appointments + Platform Push */}
+        {/* Right: Custom Fields + Next Steps + Appointments + Platform Push */}
         <div className="space-y-5">
+          <CustomFieldsCard leadId={id} />
           <NextStepsCard
             leadId={id}
             status={lead.status}

@@ -31,6 +31,7 @@ model Account {
   timeEntries        TimeEntry[]
   documentTemplates  DocumentTemplate[]
   emailCampaigns     EmailCampaign[]
+  customFields       CustomField[]
 }
 
 model AccountIntegration {
@@ -118,6 +119,7 @@ model Lead {
   quotes              Quote[]
   timeEntries         TimeEntry[]
   emailCampaignSends  EmailCampaignSend[]
+  customFieldValues   CustomFieldValue[]
 }
 
 model Appointment {
@@ -276,4 +278,30 @@ model EmailCampaignSend {
   clickedAt  DateTime?
   sentAt     DateTime?
   createdAt  DateTime      @default(now())
+}
+
+model CustomField {
+  id        String   @id @default(cuid())
+  accountId String
+  account   Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  name      String
+  type      String   @default("text") // text | textarea | number | date | select | checkbox
+  options   String?  // JSON string array — only used when type = 'select'
+  required  Boolean  @default(false)
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+
+  values CustomFieldValue[]
+}
+
+model CustomFieldValue {
+  id            String      @id @default(cuid())
+  leadId        String
+  lead          Lead        @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  customFieldId String
+  customField   CustomField @relation(fields: [customFieldId], references: [id], onDelete: Cascade)
+  value         String?
+  updatedAt     DateTime    @updatedAt
+
+  @@unique([leadId, customFieldId])
 }
