@@ -220,11 +220,14 @@ export default async function DashboardPage({
   let avgStageTime: Record<string, StageStat> = {}
 
   if (stageTimeLeads.length > 0) {
-    const stageAuditLogs = await prisma.auditLog.findMany({
-      where: { entityType: 'lead', entityId: { in: stageTimeLeads.map((l) => l.id) } },
-      orderBy: { createdAt: 'asc' },
-      select: { entityId: true, changes: true, createdAt: true },
-    })
+    let stageAuditLogs: { entityId: string; changes: string | null; createdAt: Date }[] = []
+    try {
+      stageAuditLogs = await prisma.auditLog.findMany({
+        where: { entityType: 'lead', entityId: { in: stageTimeLeads.map((l) => l.id) } },
+        orderBy: { createdAt: 'asc' },
+        select: { entityId: true, changes: true, createdAt: true },
+      })
+    } catch { /* table may not exist yet */ }
 
     const logsByLead = new Map<string, typeof stageAuditLogs>()
     for (const log of stageAuditLogs) {
@@ -355,13 +358,14 @@ export default async function DashboardPage({
             <div key={s.label} className="bg-white rounded-xl border border-slate-200 p-5">
               <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">{s.label}</p>
               <p className={`text-3xl font-bold mt-2 ${s.color}`}>{s.value}</p>
-              {d ? (
+              {d && (
                 <p className={`text-xs mt-1 font-medium ${d.diff >= 0 ? 'text-green-600' : 'text-red-500'}`}>
                   {d.diff >= 0 ? '↑' : '↓'} {Math.abs(d.diff)} ({Math.abs(d.pct)}%)
                 </p>
-              ) : s.avgMs != null ? (
+              )}
+              {s.avgMs != null && (
                 <p className="text-xs text-slate-400 mt-1">avg {fmtDuration(s.avgMs)}</p>
-              ) : null}
+              )}
             </div>
           )
         })}
