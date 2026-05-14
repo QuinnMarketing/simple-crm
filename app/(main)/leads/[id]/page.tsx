@@ -148,7 +148,7 @@ export default function LeadDetailPage() {
     const m = totalMin % 60
     if (h > 0 && m > 0) return `${h}h ${m}m`
     if (h > 0) return `${h}h`
-    return `${totalMin}m`
+    return totalMin <= 0 ? '<1m' : `${totalMin}m`
   }
 
   let slaBadge: { label: string; cls: string } | null = null
@@ -156,17 +156,20 @@ export default function LeadDetailPage() {
     const responseMs = new Date(lead.firstRespondedAt).getTime() - new Date(lead.createdAt).getTime()
     const metSla = slaDeadline ? new Date(lead.firstRespondedAt) <= slaDeadline : true
     slaBadge = {
-      label: `Responded in ${fmtDuration(responseMs)}`,
+      label: `First response: ${fmtDuration(responseMs)}`,
       cls: metSla ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700',
     }
   } else if (lead.status === 'new') {
+    const waitingMs = now.getTime() - new Date(lead.createdAt).getTime()
     if (slaDeadline) {
       const remaining = slaDeadline.getTime() - now.getTime()
       if (remaining < 0) {
-        slaBadge = { label: `SLA overdue by ${fmtDuration(-remaining)}`, cls: 'bg-red-100 text-red-700' }
+        slaBadge = { label: `SLA overdue — waiting ${fmtDuration(waitingMs)}`, cls: 'bg-red-100 text-red-700' }
       } else {
-        slaBadge = { label: `${fmtDuration(remaining)} to respond`, cls: 'bg-yellow-100 text-yellow-700' }
+        slaBadge = { label: `Waiting ${fmtDuration(waitingMs)} · ${fmtDuration(remaining)} left`, cls: 'bg-yellow-100 text-yellow-700' }
       }
+    } else {
+      slaBadge = { label: `Waiting ${fmtDuration(waitingMs)}`, cls: 'bg-slate-100 text-slate-600' }
     }
   }
 

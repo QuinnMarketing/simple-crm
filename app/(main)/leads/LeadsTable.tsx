@@ -118,20 +118,28 @@ const STATUSES = ['new', 'contacted', 'qualified', 'won', 'lost']
                     />
                   </td>
                   <td className="px-4 py-3">
-                    <div className="flex items-center gap-1.5">
-                      <Link href={`/leads/${lead.id}`} className="font-medium text-slate-900 hover:text-indigo-600 transition-colors">
-                        {lead.name}
-                      </Link>
-                      {(() => {
-                        if (lead.firstRespondedAt || lead.status !== 'new' || !slaHours) return null
-                        const overdue = Date.now() > new Date(lead.createdAt).getTime() + slaHours * 3_600_000
-                        if (!overdue) return null
-                        return <span className="flex-shrink-0 w-2 h-2 rounded-full bg-red-500" title="SLA overdue" />
-                      })()}
-                    </div>
+                    <Link href={`/leads/${lead.id}`} className="font-medium text-slate-900 hover:text-indigo-600 transition-colors">
+                      {lead.name}
+                    </Link>
                     {lead.account && (
                       <p className="text-xs text-indigo-600 font-medium mt-0.5">{lead.account.name}</p>
                     )}
+                    {(() => {
+                      if (lead.status !== 'new') return null
+                      const waitMs = Date.now() - new Date(lead.createdAt).getTime()
+                      const totalMin = Math.floor(waitMs / 60_000)
+                      const h = Math.floor(totalMin / 60)
+                      const m = totalMin % 60
+                      const label = h > 0 ? (m > 0 ? `${h}h ${m}m` : `${h}h`) : `${totalMin}m`
+                      const slaMs = slaHours ? slaHours * 3_600_000 : null
+                      const overdue = slaMs != null && waitMs > slaMs
+                      if (lead.firstRespondedAt) return null
+                      return (
+                        <p className={`text-xs mt-0.5 font-medium ${overdue ? 'text-red-600' : 'text-slate-400'}`}>
+                          Waiting {label}{overdue ? ' · SLA overdue' : ''}
+                        </p>
+                      )
+                    })()}
                   </td>
                   <td className="px-4 py-3 hidden md:table-cell">
                     <div className="text-sm text-slate-700">{lead.email ?? '—'}</div>
