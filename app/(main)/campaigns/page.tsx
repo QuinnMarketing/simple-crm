@@ -1,13 +1,23 @@
 'use client'
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { Plus, Mail, Send, Clock, FileText, Trash2, Loader2, BarChart2 } from 'lucide-react'
+import { Plus, Mail, Send, Clock, FileText, Trash2, Loader2, BarChart2, Eye, MousePointer, XCircle } from 'lucide-react'
 
 type Campaign = {
   id: string; name: string; subject: string; status: string
   totalSent: number; totalFailed: number; sentAt: string | null
   scheduledAt: string | null; createdAt: string; trackOpens: boolean
   _count: { sends: number }
+}
+
+type OverallStats = {
+  sentCampaigns: number
+  totalDelivered: number
+  totalFailed: number
+  totalOpens: number
+  totalClicks: number
+  openRate: number | null
+  clickRate: number | null
 }
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; icon: React.ElementType }> = {
@@ -19,12 +29,17 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; icon: React.
 
 export default function CampaignsPage() {
   const [campaigns, setCampaigns] = useState<Campaign[]>([])
+  const [stats, setStats] = useState<OverallStats | null>(null)
   const [loading, setLoading] = useState(true)
   const [deleting, setDeleting] = useState<string | null>(null)
 
   useEffect(() => {
-    fetch('/api/campaigns').then((r) => r.json()).then((d) => {
-      if (Array.isArray(d)) setCampaigns(d)
+    Promise.all([
+      fetch('/api/campaigns').then((r) => r.json()),
+      fetch('/api/campaigns/stats').then((r) => r.json()),
+    ]).then(([list, s]) => {
+      if (Array.isArray(list)) setCampaigns(list)
+      if (s && !s.error) setStats(s)
     }).finally(() => setLoading(false))
   }, [])
 
@@ -56,6 +71,50 @@ export default function CampaignsPage() {
           <Plus className="w-4 h-4" /> New Campaign
         </Link>
       </div>
+
+      {stats && stats.sentCampaigns > 0 && (
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 mb-6">
+          <div className="bg-white rounded-xl border border-slate-200 p-4 text-center">
+            <div className="w-9 h-9 bg-indigo-100 text-indigo-600 rounded-lg flex items-center justify-center mx-auto mb-2">
+              <Send className="w-4 h-4" />
+            </div>
+            <p className="text-xl font-bold text-slate-900">{stats.sentCampaigns}</p>
+            <p className="text-xs text-slate-500 mt-0.5">Campaigns Sent</p>
+          </div>
+          <div className="bg-white rounded-xl border border-slate-200 p-4 text-center">
+            <div className="w-9 h-9 bg-slate-100 text-slate-600 rounded-lg flex items-center justify-center mx-auto mb-2">
+              <Mail className="w-4 h-4" />
+            </div>
+            <p className="text-xl font-bold text-slate-900">{stats.totalDelivered.toLocaleString()}</p>
+            <p className="text-xs text-slate-500 mt-0.5">Emails Delivered</p>
+          </div>
+          <div className="bg-white rounded-xl border border-slate-200 p-4 text-center">
+            <div className={`w-9 h-9 rounded-lg flex items-center justify-center mx-auto mb-2 ${stats.openRate !== null ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-100 text-slate-400'}`}>
+              <Eye className="w-4 h-4" />
+            </div>
+            <p className="text-xl font-bold text-slate-900">{stats.openRate !== null ? `${stats.openRate}%` : '—'}</p>
+            <p className="text-xs text-slate-500 mt-0.5">
+              {stats.openRate !== null ? `Open Rate (${stats.totalOpens.toLocaleString()})` : 'Opens Not Tracked'}
+            </p>
+          </div>
+          <div className="bg-white rounded-xl border border-slate-200 p-4 text-center">
+            <div className={`w-9 h-9 rounded-lg flex items-center justify-center mx-auto mb-2 ${stats.clickRate !== null ? 'bg-blue-100 text-blue-600' : 'bg-slate-100 text-slate-400'}`}>
+              <MousePointer className="w-4 h-4" />
+            </div>
+            <p className="text-xl font-bold text-slate-900">{stats.clickRate !== null ? `${stats.clickRate}%` : '—'}</p>
+            <p className="text-xs text-slate-500 mt-0.5">
+              {stats.clickRate !== null ? `Click Rate (${stats.totalClicks.toLocaleString()})` : 'Clicks Not Tracked'}
+            </p>
+          </div>
+          <div className="bg-white rounded-xl border border-slate-200 p-4 text-center">
+            <div className={`w-9 h-9 rounded-lg flex items-center justify-center mx-auto mb-2 ${stats.totalFailed > 0 ? 'bg-red-100 text-red-500' : 'bg-slate-100 text-slate-400'}`}>
+              <XCircle className="w-4 h-4" />
+            </div>
+            <p className="text-xl font-bold text-slate-900">{stats.totalFailed.toLocaleString()}</p>
+            <p className="text-xs text-slate-500 mt-0.5">Failed</p>
+          </div>
+        </div>
+      )}
 
       {campaigns.length === 0 ? (
         <div className="bg-white rounded-xl border border-slate-200 p-12 text-center">
