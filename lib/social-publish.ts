@@ -133,6 +133,25 @@ async function publishToLinkedIn(
   return { error: data.message ?? data.errorDetails ?? `LinkedIn API error ${res.status}` }
 }
 
+async function refreshGoogleToken(refreshToken: string): Promise<string | null> {
+  const clientId = process.env.GOOGLE_CALENDAR_CLIENT_ID
+  const clientSecret = process.env.GOOGLE_CALENDAR_CLIENT_SECRET
+  if (!clientId || !clientSecret) return null
+
+  const res = await fetch('https://oauth2.googleapis.com/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      grant_type: 'refresh_token',
+      refresh_token: refreshToken,
+      client_id: clientId,
+      client_secret: clientSecret,
+    }),
+  })
+  if (!res.ok) return null
+  return (await res.json()).access_token ?? null
+}
+
 async function publishToGoogleBusiness(
   locationName: string,
   accessToken: string,
@@ -160,7 +179,7 @@ async function publishToGoogleBusiness(
   }
 
   const res = await fetch(
-    `https://mybusiness.googleapis.com/v4/${locationName}/localPosts`,
+    `https://mybusinesspostfeed.googleapis.com/v1/${locationName}/localPosts`,
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
@@ -210,7 +229,15 @@ export async function publishPost(postId: string): Promise<boolean> {
         }
         result = await publishToLinkedIn(acct.platformId, token, post.content, mediaUrls, post.link)
       } else if (acct.platform === 'google_business') {
-        result = await publishToGoogleBusiness(acct.platformId, acct.accessToken, post.content, mediaUrls, post.link)
+        let token = acct.accessToken
+        if (acct.expiresAt && acct.expiresAt < new Date() && acct.refreshToken) {
+          const fresh = await refreshGoogleToken(acct.refreshToken)
+          if (fresh) {
+            token = fresh
+            await prisma.socialAccount.update({ where: { id: acct.id }, data: { accessToken: fresh } })
+          }
+        }
+        result = await publishToGoogleBusiness(acct.platformId, token, post.content, mediaUrls, post.link)
       } else {
         result = { error: `Platform ${acct.platform} not supported` }
       }
