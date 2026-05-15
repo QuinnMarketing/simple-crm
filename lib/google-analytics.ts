@@ -1,9 +1,12 @@
 const TOKEN_URL = 'https://oauth2.googleapis.com/token'
 
+const GA_CLIENT_ID = () => process.env.GOOGLE_ANALYTICS_CLIENT_ID ?? process.env.GOOGLE_CALENDAR_CLIENT_ID ?? ''
+const GA_CLIENT_SECRET = () => process.env.GOOGLE_ANALYTICS_CLIENT_SECRET ?? process.env.GOOGLE_CALENDAR_CLIENT_SECRET ?? ''
+
 export function getAnalyticsAuthUrl(accountId: string): string {
   const state = Buffer.from(accountId).toString('base64url')
   const params = new URLSearchParams({
-    client_id: process.env.GOOGLE_ANALYTICS_CLIENT_ID!,
+    client_id: GA_CLIENT_ID(),
     redirect_uri: `${process.env.NEXTAUTH_URL}/api/analytics/google/callback`,
     response_type: 'code',
     scope: 'https://www.googleapis.com/auth/analytics.readonly https://www.googleapis.com/auth/userinfo.email',
@@ -20,8 +23,8 @@ export async function exchangeAnalyticsCode(code: string): Promise<{ refreshToke
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({
       code,
-      client_id: process.env.GOOGLE_ANALYTICS_CLIENT_ID!,
-      client_secret: process.env.GOOGLE_ANALYTICS_CLIENT_SECRET!,
+      client_id: GA_CLIENT_ID(),
+      client_secret: GA_CLIENT_SECRET(),
       redirect_uri: `${process.env.NEXTAUTH_URL}/api/analytics/google/callback`,
       grant_type: 'authorization_code',
     }),
@@ -46,8 +49,8 @@ async function getAccessToken(refreshToken: string): Promise<string> {
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({
       refresh_token: refreshToken,
-      client_id: process.env.GOOGLE_ANALYTICS_CLIENT_ID!,
-      client_secret: process.env.GOOGLE_ANALYTICS_CLIENT_SECRET!,
+      client_id: GA_CLIENT_ID(),
+      client_secret: GA_CLIENT_SECRET(),
       grant_type: 'refresh_token',
     }),
   })
