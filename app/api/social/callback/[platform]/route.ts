@@ -112,13 +112,14 @@ export async function GET(req: NextRequest, { params }: P) {
       const tokenData = await tokenRes.json()
       if (!tokenRes.ok || tokenData.error) throw new Error(tokenData.error_description ?? 'LinkedIn token exchange failed')
 
-      const profileRes = await fetch('https://api.linkedin.com/v2/me?projection=(id,localizedFirstName,localizedLastName,profilePicture(displayImage~digitalmediaAsset:playableStreams))', {
+      const profileRes = await fetch('https://api.linkedin.com/v2/userinfo', {
         headers: { Authorization: `Bearer ${tokenData.access_token}` },
       })
       const profile = await profileRes.json()
-      const name = `${profile.localizedFirstName ?? ''} ${profile.localizedLastName ?? ''}`.trim() || 'LinkedIn Profile'
-      const urn = `urn:li:person:${profile.id}`
-      const pic = profile.profilePicture?.['displayImage~']?.elements?.[0]?.identifiers?.[0]?.identifier ?? null
+      const fullName = profile.name ?? `${profile.given_name ?? ''} ${profile.family_name ?? ''}`.trim()
+      const name = fullName || 'LinkedIn Profile'
+      const urn = `urn:li:person:${profile.sub}`
+      const pic = profile.picture ?? null
       const exp = tokenData.expires_in ? new Date(Date.now() + tokenData.expires_in * 1000) : null
 
       await prisma.socialAccount.upsert({
@@ -131,7 +132,8 @@ export async function GET(req: NextRequest, { params }: P) {
 
   } catch (e) {
     console.error(`Social OAuth callback error (${platform}):`, e)
-    return redirect(req, `social=error&platform=${platform}`)
+    const msg = e instanceof Error ? encodeURIComponent(e.message.slice(0, 120)) : ''
+    return redirect(req, `social=error&platform=${platform}&msg=${msg}`)
   }
 
   return redirect(req, 'social=error')

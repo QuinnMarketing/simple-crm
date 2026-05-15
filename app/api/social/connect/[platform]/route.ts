@@ -36,7 +36,7 @@ export async function GET(req: NextRequest, { params }: P) {
   if (platform === 'linkedin') {
     const clientId = process.env.LINKEDIN_CLIENT_ID
     if (!clientId) return NextResponse.json({ error: 'LINKEDIN_CLIENT_ID not configured' }, { status: 500 })
-    const scopes = 'r_liteprofile,w_member_social'
+    const scopes = 'openid profile email w_member_social'
     const url = `https://www.linkedin.com/oauth/v2/authorization?response_type=code&client_id=${clientId}&redirect_uri=${encodeURIComponent(redirect)}&scope=${encodeURIComponent(scopes)}&state=${state}`
     return NextResponse.redirect(url)
   }

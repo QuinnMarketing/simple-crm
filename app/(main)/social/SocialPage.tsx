@@ -643,6 +643,7 @@ export default function SocialPage() {
   const accountParam = sp.get('account') ?? undefined
   const socialStatus = sp.get('social')
   const connectedPlatform = sp.get('platform')
+  const errorMsg = sp.get('msg')
 
   const [tab, setTab] = useState<Tab>(socialStatus === 'connected' ? 'accounts' : 'compose')
   const [composePrefill, setComposePrefill] = useState<{ key: number; content: string; scheduledAt?: string }>({ key: 0, content: '' })
@@ -720,8 +721,14 @@ export default function SocialPage() {
         </div>
       )}
       {socialStatus === 'error' && (
-        <div className="mb-6 bg-red-50 border border-red-200 rounded-xl px-5 py-3 text-sm text-red-800 font-medium">
-          Connection failed. Check your app credentials and try again.
+        <div className="mb-6 bg-red-50 border border-red-200 rounded-xl px-5 py-3 text-sm text-red-800">
+          <p className="font-medium">
+            {connectedPlatform ? `${PLATFORM_META[connectedPlatform as Platform]?.label ?? connectedPlatform} connection failed.` : 'Connection failed.'}
+          </p>
+          {errorMsg
+            ? <p className="mt-1 text-red-700 font-mono text-xs">{decodeURIComponent(errorMsg)}</p>
+            : <p className="mt-0.5 text-red-700">Check your app credentials and redirect URIs, then try again.</p>
+          }
         </div>
       )}
 
