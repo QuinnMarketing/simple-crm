@@ -23,7 +23,8 @@ export async function GET(req: NextRequest, { params }: P) {
     const msg = encodeURIComponent(oauthError + (searchParams.get('error_description') ? ': ' + searchParams.get('error_description') : ''))
     return redirect(req, `social=error&platform=${platform}&msg=${msg}`)
   }
-  if (!code || !accountId) return redirect(req, `social=error&platform=${platform}&msg=${encodeURIComponent('Missing code or account — check redirect URI registration')}`)
+  if (!code) return redirect(req, `social=error&platform=${platform}&msg=${encodeURIComponent('No code returned from provider — check redirect URI registration')}`)
+  if (!accountId) return redirect(req, `social=error&platform=${platform}&msg=${encodeURIComponent('No account ID in state — master_admin must select an account first')}`)
 
   const base = process.env.NEXTAUTH_URL ?? 'http://localhost:3000'
   const redirectUri = `${base}/api/social/callback/${platform}`

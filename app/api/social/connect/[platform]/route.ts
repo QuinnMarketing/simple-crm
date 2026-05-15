@@ -13,6 +13,7 @@ export async function GET(req: NextRequest, { params }: P) {
 
   const { platform } = await params
   const accountId = session.user.accountId ?? req.nextUrl.searchParams.get('account') ?? ''
+  if (!accountId) return NextResponse.json({ error: 'No account selected — master_admin must pass ?account=ID' }, { status: 400 })
   const base = process.env.NEXTAUTH_URL ?? 'http://localhost:3000'
   const state = b64({ accountId, platform })
   const redirect = `${base}/api/social/callback/${platform}`
