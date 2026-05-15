@@ -645,7 +645,7 @@ export default function SocialPage() {
   const connectedPlatform = sp.get('platform')
   const errorMsg = sp.get('msg')
 
-  const [tab, setTab] = useState<Tab>(socialStatus === 'connected' ? 'accounts' : 'compose')
+  const [tab, setTab] = useState<Tab>('compose')
   const [composePrefill, setComposePrefill] = useState<{ key: number; content: string; scheduledAt?: string }>({ key: 0, content: '' })
   const [accounts, setAccounts] = useState<SocialAccount[]>([])
   const [posts, setPosts] = useState<SocialPost[]>([])

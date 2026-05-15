@@ -87,21 +87,29 @@ export async function GET(req: NextRequest, { params }: P) {
         headers: { Authorization: `Bearer ${tokenData.access_token}` },
       })
       const acctData = await acctRes.json()
-      const accounts = acctData.accounts ?? []
+      if (acctData.error) throw new Error(acctData.error.message ?? 'Failed to fetch Google Business accounts')
+      const gmbAccounts = acctData.accounts ?? []
 
-      for (const acct of accounts.slice(0, 10)) {
+      if (gmbAccounts.length === 0) throw new Error('No Google Business accounts found — make sure you have a verified Business Profile')
+
+      let savedCount = 0
+      for (const acct of gmbAccounts.slice(0, 10)) {
         const locRes = await fetch(`https://mybusinessbusinessinformation.googleapis.com/v1/${acct.name}/locations?readMask=name,title,storefrontAddress`, {
           headers: { Authorization: `Bearer ${tokenData.access_token}` },
         })
         const locData = await locRes.json()
+        if (locData.error) throw new Error(locData.error.message ?? 'Failed to fetch Business Profile locations — enable the My Business Business Information API')
         for (const loc of locData.locations ?? []) {
           await prisma.socialAccount.upsert({
             where: { accountId_platform_platformId: { accountId, platform: 'google_business', platformId: loc.name } },
             create: { accountId, platform: 'google_business', platformId: loc.name, name: loc.title ?? loc.name, accessToken: tokenData.access_token, refreshToken: tokenData.refresh_token ?? null },
             update: { name: loc.title ?? loc.name, accessToken: tokenData.access_token, refreshToken: tokenData.refresh_token ?? null },
           })
+          savedCount++
         }
       }
+
+      if (savedCount === 0) throw new Error('No Business Profile locations found — make sure your profile has a verified location')
       return redirect(req, 'social=connected&platform=google_business')
     }
 
