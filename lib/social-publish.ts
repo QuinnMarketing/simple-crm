@@ -90,41 +90,47 @@ async function publishToLinkedIn(
   mediaUrls: string[],
   link?: string | null,
 ): Promise<PublishResult> {
-  type ShareContent = {
-    shareCommentary: { text: string }
-    shareMediaCategory: string
-    media?: { status: string; originalUrl?: string; description?: { text: string } }[]
+  type PostBody = {
+    author: string
+    commentary: string
+    visibility: string
+    distribution: { feedDistribution: string; targetEntities: []; thirdPartyDistributionChannels: [] }
+    lifecycleState: string
+    isReshareDisabledByAuthor: boolean
+    content?: { article: { source: string; title?: string } }
   }
-  const shareContent: ShareContent = {
-    shareCommentary: { text: content },
-    shareMediaCategory: 'NONE',
+
+  const body: PostBody = {
+    author: authorUrn,
+    commentary: content,
+    visibility: 'PUBLIC',
+    distribution: { feedDistribution: 'MAIN_FEED', targetEntities: [], thirdPartyDistributionChannels: [] },
+    lifecycleState: 'PUBLISHED',
+    isReshareDisabledByAuthor: false,
   }
 
   if (link) {
-    shareContent.shareMediaCategory = 'ARTICLE'
-    shareContent.media = [{ status: 'READY', originalUrl: link, description: { text: content } }]
-  } else if (mediaUrls.length > 0) {
-    shareContent.shareMediaCategory = 'IMAGE'
-    shareContent.media = [{ status: 'READY', originalUrl: mediaUrls[0] }]
+    body.content = { article: { source: link } }
   }
 
-  const res = await fetch('https://api.linkedin.com/v2/ugcPosts', {
+  const res = await fetch('https://api.linkedin.com/rest/posts', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${accessToken}`,
+      'LinkedIn-Version': '202401',
       'X-Restli-Protocol-Version': '2.0.0',
     },
-    body: JSON.stringify({
-      author: authorUrn,
-      lifecycleState: 'PUBLISHED',
-      specificContent: { 'com.linkedin.ugc.ShareContent': shareContent },
-      visibility: { 'com.linkedin.ugc.MemberNetworkVisibility': 'PUBLIC' },
-    }),
+    body: JSON.stringify(body),
   })
-  const data = await res.json()
-  if (!res.ok) return { error: data.message ?? `LinkedIn API error ${res.status}` }
-  return { platformPostId: data.id }
+
+  if (res.status === 201) {
+    const postId = res.headers.get('x-restli-id') ?? res.headers.get('X-RestLi-Id') ?? undefined
+    return { platformPostId: postId }
+  }
+
+  const data = await res.json().catch(() => ({}))
+  return { error: data.message ?? data.errorDetails ?? `LinkedIn API error ${res.status}` }
 }
 
 async function publishToGoogleBusiness(
