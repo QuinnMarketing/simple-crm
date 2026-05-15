@@ -15,10 +15,15 @@ export async function GET(req: NextRequest, { params }: P) {
   const { platform } = await params
   const { searchParams } = req.nextUrl
   const code = searchParams.get('code')
+  const oauthError = searchParams.get('error')
   const stateRaw = searchParams.get('state') ?? ''
   const { accountId } = decodeState(stateRaw)
 
-  if (!code || !accountId) return redirect(req, 'social=error')
+  if (oauthError) {
+    const msg = encodeURIComponent(oauthError + (searchParams.get('error_description') ? ': ' + searchParams.get('error_description') : ''))
+    return redirect(req, `social=error&platform=${platform}&msg=${msg}`)
+  }
+  if (!code || !accountId) return redirect(req, `social=error&platform=${platform}&msg=${encodeURIComponent('Missing code or account — check redirect URI registration')}`)
 
   const base = process.env.NEXTAUTH_URL ?? 'http://localhost:3000'
   const redirectUri = `${base}/api/social/callback/${platform}`
