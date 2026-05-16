@@ -6,7 +6,6 @@ import CopyButton from './CopyButton'
 import DocumentTemplatesSection from './DocumentTemplatesSection'
 import BusinessInfoForm from './BusinessInfoForm'
 import CustomFieldsSection from './CustomFieldsSection'
-import ChangePasswordForm from './ChangePasswordForm'
 import BookingSettingsForm from './BookingSettingsForm'
 import ReviewSettingsForm from './ReviewSettingsForm'
 import DocumentNumberingForm from './DocumentNumberingForm'
@@ -215,13 +214,6 @@ export default async function SettingsPage({
             } : null}
           />
         </CollapsibleSection>
-
-        {/* 7. Change Password */}
-        <div className="bg-white rounded-xl border border-slate-200 p-6">
-          <h2 className="font-semibold text-slate-900 mb-1">Change Password</h2>
-          <p className="text-slate-500 text-sm mb-5">Update the password for your own account.</p>
-          <ChangePasswordForm />
-        </div>
 
         {/* 7. Integrations */}
         <div>

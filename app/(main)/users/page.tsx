@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useSession } from 'next-auth/react'
 import { Loader2, Plus, Trash2, Pencil, X, Check, ShieldCheck, User, Crown, Building2 } from 'lucide-react'
+import ChangePasswordForm from '../settings/ChangePasswordForm'
 
 type UserRow = {
   id: string
@@ -256,7 +257,7 @@ export default function UsersPage() {
         </div>
       )}
 
-      <div className="bg-white rounded-xl border border-slate-200 divide-y divide-slate-100">
+      <div className="bg-white rounded-xl border border-slate-200 divide-y divide-slate-100 mb-6">
         {users.map((user) => {
           const isEditing = editingId === user.id
           const isMe = session?.user?.id === user.id
@@ -354,6 +355,12 @@ export default function UsersPage() {
             </div>
           )
         })}
+      </div>
+
+      <div className="bg-white rounded-xl border border-slate-200 p-6">
+        <h2 className="font-semibold text-slate-900 mb-1">Change Password</h2>
+        <p className="text-slate-500 text-sm mb-5">Update the password for your own account.</p>
+        <ChangePasswordForm />
       </div>
     </div>
   )
