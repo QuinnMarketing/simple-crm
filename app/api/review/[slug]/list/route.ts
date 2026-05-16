@@ -37,6 +37,7 @@ export async function GET(
       body: true,
       reply: true,
       repliedAt: true,
+      source: true,
       createdAt: true,
     },
     orderBy: { createdAt: 'desc' },
