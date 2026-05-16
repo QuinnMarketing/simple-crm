@@ -14,12 +14,15 @@ export async function GET(
     },
   })
 
-  if (!account || !account.reviewSettings?.enabled) {
+  if (!account) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+  // Only block if settings explicitly exist AND are disabled
+  if (account.reviewSettings && !account.reviewSettings.enabled) {
     return NextResponse.json({ error: 'Not found' }, { status: 404 })
   }
 
+  const settings = account.reviewSettings
   let minRating = 0
-  try { minRating = JSON.parse(account.reviewSettings.replyTemplates).widgetMinRating ?? 0 } catch { /* keep 0 */ }
+  try { minRating = JSON.parse(settings?.replyTemplates ?? '{}').widgetMinRating ?? 0 } catch { /* keep 0 */ }
 
   const reviews = await prisma.review.findMany({
     where: {
@@ -46,8 +49,8 @@ export async function GET(
 
   return NextResponse.json({
     accountName: account.name,
-    title: account.reviewSettings.title,
-    description: account.reviewSettings.description,
+    title: settings?.title ?? 'How was your experience?',
+    description: settings?.description ?? null,
     averageRating: avg,
     totalReviews: reviews.length,
     reviews,

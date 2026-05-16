@@ -35,7 +35,8 @@ export async function POST(
     include: { reviewSettings: true },
   })
 
-  if (!account || !account.reviewSettings?.enabled) {
+  if (!account) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+  if (account.reviewSettings && !account.reviewSettings.enabled) {
     return NextResponse.json({ error: 'Not found' }, { status: 404 })
   }
 
@@ -46,13 +47,13 @@ export async function POST(
   if (!rating || rating < 1 || rating > 5) return NextResponse.json({ error: 'Rating required (1-5)' }, { status: 400 })
 
   const settings = account.reviewSettings
-  const autoApprove = settings.autoApprove
-  const autoReply = settings.autoReply
+  const autoApprove = settings?.autoApprove ?? false
+  const autoReply = settings?.autoReply ?? false
 
   let replyText: string | null = null
   if (autoReply) {
     try {
-      const templates = JSON.parse(settings.replyTemplates) as Record<string, string>
+      const templates = JSON.parse(settings?.replyTemplates ?? '{}') as Record<string, string>
       replyText = getReplyTemplate(templates, rating)
     } catch { /* ignore */ }
   }
