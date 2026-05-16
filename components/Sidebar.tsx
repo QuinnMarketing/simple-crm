@@ -2,7 +2,7 @@
 import Link from 'next/link'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { useState } from 'react'
-import { LayoutDashboard, Users, Settings, LogOut, Zap, Building2, ChevronDown, Layers, CalendarDays, FileText, Bot, Clock, Mail, TrendingUp, BarChart2, Share2, GanttChartSquare } from 'lucide-react'
+import { LayoutDashboard, Users, Settings, LogOut, Zap, Building2, ChevronDown, Layers, CalendarDays, FileText, Bot, Clock, Mail, TrendingUp, BarChart2, Share2, GanttChartSquare, CheckSquare, Star } from 'lucide-react'
 import { signOut } from 'next-auth/react'
 import PushToggle from './PushToggle'
 
@@ -11,6 +11,7 @@ type SidebarUser = {
   email?: string | null
   role?: string
   accountId?: string | null
+  accountIds?: string[] | null
 }
 
 type SidebarAccount = { id: string; name: string }
@@ -21,10 +22,12 @@ const NAV = [
   { href: '/analytics', icon: TrendingUp, label: 'Analytics' },
   { href: '/reports', icon: BarChart2, label: 'Reports' },
   { href: '/calendar', icon: CalendarDays, label: 'Calendar' },
+  { href: '/tasks', icon: CheckSquare, label: 'Tasks' },
   { href: '/quotes', icon: FileText, label: 'Quotes & Invoices' },
   { href: '/automations', icon: Bot, label: 'Automations' },
   { href: '/campaigns', icon: Mail, label: 'Campaigns' },
   { href: '/social', icon: Share2, label: 'Social' },
+  { href: '/reviews', icon: Star, label: 'Reviews' },
   { href: '/gantt', icon: GanttChartSquare, label: 'Gantt Charts' },
   { href: '/time', icon: Clock, label: 'Time Tracking' },
   { href: '/companies', icon: Building2, label: 'Companies' },
@@ -52,6 +55,7 @@ export default function Sidebar({
   const activeAccountId = sp.get('account')
 
   const isMasterAdmin = user.role === 'master_admin'
+  const isMultiAccount = !isMasterAdmin && (user.accountIds?.length ?? 0) > 1
   const accounts = accountsProp
 
   const [accountOpen, setAccountOpen] = useState(false)
@@ -69,7 +73,7 @@ export default function Sidebar({
 
   function navHref(base: string) {
     const params = new URLSearchParams()
-    if (isMasterAdmin && activeAccountId) params.set('account', activeAccountId)
+    if ((isMasterAdmin || isMultiAccount) && activeAccountId) params.set('account', activeAccountId)
     const qs = params.toString()
     return qs ? `${base}?${qs}` : base
   }
@@ -90,7 +94,7 @@ export default function Sidebar({
       {/* Account section */}
       <div className="px-4 pt-4 pb-3 border-b border-slate-800 relative">
         <p className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-2">Account</p>
-        {isMasterAdmin ? (
+        {isMasterAdmin || isMultiAccount ? (
           <>
             <button
               onClick={() => setAccountOpen(!accountOpen)}
@@ -99,21 +103,29 @@ export default function Sidebar({
               <div className="flex items-center gap-2 min-w-0">
                 <Layers className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
                 <span className="text-sm text-white font-medium truncate">
-                  {activeAccount ? activeAccount.name : 'All Accounts'}
+                  {activeAccount
+                    ? activeAccount.name
+                    : isMasterAdmin
+                      ? 'All Accounts'
+                      : (accounts[0]?.name ?? 'Select account')}
                 </span>
               </div>
               <ChevronDown className={`w-3.5 h-3.5 text-slate-400 flex-shrink-0 transition-transform ${accountOpen ? 'rotate-180' : ''}`} />
             </button>
             {accountOpen && (
               <div className="absolute left-4 right-4 top-full mt-1 bg-slate-800 rounded-lg border border-slate-700 shadow-lg z-30 overflow-hidden max-h-64 overflow-y-auto">
-                <button
-                  onClick={() => switchAccount(null)}
-                  className={`w-full flex items-center gap-2 px-3 py-2.5 text-sm hover:bg-slate-700 transition-colors ${!activeAccountId ? 'text-white font-medium' : 'text-slate-300'}`}
-                >
-                  <Layers className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
-                  All Accounts
-                </button>
-                {accounts.length > 0 && <div className="border-t border-slate-700" />}
+                {isMasterAdmin && (
+                  <>
+                    <button
+                      onClick={() => switchAccount(null)}
+                      className={`w-full flex items-center gap-2 px-3 py-2.5 text-sm hover:bg-slate-700 transition-colors ${!activeAccountId ? 'text-white font-medium' : 'text-slate-300'}`}
+                    >
+                      <Layers className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
+                      All Accounts
+                    </button>
+                    {accounts.length > 0 && <div className="border-t border-slate-700" />}
+                  </>
+                )}
                 {accounts.map((a) => (
                   <button
                     key={a.id}

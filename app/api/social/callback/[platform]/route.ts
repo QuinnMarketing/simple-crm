@@ -81,35 +81,16 @@ export async function GET(req: NextRequest, { params }: P) {
       })
       const tokenData = await tokenRes.json()
       if (!tokenRes.ok || tokenData.error) throw new Error(tokenData.error_description ?? 'Google token exchange failed')
+      if (!tokenData.refresh_token) throw new Error('No refresh token returned — try disconnecting and reconnecting with prompt=consent')
 
-      // Get GMB accounts and locations
-      const acctRes = await fetch('https://mybusinessaccountmanagement.googleapis.com/v1/accounts', {
-        headers: { Authorization: `Bearer ${tokenData.access_token}` },
+      // Store credentials only — location discovery happens explicitly via the UI
+      // to avoid hitting GBP API quota limits during the OAuth flow.
+      await prisma.accountIntegration.upsert({
+        where: { accountId_platform: { accountId, platform: 'google_business' } },
+        create: { accountId, platform: 'google_business', config: JSON.stringify({ refreshToken: tokenData.refresh_token }), enabled: true },
+        update: { config: JSON.stringify({ refreshToken: tokenData.refresh_token }), enabled: true },
       })
-      const acctData = await acctRes.json()
-      if (acctData.error) throw new Error(acctData.error.message ?? 'Failed to fetch Google Business accounts')
-      const gmbAccounts = acctData.accounts ?? []
 
-      if (gmbAccounts.length === 0) throw new Error('No Google Business accounts found — make sure you have a verified Business Profile')
-
-      let savedCount = 0
-      for (const acct of gmbAccounts.slice(0, 10)) {
-        const locRes = await fetch(`https://mybusinessbusinessinformation.googleapis.com/v1/${acct.name}/locations?readMask=name,title,storefrontAddress`, {
-          headers: { Authorization: `Bearer ${tokenData.access_token}` },
-        })
-        const locData = await locRes.json()
-        if (locData.error) throw new Error(locData.error.message ?? 'Failed to fetch Business Profile locations — enable the My Business Business Information API')
-        for (const loc of locData.locations ?? []) {
-          await prisma.socialAccount.upsert({
-            where: { accountId_platform_platformId: { accountId, platform: 'google_business', platformId: loc.name } },
-            create: { accountId, platform: 'google_business', platformId: loc.name, name: loc.title ?? loc.name, accessToken: tokenData.access_token, refreshToken: tokenData.refresh_token ?? null },
-            update: { name: loc.title ?? loc.name, accessToken: tokenData.access_token, refreshToken: tokenData.refresh_token ?? null },
-          })
-          savedCount++
-        }
-      }
-
-      if (savedCount === 0) throw new Error('No Business Profile locations found — make sure your profile has a verified location')
       return redirect(req, 'social=connected&platform=google_business')
     }
 

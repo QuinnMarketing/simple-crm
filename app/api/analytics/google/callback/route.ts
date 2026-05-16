@@ -20,6 +20,8 @@ export async function GET(req: NextRequest) {
     return NextResponse.redirect(`${redirectBase}?ganalytics=error`)
   }
 
+  const accountParam = `&account=${accountId}`
+
   try {
     const { refreshToken, email } = await exchangeAnalyticsCode(code)
 
@@ -47,9 +49,9 @@ export async function GET(req: NextRequest) {
         enabled: true,
       },
     })
-    return NextResponse.redirect(`${redirectBase}?ganalytics=connected`)
+    return NextResponse.redirect(`${redirectBase}?ganalytics=connected${accountParam}`)
   } catch (e) {
     console.error('GA4 callback error:', e)
-    return NextResponse.redirect(`${redirectBase}?ganalytics=error`)
+    return NextResponse.redirect(`${redirectBase}?ganalytics=error${accountParam}`)
   }
 }

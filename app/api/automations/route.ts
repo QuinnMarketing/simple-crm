@@ -4,11 +4,12 @@ import { prisma } from '@/lib/prisma'
 import { getAccountFilter } from '@/lib/account-scope'
 import { after, NextRequest, NextResponse } from 'next/server'
 
-export async function GET(_req: NextRequest) {
+export async function GET(req: NextRequest) {
   const session = await auth()
   if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const filter = getAccountFilter(session.user)
+  const qAccountId = req.nextUrl.searchParams.get('account')
+  const filter = getAccountFilter(session.user, qAccountId)
   const automations = await prisma.automation.findMany({
     where: filter,
     orderBy: { createdAt: 'asc' },
@@ -20,21 +21,31 @@ export async function POST(req: NextRequest) {
   const session = await auth()
   if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const accountId = session.user.accountId ?? null
-  const body = await req.json()
-  const { name, trigger, triggerConfig = {}, action = 'send_email', actionConfig = {} } = body
+  const qAccountId = req.nextUrl.searchParams.get('account')
+  const accountId = session.user.accountId ?? qAccountId ?? null
 
-  if (!name?.trim() || !trigger) {
-    return NextResponse.json({ error: 'name and trigger are required' }, { status: 400 })
+  const body = await req.json()
+  const { name, description, steps, allowRepeat, trigger, triggerConfig = {}, action = 'send_email', actionConfig = {} } = body
+
+  if (!name?.trim()) {
+    return NextResponse.json({ error: 'name is required' }, { status: 400 })
+  }
+
+  const isNewStyle = !!steps && steps !== '{}'
+  if (!isNewStyle && !trigger) {
+    return NextResponse.json({ error: 'trigger is required' }, { status: 400 })
   }
 
   const automation = await prisma.automation.create({
     data: {
       name: name.trim(),
-      trigger,
-      triggerConfig: JSON.stringify(triggerConfig),
-      action,
-      actionConfig: JSON.stringify(actionConfig),
+      description: description?.trim() || null,
+      steps: isNewStyle ? steps : '{}',
+      allowRepeat: allowRepeat ?? false,
+      trigger: isNewStyle ? '' : trigger,
+      triggerConfig: isNewStyle ? '{}' : JSON.stringify(triggerConfig),
+      action: isNewStyle ? '' : action,
+      actionConfig: isNewStyle ? '{}' : JSON.stringify(actionConfig),
       accountId,
     },
   })

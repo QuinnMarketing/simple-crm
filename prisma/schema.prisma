@@ -22,6 +22,7 @@ model Account {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
   users              User[]
+  userAccounts       UserAccount[]
   leads              Lead[]
   companies          Company[]
   integrations       AccountIntegration[]
@@ -38,6 +39,10 @@ model Account {
   socialAccounts     SocialAccount[]
   socialPosts        SocialPost[]
   ganttProjects      GanttProject[]
+  tasks              Task[]
+  bookingSettings    BookingSettings?
+  reviews            Review[]
+  reviewSettings     ReviewSettings?
 }
 
 model AccountIntegration {
@@ -63,8 +68,28 @@ model User {
   account     Account?    @relation(fields: [accountId], references: [id])
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
-  timeEntries       TimeEntry[]
-  pushSubscriptions PushSubscription[]
+  timeEntries          TimeEntry[]
+  pushSubscriptions    PushSubscription[]
+  userAccounts         UserAccount[]
+  passwordResetTokens  PasswordResetToken[]
+}
+
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model UserAccount {
+  userId    String
+  accountId String
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  account   Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@id([userId, accountId])
 }
 
 model PushSubscription {
@@ -128,6 +153,23 @@ model Lead {
   timeEntries         TimeEntry[]
   emailCampaignSends  EmailCampaignSend[]
   customFieldValues   CustomFieldValue[]
+  tasks               Task[]
+  reviews             Review[]
+}
+
+model Task {
+  id           String    @id @default(cuid())
+  title        String
+  description  String?
+  status       String    @default("todo")    // todo | in_progress | done
+  priority     String    @default("medium")  // low | medium | high
+  dueDate      DateTime?
+  leadId       String?
+  lead         Lead?     @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  accountId    String?
+  account      Account?  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 }
 
 model Appointment {
@@ -148,18 +190,26 @@ model Appointment {
 }
 
 model Automation {
-  id            String   @id @default(cuid())
+  id            String    @id @default(cuid())
   name          String
-  enabled       Boolean  @default(true)
-  trigger       String   // 'lead_created' | 'lead_status_changed' | 'pending_quote_followup'
-  triggerConfig String   @default("{}") // JSON: { toStatus: 'won' } | { days: 3 }
-  action        String   // 'send_email'
-  actionConfig  String   @default("{}") // JSON: { subject, body }
+  description   String?
+  enabled       Boolean   @default(true)
+  // New-style: steps JSON (AutomationDefinition). Empty object = legacy automation.
+  steps         String    @default("{}")
+  allowRepeat   Boolean   @default(false)
+  runCount      Int       @default(0)
+  lastRunAt     DateTime?
+  // Legacy fields (kept for existing automations)
+  trigger       String    @default("")
+  triggerConfig String    @default("{}")
+  action        String    @default("")
+  actionConfig  String    @default("{}")
   accountId     String?
-  account       Account? @relation(fields: [accountId], references: [id], onDelete: Cascade)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  account       Account?  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
   logs          AutomationLog[]
+  runs          AutomationRun[]
 }
 
 model AutomationLog {
@@ -170,6 +220,36 @@ model AutomationLog {
   firedAt      DateTime   @default(now())
 
   @@unique([automationId, leadId])
+}
+
+model AutomationRun {
+  id            String     @id @default(cuid())
+  automationId  String
+  automation    Automation @relation(fields: [automationId], references: [id], onDelete: Cascade)
+  leadId        String?
+  status        String     @default("running") // running | completed | failed | waiting
+  resumeAt      DateTime?
+  resumeAtIndex Int?
+  context       String     @default("{}")
+  startedAt     DateTime   @default(now())
+  completedAt   DateTime?
+  stepLogs      AutomationStepLog[]
+
+  @@index([automationId])
+  @@index([status, resumeAt])
+}
+
+model AutomationStepLog {
+  id         String        @id @default(cuid())
+  runId      String
+  run        AutomationRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  stepId     String
+  stepType   String
+  label      String?
+  status     String        // completed | failed | skipped
+  output     String?
+  error      String?
+  executedAt DateTime      @default(now())
 }
 
 model Quote {
@@ -389,4 +469,58 @@ model GanttTask {
   notes     String?
   createdAt DateTime     @default(now())
   updatedAt DateTime     @updatedAt
+}
+
+model Review {
+  id            String   @id @default(cuid())
+  accountId     String
+  account       Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  leadId        String?
+  lead          Lead?    @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  reviewerName  String
+  reviewerEmail String?
+  rating        Int      // 1-5
+  body          String?
+  reply         String?
+  repliedAt     DateTime?
+  source        String   @default("widget") // 'widget' | 'manual' | 'google'
+  externalId    String?  // GBP review name for dedup, e.g. accounts/.../locations/.../reviews/...
+  status        String   @default("pending") // 'pending' | 'approved' | 'hidden'
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([accountId])
+  @@index([accountId, status])
+  @@index([externalId])
+}
+
+model ReviewSettings {
+  id             String   @id @default(cuid())
+  accountId      String   @unique
+  account        Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  enabled        Boolean  @default(true)
+  title          String   @default("How was your experience?")
+  description    String?
+  autoApprove    Boolean  @default(false)
+  autoReply      Boolean  @default(false)
+  replyTemplates String   @default("{}") // JSON: { positive, neutral, negative, widgetMinRating }
+  createdAt      DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model BookingSettings {
+  id             String   @id @default(cuid())
+  accountId      String   @unique
+  account        Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  enabled        Boolean  @default(true)
+  title          String   @default("Book an Appointment")
+  description    String?
+  slotDuration   Int      @default(60)
+  bufferTime     Int      @default(0)
+  timezone       String   @default("Australia/Sydney")
+  availableHours String   @default("{}")
+  maxDaysAhead   Int      @default(60)
+  minNoticeHours Int      @default(24)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 }

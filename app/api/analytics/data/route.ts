@@ -113,12 +113,13 @@ export async function GET(req: NextRequest) {
 
   const { searchParams } = req.nextUrl
   const days = Math.min(Math.max(parseInt(searchParams.get('days') ?? '30'), 1), 90)
-  const accountFilter = getAccountFilter(session.user)
 
   const accountId =
     session.user.role === 'master_admin'
       ? (searchParams.get('account') ?? null)
       : (session.user.accountId ?? null)
+
+  const accountFilter = getAccountFilter(session.user, accountId)
 
   const startDate = new Date(Date.now() - days * 86_400_000)
 
@@ -158,23 +159,37 @@ export async function GET(req: NextRequest) {
     byDay,
   }
 
-  const [ga4, googleAds, metaAds] = await Promise.all([
-    (async () => {
+  const [ga4Result, googleAdsResult, metaAdsResult] = await Promise.all([
+    (async (): Promise<{ data: Awaited<ReturnType<typeof fetchGA4Data>> | null; status: string }> => {
       const cfg = configs.google_analytics
-      if (!cfg?.refreshToken || !cfg?.propertyId) return null
-      try { return await fetchGA4Data(cfg.refreshToken, cfg.propertyId, days) } catch { return null }
+      if (!cfg?.refreshToken) return { data: null, status: 'not_connected' }
+      if (!cfg?.propertyId) return { data: null, status: 'missing_property_id' }
+      try { return { data: await fetchGA4Data(cfg.refreshToken, cfg.propertyId, days), status: 'ok' } }
+      catch (e) { return { data: null, status: e instanceof Error ? e.message.slice(0, 120) : 'error' } }
     })(),
-    (async () => {
+    (async (): Promise<{ data: Awaited<ReturnType<typeof fetchGoogleAdsData>> | null; status: string }> => {
       const cfg = mergeGoogleAds(configs.google_ads)
-      if (!cfg.developerToken || !cfg.customerId || !cfg.refreshToken || !cfg.clientId || !cfg.clientSecret) return null
-      try { return await fetchGoogleAdsData(cfg, days) } catch { return null }
+      if (!cfg.developerToken || !cfg.customerId || !cfg.refreshToken || !cfg.clientId || !cfg.clientSecret) return { data: null, status: 'not_configured' }
+      try { return { data: await fetchGoogleAdsData(cfg, days), status: 'ok' } }
+      catch (e) { return { data: null, status: e instanceof Error ? e.message.slice(0, 120) : 'error' } }
     })(),
-    (async () => {
+    (async (): Promise<{ data: Awaited<ReturnType<typeof fetchMetaAdsData>> | null; status: string }> => {
       const cfg = configs.facebook
-      if (!cfg?.accessToken || !cfg?.adAccountId) return null
-      try { return await fetchMetaAdsData(cfg.accessToken, cfg.adAccountId, days) } catch { return null }
+      if (!cfg?.accessToken) return { data: null, status: 'not_configured' }
+      if (!cfg?.adAccountId) return { data: null, status: 'missing_ad_account_id' }
+      try { return { data: await fetchMetaAdsData(cfg.accessToken, cfg.adAccountId, days), status: 'ok' } }
+      catch (e) { return { data: null, status: e instanceof Error ? e.message.slice(0, 120) : 'error' } }
     })(),
   ])
 
-  return NextResponse.json({ period: days, crmLeads, ga4, googleAds, metaAds })
+  return NextResponse.json({
+    period: days,
+    crmLeads,
+    ga4: ga4Result.data,
+    ga4Status: ga4Result.status,
+    googleAds: googleAdsResult.data,
+    googleAdsStatus: googleAdsResult.status,
+    metaAds: metaAdsResult.data,
+    metaAdsStatus: metaAdsResult.status,
+  })
 }

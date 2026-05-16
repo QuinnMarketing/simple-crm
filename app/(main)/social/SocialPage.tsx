@@ -381,12 +381,16 @@ const CONNECT_PLATFORMS: { platform: Platform | 'tiktok'; label: string; descrip
   { platform: 'tiktok', label: 'TikTok', description: 'Video content (coming soon)', comingSoon: true },
 ]
 
-function AccountsPanel({ accounts, accountParam, onDisconnect }: {
+function AccountsPanel({ accounts, integrations, accountParam, onDisconnect, onLocationsDiscovered }: {
   accounts: SocialAccount[]
+  integrations: { platform: string }[]
   accountParam?: string
   onDisconnect: (id: string) => void
+  onLocationsDiscovered: () => void
 }) {
   const [disconnecting, setDisconnecting] = useState<string | null>(null)
+  const [discovering, setDiscovering] = useState(false)
+  const [discoverError, setDiscoverError] = useState<string | null>(null)
 
   async function handleDisconnect(id: string) {
     if (!confirm('Disconnect this account?')) return
@@ -394,6 +398,30 @@ function AccountsPanel({ accounts, accountParam, onDisconnect }: {
     await fetch(`/api/social/accounts/${id}`, { method: 'DELETE' })
     onDisconnect(id)
     setDisconnecting(null)
+  }
+
+  async function handleDiscoverLocations() {
+    setDiscovering(true)
+    setDiscoverError(null)
+    try {
+      const res = await fetch('/api/social/discover-locations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ accountParam }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        setDiscoverError(data.error ?? 'Failed to discover locations')
+      } else if (data.count === 0) {
+        setDiscoverError('No Business Profile locations found — make sure your profile has a verified location.')
+      } else {
+        onLocationsDiscovered()
+      }
+    } catch {
+      setDiscoverError('Network error — please try again')
+    } finally {
+      setDiscovering(false)
+    }
   }
 
   function connectUrl(platform: string) {
@@ -412,6 +440,7 @@ function AccountsPanel({ accounts, accountParam, onDisconnect }: {
         {CONNECT_PLATFORMS.map(({ platform, label, description, comingSoon }) => {
           const meta = PLATFORM_META[platform as Platform]
           const connected = accounts.filter(a => a.platform === platform)
+          const hasIntegration = integrations.some(i => i.platform === platform)
           const Icon = meta?.Icon
 
           return (
@@ -433,10 +462,29 @@ function AccountsPanel({ accounts, accountParam, onDisconnect }: {
                     href={connectUrl(platform)}
                     className="text-xs font-medium text-indigo-600 hover:text-indigo-800 border border-indigo-200 bg-indigo-50 hover:bg-indigo-100 rounded-lg px-3 py-1.5 transition-colors flex-shrink-0"
                   >
-                    <Plus className="w-3 h-3 inline -mt-0.5 mr-0.5" /> Connect
+                    <Plus className="w-3 h-3 inline -mt-0.5 mr-0.5" />
+                    {(connected.length > 0 || hasIntegration) ? 'Reconnect' : 'Connect'}
                   </a>
                 )}
               </div>
+
+              {/* google_business: show "Find Locations" whenever no locations are connected */}
+              {platform === 'google_business' && connected.length === 0 && !comingSoon && (
+                <div className="mt-3 pl-12">
+                  <p className="text-xs text-slate-500 mb-2">After connecting, click below to find your Business Profile locations.</p>
+                  {discoverError && (
+                    <p className="text-xs text-red-600 mb-2">{discoverError}</p>
+                  )}
+                  <button
+                    onClick={handleDiscoverLocations}
+                    disabled={discovering}
+                    className="flex items-center gap-1.5 text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 rounded-lg px-3 py-1.5 transition-colors disabled:opacity-60"
+                  >
+                    {discovering ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
+                    Find Locations
+                  </button>
+                </div>
+              )}
 
               {connected.length > 0 && (
                 <div className="mt-3 space-y-2 pl-12">
@@ -645,9 +693,12 @@ export default function SocialPage() {
   const connectedPlatform = sp.get('platform')
   const errorMsg = sp.get('msg')
 
-  const [tab, setTab] = useState<Tab>('compose')
+  const [tab, setTab] = useState<Tab>(
+    socialStatus === 'connected' && connectedPlatform === 'google_business' ? 'accounts' : 'compose'
+  )
   const [composePrefill, setComposePrefill] = useState<{ key: number; content: string; scheduledAt?: string }>({ key: 0, content: '' })
   const [accounts, setAccounts] = useState<SocialAccount[]>([])
+  const [integrations, setIntegrations] = useState<{ platform: string }[]>([])
   const [posts, setPosts] = useState<SocialPost[]>([])
   const [loadingAccounts, setLoadingAccounts] = useState(true)
   const [loadingPosts, setLoadingPosts] = useState(true)
@@ -656,7 +707,11 @@ export default function SocialPage() {
     setLoadingAccounts(true)
     const qs = accountParam ? `?account=${accountParam}` : ''
     const res = await fetch(`/api/social/accounts${qs}`)
-    if (res.ok) setAccounts(await res.json())
+    if (res.ok) {
+      const data = await res.json()
+      setAccounts(data.accounts ?? [])
+      setIntegrations(data.integrations ?? [])
+    }
     setLoadingAccounts(false)
   }, [accountParam])
 
@@ -816,7 +871,7 @@ export default function SocialPage() {
           <div className="flex justify-center py-20 text-slate-400"><Loader2 className="w-5 h-5 animate-spin" /></div>
         ) : (
           <div className="max-w-2xl">
-            <AccountsPanel accounts={accounts} accountParam={accountParam} onDisconnect={handleDisconnect} />
+            <AccountsPanel accounts={accounts} integrations={integrations} accountParam={accountParam} onDisconnect={handleDisconnect} onLocationsDiscovered={fetchAccounts} />
           </div>
         )
       )}

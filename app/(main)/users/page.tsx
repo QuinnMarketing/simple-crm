@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
 import { useSession } from 'next-auth/react'
-import { Loader2, Plus, Trash2, Pencil, X, Check, ShieldCheck, User, Crown } from 'lucide-react'
+import { Loader2, Plus, Trash2, Pencil, X, Check, ShieldCheck, User, Crown, Building2 } from 'lucide-react'
 
 type UserRow = {
   id: string
@@ -9,13 +9,14 @@ type UserRow = {
   name: string | null
   role: string
   accountId: string | null
+  accountIds: string[]
   createdAt: string
 }
 
 type Account = { id: string; name: string }
 
-type FormState = { name: string; email: string; password: string; role: string; accountId: string }
-const EMPTY_FORM: FormState = { name: '', email: '', password: '', role: 'account_user', accountId: '' }
+type FormState = { name: string; email: string; password: string; role: string; accountIds: string[] }
+const EMPTY_FORM: FormState = { name: '', email: '', password: '', role: 'account_user', accountIds: [] }
 
 const ROLE_LABELS: Record<string, string> = {
   master_admin: 'Master Admin',
@@ -35,6 +36,34 @@ function roleBadgeCls(role: string) {
   if (role === 'master_admin') return 'bg-violet-50 text-violet-700'
   if (role === 'account_admin' || role === 'admin') return 'bg-indigo-50 text-indigo-700'
   return 'bg-slate-100 text-slate-600'
+}
+
+function AccountPicker({ accounts, selected, onChange }: {
+  accounts: Account[]
+  selected: string[]
+  onChange: (ids: string[]) => void
+}) {
+  function toggle(id: string) {
+    onChange(selected.includes(id) ? selected.filter(x => x !== id) : [...selected, id])
+  }
+  return (
+    <div className="border border-slate-200 rounded-lg divide-y divide-slate-100 max-h-48 overflow-y-auto">
+      {accounts.length === 0 && (
+        <p className="px-3 py-2 text-xs text-slate-400">No accounts found</p>
+      )}
+      {accounts.map(a => (
+        <label key={a.id} className="flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-slate-50">
+          <input
+            type="checkbox"
+            checked={selected.includes(a.id)}
+            onChange={() => toggle(a.id)}
+            className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+          />
+          <span className="text-sm text-slate-700">{a.name}</span>
+        </label>
+      ))}
+    </div>
+  )
 }
 
 export default function UsersPage() {
@@ -69,7 +98,7 @@ export default function UsersPage() {
     })
   }, [isMasterAdmin])
 
-  const accountName = (id: string | null) => accounts.find((a) => a.id === id)?.name ?? null
+  const accountName = (id: string) => accounts.find((a) => a.id === id)?.name ?? id.slice(0, 8)
 
   async function addUser(e: React.FormEvent) {
     e.preventDefault()
@@ -79,8 +108,12 @@ export default function UsersPage() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        ...addForm,
-        accountId: addForm.accountId || null,
+        name: addForm.name,
+        email: addForm.email,
+        password: addForm.password,
+        role: addForm.role,
+        accountId: addForm.accountIds[0] ?? null,
+        accountIds: addForm.accountIds,
       }),
     })
     const data = await res.json()
@@ -96,19 +129,20 @@ export default function UsersPage() {
 
   function startEdit(user: UserRow) {
     setEditingId(user.id)
-    setEditForm({ name: user.name ?? '', email: user.email, password: '', role: user.role, accountId: user.accountId ?? '' })
+    setEditForm({ name: user.name ?? '', email: user.email, password: '', role: user.role, accountIds: user.accountIds ?? (user.accountId ? [user.accountId] : []) })
     setEditError('')
   }
 
   async function saveEdit(id: string) {
     setEditSaving(true)
     setEditError('')
-    const payload: Record<string, string | null> = {
+    const payload: Record<string, unknown> = {
       name: editForm.name,
       email: editForm.email,
       role: editForm.role,
     }
     if (editForm.password) payload.password = editForm.password
+    if (isMasterAdmin) payload.accountIds = editForm.accountIds
     const res = await fetch(`/api/users/${id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
@@ -202,11 +236,11 @@ export default function UsersPage() {
             </div>
             {isMasterAdmin && (
               <div className="col-span-2">
-                <label className="block text-xs font-medium text-slate-500 mb-1.5 uppercase tracking-wide">Account</label>
-                <select value={addForm.accountId} onChange={(e) => setAddForm((f) => ({ ...f, accountId: e.target.value }))} className={inputCls + ' bg-white'}>
-                  <option value="">— No account (master admin) —</option>
-                  {accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
-                </select>
+                <label className="block text-xs font-medium text-slate-500 mb-1.5 uppercase tracking-wide">
+                  Business Units
+                  <span className="ml-1 normal-case font-normal text-slate-400">(select one or more)</span>
+                </label>
+                <AccountPicker accounts={accounts} selected={addForm.accountIds} onChange={(ids) => setAddForm(f => ({ ...f, accountIds: ids }))} />
               </div>
             )}
             {addError && (
@@ -226,6 +260,7 @@ export default function UsersPage() {
         {users.map((user) => {
           const isEditing = editingId === user.id
           const isMe = session?.user?.id === user.id
+          const userAccountIds = user.accountIds ?? (user.accountId ? [user.accountId] : [])
 
           return (
             <div key={user.id} className="p-5">
@@ -249,6 +284,15 @@ export default function UsersPage() {
                       {roleOptions.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
                     </select>
                   </div>
+                  {isMasterAdmin && (
+                    <div className="col-span-2">
+                      <label className="block text-xs font-medium text-slate-500 mb-1.5 uppercase tracking-wide">
+                        Business Units
+                        <span className="ml-1 normal-case font-normal text-slate-400">(select one or more)</span>
+                      </label>
+                      <AccountPicker accounts={accounts} selected={editForm.accountIds} onChange={(ids) => setEditForm(f => ({ ...f, accountIds: ids }))} />
+                    </div>
+                  )}
                   {editError && (
                     <div className="col-span-2 text-red-600 text-sm bg-red-50 border border-red-200 rounded-lg px-3 py-2">{editError}</div>
                   )}
@@ -275,14 +319,20 @@ export default function UsersPage() {
                         <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${roleBadgeCls(user.role)}`}>
                           {ROLE_LABELS[user.role] ?? user.role}
                         </span>
-                        {isMasterAdmin && user.accountId && (
-                          <span className="text-xs bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full">
-                            {accountName(user.accountId) ?? user.accountId.slice(0, 8)}
+                        {isMasterAdmin && userAccountIds.length > 0 && (
+                          <span className="flex items-center gap-1 text-xs bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full">
+                            <Building2 className="w-3 h-3" />
+                            {userAccountIds.length === 1
+                              ? accountName(userAccountIds[0])
+                              : `${userAccountIds.length} units`}
                           </span>
                         )}
                       </div>
                       <p className="text-xs text-slate-500 mt-0.5">
                         {user.name ? user.email : ''}{user.name ? ' · ' : ''}Added {new Date(user.createdAt).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' })}
+                        {isMasterAdmin && userAccountIds.length > 1 && (
+                          <span className="ml-1 text-slate-400">· {userAccountIds.map(id => accountName(id)).join(', ')}</span>
+                        )}
                       </p>
                     </div>
                   </div>

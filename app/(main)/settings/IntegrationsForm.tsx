@@ -33,13 +33,7 @@ export default function IntegrationsForm({ accountId, initialConfigs }: Integrat
   const inputCls = 'w-full px-3 py-2 border border-slate-300 rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent'
   const labelCls = 'block text-xs font-medium text-slate-500 mb-1.5 uppercase tracking-wide'
 
-  const [smtp, setSmtp] = useState({
-    host: initialConfigs.email_smtp?.host ?? '',
-    port: initialConfigs.email_smtp?.port ?? '587',
-    user: initialConfigs.email_smtp?.user ?? '',
-    pass: initialConfigs.email_smtp?.pass ?? '',
-    from: initialConfigs.email_smtp?.from ?? '',
-  })
+  const [smtpFrom, setSmtpFrom] = useState(initialConfigs.email_smtp?.from ?? '')
 
   const [ga4, setGa4] = useState({
     measurementId: initialConfigs.google_ga4?.measurementId ?? '',
@@ -53,11 +47,7 @@ export default function IntegrationsForm({ accountId, initialConfigs }: Integrat
   })
 
   const [ads, setAds] = useState({
-    developerToken: initialConfigs.google_ads?.developerToken ?? '',
     customerId: initialConfigs.google_ads?.customerId ?? '',
-    clientId: initialConfigs.google_ads?.clientId ?? '',
-    clientSecret: initialConfigs.google_ads?.clientSecret ?? '',
-    refreshToken: initialConfigs.google_ads?.refreshToken ?? '',
     conversionActionId: initialConfigs.google_ads?.conversionActionId ?? '',
     qualifiedConversionActionId: initialConfigs.google_ads?.qualifiedConversionActionId ?? '',
     wonConversionActionId: initialConfigs.google_ads?.wonConversionActionId ?? '',
@@ -117,55 +107,41 @@ export default function IntegrationsForm({ accountId, initialConfigs }: Integrat
     )
   }
 
-  const smtpOk       = isConfigured(smtp, ['host', 'user', 'pass'])
-  const ga4Ok        = isConfigured(ga4, ['measurementId', 'apiSecret'])
-  const gaReportOk   = !!initialConfigs.google_analytics?.refreshToken
+  const smtpOk        = !!smtpFrom.trim()
+  const ga4Ok         = isConfigured(ga4, ['measurementId', 'apiSecret'])
+  const gaReportOk    = !!initialConfigs.google_analytics?.refreshToken
   const gaReportEmail = initialConfigs.google_analytics?.email
-  const adsOk        = isConfigured(ads, ['developerToken', 'customerId', 'clientId', 'clientSecret', 'refreshToken'])
-  const fbOk         = isConfigured(fb, ['pixelId', 'accessToken'])
+  const adsOk         = isConfigured(ads, ['customerId'])
+  const fbOk          = isConfigured(fb, ['pixelId', 'accessToken'])
   const gcalConnected = !!initialConfigs.google_calendar?.refreshToken
-  const gcalEmail    = initialConfigs.google_calendar?.email
+  const gcalEmail     = initialConfigs.google_calendar?.email
 
   return (
-    <div className="space-y-5">
-      <h2 className="font-semibold text-slate-900 text-lg">Integrations</h2>
-
+    <>
       {/* ── Email ──────────────────────────────────────────────── */}
       <div className="bg-white rounded-xl border border-slate-200 p-6">
         <div className="flex items-start justify-between mb-5">
           <div>
             <h3 className="font-semibold text-slate-900 flex items-center gap-2">
-              <Mail className="w-4 h-4 text-indigo-500" /> Email (SMTP)
+              <Mail className="w-4 h-4 text-indigo-500" /> Email
             </h3>
-            <p className="text-slate-500 text-sm mt-0.5">Send emails from Automations, Campaigns, and lead pages</p>
+            <p className="text-slate-500 text-sm mt-0.5">Sender name shown on outgoing emails from Automations and Campaigns</p>
           </div>
-          <Badge ok={smtpOk} label="SMTP" />
+          <Badge ok={smtpOk} label="Email" />
         </div>
-        <div className="grid grid-cols-2 gap-4 mb-4">
-          <div>
-            <label className={labelCls}>SMTP Host</label>
-            <input type="text" value={smtp.host} onChange={(e) => setSmtp((f) => ({ ...f, host: e.target.value }))} className={inputCls} placeholder="smtp.gmail.com" />
-          </div>
-          <div>
-            <label className={labelCls}>Port</label>
-            <input type="text" value={smtp.port} onChange={(e) => setSmtp((f) => ({ ...f, port: e.target.value }))} className={inputCls} placeholder="587" />
-          </div>
-          <div>
-            <label className={labelCls}>Username</label>
-            <input type="text" value={smtp.user} onChange={(e) => setSmtp((f) => ({ ...f, user: e.target.value }))} className={inputCls} placeholder="you@gmail.com" />
-          </div>
-          <div>
-            <label className={labelCls}>Password / App Password</label>
-            <input type="password" value={smtp.pass} onChange={(e) => setSmtp((f) => ({ ...f, pass: e.target.value }))} className={inputCls} placeholder="••••••••" />
-          </div>
-          <div className="col-span-2">
-            <label className={labelCls}>From Address <span className="normal-case font-normal text-slate-400">(optional)</span></label>
-            <input type="text" value={smtp.from} onChange={(e) => setSmtp((f) => ({ ...f, from: e.target.value }))} className={inputCls} placeholder="Company Name <you@gmail.com>" />
-          </div>
+        <div className="mb-4">
+          <label className={labelCls}>From Address</label>
+          <input
+            type="text"
+            value={smtpFrom}
+            onChange={(e) => setSmtpFrom(e.target.value)}
+            className={inputCls}
+            placeholder="Company Name <you@example.com>"
+          />
+          <p className="text-xs text-slate-400 mt-1.5">e.g. <code>Acme Co &lt;noreply@acme.com&gt;</code> — leave blank to use the server default</p>
         </div>
-        <div className="flex items-center justify-between">
-          <p className="text-xs text-slate-400">For Gmail, use an App Password with 2FA enabled. Port 587 (TLS) or 465 (SSL).</p>
-          <SaveBtn platform="email_smtp" config={smtp} />
+        <div className="flex justify-end">
+          <SaveBtn platform="email_smtp" config={{ from: smtpFrom }} />
         </div>
       </div>
 
@@ -189,16 +165,9 @@ export default function IntegrationsForm({ accountId, initialConfigs }: Integrat
             <button onClick={() => disconnect('google_calendar')} className="text-xs text-red-600 hover:text-red-700 font-medium transition-colors">Disconnect</button>
           </div>
         ) : (
-          <div className="space-y-3">
-            <p className="text-xs text-slate-500">
-              Requires <code className="bg-slate-100 px-1 rounded">GOOGLE_CALENDAR_CLIENT_ID</code> and{' '}
-              <code className="bg-slate-100 px-1 rounded">GOOGLE_CALENDAR_CLIENT_SECRET</code> env vars.
-              Set redirect URI to <code className="bg-slate-100 px-1 rounded">{'{your-url}'}/api/calendar/callback</code>.
-            </p>
-            <Link href="/api/calendar/connect" className="inline-flex items-center gap-2 bg-slate-900 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-slate-800 transition-colors">
-              <CalendarDays className="w-4 h-4" /> Connect Google Calendar
-            </Link>
-          </div>
+          <Link href={`/api/calendar/connect${accountId ? `?account=${accountId}` : ''}`} className="inline-flex items-center gap-2 bg-slate-900 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-slate-800 transition-colors">
+            <CalendarDays className="w-4 h-4" /> Connect Google Calendar
+          </Link>
         )}
       </div>
 
@@ -217,7 +186,6 @@ export default function IntegrationsForm({ accountId, initialConfigs }: Integrat
           </div>
         </div>
 
-        {/* Event tracking */}
         <SubHeading>Event Tracking — Measurement Protocol</SubHeading>
         <p className="text-xs text-slate-500 mb-3">
           Sends a <code className="bg-slate-100 px-1 rounded">generate_lead</code> event each time a lead is received.
@@ -259,16 +227,9 @@ export default function IntegrationsForm({ accountId, initialConfigs }: Integrat
               </div>
             </div>
           ) : (
-            <div className="space-y-3">
-              <p className="text-xs text-slate-500">
-                Requires <code className="bg-slate-100 px-1 rounded">GOOGLE_ANALYTICS_CLIENT_ID</code> and{' '}
-                <code className="bg-slate-100 px-1 rounded">GOOGLE_ANALYTICS_CLIENT_SECRET</code> env vars.
-                Set redirect URI to <code className="bg-slate-100 px-1 rounded">{'{your-url}'}/api/analytics/google/callback</code>.
-              </p>
-              <Link href="/api/analytics/google/connect" className="inline-flex items-center gap-2 bg-slate-900 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-slate-800 transition-colors">
-                <TrendingUp className="w-4 h-4" /> Connect Google Analytics
-              </Link>
-            </div>
+            <Link href={`/api/analytics/google/connect${accountId ? `?account=${accountId}` : ''}`} className="inline-flex items-center gap-2 bg-slate-900 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-slate-800 transition-colors">
+              <TrendingUp className="w-4 h-4" /> Connect Google Analytics
+            </Link>
           )}
         </div>
       </div>
@@ -284,14 +245,10 @@ export default function IntegrationsForm({ accountId, initialConfigs }: Integrat
         </div>
         <div className="grid grid-cols-2 gap-4 mb-4">
           {([
-            { key: 'developerToken',             label: 'Developer Token',                    placeholder: 'ABcDeFgHiJkLmNo',            secret: true  },
-            { key: 'customerId',                 label: 'Customer ID',                        placeholder: '123-456-7890',               secret: false },
-            { key: 'clientId',                   label: 'OAuth Client ID',                    placeholder: 'xxx.apps.googleusercontent.com', secret: false },
-            { key: 'clientSecret',               label: 'OAuth Client Secret',                placeholder: 'GOCSPX-…',                  secret: true  },
-            { key: 'refreshToken',               label: 'Refresh Token',                      placeholder: '1//…',                      secret: true  },
-            { key: 'conversionActionId',         label: 'Conversion Action ID',               placeholder: '1234567890 — manual push',  secret: false },
-            { key: 'qualifiedConversionActionId',label: 'Qualified Lead Conversion Action ID',placeholder: '1234567890 — auto on Qualified', secret: false },
-            { key: 'wonConversionActionId',      label: 'Won Lead Conversion Action ID',      placeholder: '1234567890 — auto on Won',  secret: false },
+            { key: 'customerId',                  label: 'Customer ID',                        placeholder: '123-456-7890',              secret: false },
+            { key: 'conversionActionId',          label: 'Conversion Action ID',               placeholder: '1234567890 — manual push',  secret: false },
+            { key: 'qualifiedConversionActionId', label: 'Qualified Lead Conversion Action ID', placeholder: '1234567890 — auto on Qualified', secret: false },
+            { key: 'wonConversionActionId',       label: 'Won Lead Conversion Action ID',       placeholder: '1234567890 — auto on Won',  secret: false },
           ] as { key: keyof typeof ads; label: string; placeholder: string; secret: boolean }[]).map(({ key, label, placeholder, secret }) => (
             <div key={key}>
               <label className={labelCls}>{label}</label>
@@ -341,6 +298,6 @@ export default function IntegrationsForm({ accountId, initialConfigs }: Integrat
           <SaveBtn platform="facebook" config={fb} />
         </div>
       </div>
-    </div>
+    </>
   )
 }

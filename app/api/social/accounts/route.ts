@@ -16,5 +16,18 @@ export async function GET(req: NextRequest) {
     select: { id: true, platform: true, platformId: true, name: true, pictureUrl: true, createdAt: true },
     orderBy: [{ platform: 'asc' }, { name: 'asc' }],
   })
-  return NextResponse.json(accounts)
+
+  // For platforms that use master credentials (google_business), also report whether
+  // the AccountIntegration exists so the UI can show "connected" even before
+  // location discovery runs.
+  const accountId = typeof filter.accountId === 'string' ? filter.accountId : null
+  let integrations: { platform: string }[] = []
+  if (accountId) {
+    integrations = await prisma.accountIntegration.findMany({
+      where: { accountId, platform: { in: ['google_business'] }, enabled: true },
+      select: { platform: true },
+    })
+  }
+
+  return NextResponse.json({ accounts, integrations })
 }

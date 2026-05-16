@@ -1,8 +1,8 @@
 import { auth } from '@/auth'
 import { getAuthUrl } from '@/lib/google-calendar'
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   const session = await auth()
   if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
@@ -10,11 +10,10 @@ export async function GET() {
     return NextResponse.json({ error: 'GOOGLE_CALENDAR_CLIENT_ID not configured' }, { status: 500 })
   }
 
-  // Master admins have no accountId — they must select an account first
-  const accountId = session.user.accountId
+  const accountId = session.user.accountId ?? req.nextUrl.searchParams.get('account') ?? ''
   if (!accountId) {
     return NextResponse.json(
-      { error: 'No account associated with this user. Select an account before connecting Google Calendar.' },
+      { error: 'No account selected — master_admin must pass ?account=ID' },
       { status: 400 }
     )
   }

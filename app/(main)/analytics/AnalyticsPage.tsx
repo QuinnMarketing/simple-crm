@@ -5,7 +5,7 @@ import {
   AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, Cell,
 } from 'recharts'
-import { TrendingUp, Loader2, AlertCircle, Settings } from 'lucide-react'
+import { TrendingUp, Loader2, AlertCircle, Settings, XCircle } from 'lucide-react'
 import Link from 'next/link'
 
 type LeadSource = { source: string; count: number }
@@ -21,8 +21,11 @@ type AnalyticsData = {
   period: number
   crmLeads: { total: number; bySource: LeadSource[]; byDay: DayLeads[] }
   ga4: GA4Data | null
+  ga4Status: string
   googleAds: GoogleAdsData | null
+  googleAdsStatus: string
   metaAds: MetaAdsData | null
+  metaAdsStatus: string
 }
 
 const SOURCE_LABELS: Record<string, string> = {
@@ -357,22 +360,43 @@ export default function AnalyticsPage() {
             </div>
           )}
 
-          {/* Setup prompt */}
-          {!data.ga4 && !data.googleAds && !data.metaAds && (
-            <div className="bg-white rounded-xl border border-slate-200 p-10 text-center">
-              <TrendingUp className="w-10 h-10 text-slate-300 mx-auto mb-3" />
-              <p className="font-semibold text-slate-700">Connect your analytics platforms</p>
-              <p className="text-sm text-slate-500 mt-1 mb-5 max-w-sm mx-auto">
-                Link Google Analytics 4, Google Ads, or Meta Ads to see traffic, spend, and cost-per-lead data alongside your CRM leads.
-              </p>
-              <Link
-                href="/settings"
-                className="inline-flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors"
-              >
-                <Settings className="w-4 h-4" /> Settings → Integrations
-              </Link>
-            </div>
-          )}
+          {/* Status cards for null data sources */}
+          {(!data.ga4 || !data.metaAds) && (() => {
+            const settingsHref = accountParam ? `/settings?account=${accountParam}` : '/settings'
+            const STATUS_LABELS: Record<string, string> = {
+              not_connected: 'OAuth not connected — click Connect in Settings',
+              missing_property_id: 'Connected but GA4 Property ID not saved — enter it in Settings → Integrations',
+              not_configured: 'Not configured — enter credentials in Settings → Integrations',
+              missing_ad_account_id: 'Pixel connected but Ad Account ID missing — add it in Settings → Integrations',
+              ok: '',
+            }
+            const items = [
+              !data.ga4 && { label: 'Google Analytics 4', status: data.ga4Status },
+              !data.metaAds && { label: 'Meta Ads', status: data.metaAdsStatus },
+            ].filter(Boolean) as { label: string; status: string }[]
+
+            return (
+              <div className="bg-white rounded-xl border border-slate-200 p-6">
+                <div className="flex items-start justify-between mb-4">
+                  <p className="font-semibold text-slate-700">Data source status</p>
+                  <Link href={settingsHref} className="inline-flex items-center gap-1.5 text-xs text-indigo-600 hover:text-indigo-700 font-medium">
+                    <Settings className="w-3.5 h-3.5" /> Open Settings
+                  </Link>
+                </div>
+                <div className="space-y-2">
+                  {items.map(({ label, status }) => (
+                    <div key={label} className="flex items-start gap-3 text-sm">
+                      <XCircle className="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" />
+                      <div>
+                        <span className="font-medium text-slate-700">{label}: </span>
+                        <span className="text-slate-500">{STATUS_LABELS[status] ?? status}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )
+          })()}
         </div>
       )}
     </div>

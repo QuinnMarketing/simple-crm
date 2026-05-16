@@ -3,10 +3,17 @@ import { prisma } from '@/lib/prisma'
 import { getAccountFilter } from '@/lib/account-scope'
 import CalendarView from './CalendarView'
 
-export default async function CalendarPage() {
+export default async function CalendarPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ account?: string }>
+}) {
   const session = await auth()
-  const accountFilter = getAccountFilter(session!.user)
-  const accountId = (accountFilter as { accountId?: string }).accountId ?? null
+  const { account: accountParam } = await searchParams
+
+  const rawFilter = getAccountFilter(session!.user, accountParam)
+  // Only use a single string accountId — { in: [...] } means no specific account selected
+  const accountId: string | null = typeof rawFilter.accountId === 'string' ? rawFilter.accountId : null
 
   const gcalConnected = accountId
     ? !!(await prisma.accountIntegration.findUnique({
@@ -18,5 +25,5 @@ export default async function CalendarPage() {
       }))
     : false
 
-  return <CalendarView gcalConnected={gcalConnected} />
+  return <CalendarView gcalConnected={gcalConnected} accountId={accountId} />
 }

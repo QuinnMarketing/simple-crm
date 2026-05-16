@@ -10,6 +10,14 @@ export const authConfig = {
 
       if (path.startsWith('/api/webhooks')) return true
       if (path.startsWith('/api/calendar/callback')) return true
+      if (path.startsWith('/api/auth/forgot-password')) return true
+      if (path.startsWith('/api/auth/reset-password')) return true
+      if (path.startsWith('/api/book')) return true
+      if (path.startsWith('/api/review')) return true
+      if (path === '/forgot-password') return true
+      if (path.startsWith('/reset-password')) return true
+      if (path.startsWith('/book')) return true
+      if (path.startsWith('/review')) return true
       if (path === '/login') {
         if (isLoggedIn) return Response.redirect(new URL('/', nextUrl))
         return true
@@ -27,6 +35,7 @@ export const authConfig = {
     session({ session, token }) {
       session.user.id = token.id as string
       session.user.accountId = (token.accountId ?? null) as string | null
+      session.user.accountIds = (token.accountIds ?? (token.accountId ? [token.accountId as string] : [])) as string[]
       session.user.role = (token.role ?? 'account_user') as string
       return session
     },

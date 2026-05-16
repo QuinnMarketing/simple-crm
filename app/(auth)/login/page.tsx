@@ -2,6 +2,7 @@
 import { useState } from 'react'
 import { signIn } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { Zap, Loader2 } from 'lucide-react'
 
 export default function LoginPage() {
@@ -57,7 +58,10 @@ export default function LoginPage() {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1.5">Password</label>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="block text-sm font-medium text-slate-700">Password</label>
+              <Link href="/forgot-password" className="text-xs text-indigo-600 hover:text-indigo-700">Forgot password?</Link>
+            </div>
             <input
               type="password"
               value={password}

@@ -6,6 +6,9 @@ import CopyButton from './CopyButton'
 import DocumentTemplatesSection from './DocumentTemplatesSection'
 import BusinessInfoForm from './BusinessInfoForm'
 import CustomFieldsSection from './CustomFieldsSection'
+import ChangePasswordForm from './ChangePasswordForm'
+import BookingSettingsForm from './BookingSettingsForm'
+import ReviewSettingsForm from './ReviewSettingsForm'
 import Link from 'next/link'
 import { UserCog, History } from 'lucide-react'
 
@@ -53,8 +56,7 @@ export default async function SettingsPage({
 
   const account = await prisma.account.findUnique({
     where: { id: accountId },
-    include: { integrations: true },
-    // business info fields are included by default
+    include: { integrations: true, bookingSettings: true, reviewSettings: true },
   })
 
   if (!account) redirect('/accounts')
@@ -62,10 +64,6 @@ export default async function SettingsPage({
   const baseUrl = process.env.NEXTAUTH_URL ?? 'http://localhost:3000'
   const webhookUrl = `${baseUrl}/api/webhooks/form?token=${account.webhookToken}`
 
-  const smtpDefaults: Record<string, string> = {
-    host: process.env.SMTP_HOST ?? '',
-    port: process.env.SMTP_PORT ?? '587',
-  }
   const googleAdsDefaults: Record<string, string> = {
     developerToken: process.env.GOOGLE_ADS_DEVELOPER_TOKEN ?? '',
     clientId: process.env.GOOGLE_ADS_CLIENT_ID ?? '',
@@ -81,15 +79,13 @@ export default async function SettingsPage({
       integrationConfigs[integration.platform] = {}
     }
   }
-  // Fill empty fields with hardcoded defaults
-  integrationConfigs.email_smtp = { ...smtpDefaults, ...integrationConfigs.email_smtp }
   integrationConfigs.google_ads = { ...googleAdsDefaults, ...integrationConfigs.google_ads }
 
   return (
     <div>
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-slate-900">Settings</h1>
-        <p className="text-slate-500 mt-1 text-sm">{account.name} — integrations and webhook</p>
+        <p className="text-slate-500 mt-1 text-sm">{account.name}</p>
       </div>
 
       {gcal === 'connected' && (
@@ -114,38 +110,7 @@ export default async function SettingsPage({
       )}
 
       <div className="space-y-6">
-        {/* Webhook */}
-        <div className="bg-white rounded-xl border border-slate-200 p-6">
-          <h2 className="font-semibold text-slate-900 mb-1">Webhook Endpoint</h2>
-          <p className="text-slate-500 text-sm mb-4">
-            POST form submissions to this URL. The token authenticates this account automatically —
-            no additional headers required.
-          </p>
-          <div className="flex items-center gap-2 p-3 bg-slate-50 rounded-lg border border-slate-200">
-            <code className="text-sm font-mono text-slate-700 flex-1 break-all">{webhookUrl}</code>
-            <CopyButton text={webhookUrl} />
-          </div>
-
-          <div className="mt-5 grid grid-cols-2 gap-4 text-sm sm:grid-cols-4">
-            <div className="border border-slate-200 rounded-lg p-4">
-              <p className="font-semibold text-slate-900 mb-2">Elementor</p>
-              <p className="text-slate-500 text-xs">Edit form → Actions After Submit → Add Action → Webhook → paste URL. Requires Elementor Pro.</p>
-            </div>
-            <div className="border border-slate-200 rounded-lg p-4">
-              <p className="font-semibold text-slate-900 mb-2">Typeform</p>
-              <p className="text-slate-500 text-xs">Connect → Webhooks → Add webhook URL above.</p>
-            </div>
-            <div className="border border-slate-200 rounded-lg p-4">
-              <p className="font-semibold text-slate-900 mb-2">JotForm</p>
-              <p className="text-slate-500 text-xs">Settings → Integrations → Webhooks → paste URL.</p>
-            </div>
-            <div className="border border-slate-200 rounded-lg p-4">
-              <p className="font-semibold text-slate-900 mb-2">Gravity Forms</p>
-              <p className="text-slate-500 text-xs">Form Settings → Webhooks → Add New → paste URL.</p>
-            </div>
-          </div>
-        </div>
-
+        {/* 1. Business Information */}
         <BusinessInfoForm
           accountId={accountId}
           initial={{
@@ -159,7 +124,7 @@ export default async function SettingsPage({
           }}
         />
 
-        {/* Users + Audit Log quick links */}
+        {/* 2. Users + Audit Log */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Link
             href={`/users${accountParam ? `?account=${accountParam}` : ''}`}
@@ -187,11 +152,88 @@ export default async function SettingsPage({
           </Link>
         </div>
 
+        {/* 3. Custom Fields */}
         <CustomFieldsSection accountId={accountId} />
 
+        {/* 4. Document Templates */}
         <DocumentTemplatesSection />
 
-        <IntegrationsForm accountId={accountId} initialConfigs={integrationConfigs} />
+        {/* 5. Booking Widget */}
+        <BookingSettingsForm
+          accountId={accountId}
+          accountSlug={account.slug}
+          initial={account.bookingSettings ? {
+            enabled: account.bookingSettings.enabled,
+            title: account.bookingSettings.title,
+            description: account.bookingSettings.description ?? '',
+            slotDuration: account.bookingSettings.slotDuration,
+            bufferTime: account.bookingSettings.bufferTime,
+            timezone: account.bookingSettings.timezone,
+            availableHours: account.bookingSettings.availableHours,
+            maxDaysAhead: account.bookingSettings.maxDaysAhead,
+            minNoticeHours: account.bookingSettings.minNoticeHours,
+          } : null}
+        />
+
+        {/* 6. Review Widget */}
+        <ReviewSettingsForm
+          accountId={accountId}
+          accountSlug={account.slug}
+          initial={account.reviewSettings ? {
+            enabled: account.reviewSettings.enabled,
+            title: account.reviewSettings.title,
+            description: account.reviewSettings.description ?? '',
+            autoApprove: account.reviewSettings.autoApprove,
+            autoReply: account.reviewSettings.autoReply,
+            replyTemplates: account.reviewSettings.replyTemplates,
+          } : null}
+        />
+
+        {/* 7. Change Password */}
+        <div className="bg-white rounded-xl border border-slate-200 p-6">
+          <h2 className="font-semibold text-slate-900 mb-1">Change Password</h2>
+          <p className="text-slate-500 text-sm mb-5">Update the password for your own account.</p>
+          <ChangePasswordForm />
+        </div>
+
+        {/* 7. Integrations */}
+        <div>
+          <h2 className="font-semibold text-slate-900 text-lg mb-5">Integrations</h2>
+          <div className="space-y-5">
+            {/* Webhook */}
+            <div className="bg-white rounded-xl border border-slate-200 p-6">
+              <h3 className="font-semibold text-slate-900 mb-1">Webhook Endpoint</h3>
+              <p className="text-slate-500 text-sm mb-4">
+                POST form submissions to this URL. The token authenticates this account automatically —
+                no additional headers required.
+              </p>
+              <div className="flex items-center gap-2 p-3 bg-slate-50 rounded-lg border border-slate-200">
+                <code className="text-sm font-mono text-slate-700 flex-1 break-all">{webhookUrl}</code>
+                <CopyButton text={webhookUrl} />
+              </div>
+              <div className="mt-5 grid grid-cols-2 gap-4 text-sm sm:grid-cols-4">
+                <div className="border border-slate-200 rounded-lg p-4">
+                  <p className="font-semibold text-slate-900 mb-2">Elementor</p>
+                  <p className="text-slate-500 text-xs">Edit form → Actions After Submit → Add Action → Webhook → paste URL. Requires Elementor Pro.</p>
+                </div>
+                <div className="border border-slate-200 rounded-lg p-4">
+                  <p className="font-semibold text-slate-900 mb-2">Typeform</p>
+                  <p className="text-slate-500 text-xs">Connect → Webhooks → Add webhook URL above.</p>
+                </div>
+                <div className="border border-slate-200 rounded-lg p-4">
+                  <p className="font-semibold text-slate-900 mb-2">JotForm</p>
+                  <p className="text-slate-500 text-xs">Settings → Integrations → Webhooks → paste URL.</p>
+                </div>
+                <div className="border border-slate-200 rounded-lg p-4">
+                  <p className="font-semibold text-slate-900 mb-2">Gravity Forms</p>
+                  <p className="text-slate-500 text-xs">Form Settings → Webhooks → Add New → paste URL.</p>
+                </div>
+              </div>
+            </div>
+
+            <IntegrationsForm accountId={accountId} initialConfigs={integrationConfigs} />
+          </div>
+        </div>
       </div>
     </div>
   )

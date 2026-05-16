@@ -21,7 +21,7 @@ export async function GET(req: NextRequest, { params }: P) {
   if (platform === 'facebook' || platform === 'instagram') {
     const appId = process.env.FACEBOOK_APP_ID
     if (!appId) return NextResponse.json({ error: 'FACEBOOK_APP_ID not configured' }, { status: 500 })
-    const scopes = 'pages_manage_posts,pages_read_engagement,pages_show_list,instagram_basic,instagram_content_publishing'
+    const scopes = 'pages_manage_posts,pages_read_engagement,pages_show_list,instagram_content_publish'
     const url = `https://www.facebook.com/v20.0/dialog/oauth?client_id=${appId}&redirect_uri=${encodeURIComponent(redirect)}&scope=${encodeURIComponent(scopes)}&state=${state}&response_type=code`
     return NextResponse.redirect(url)
   }

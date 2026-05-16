@@ -5,7 +5,7 @@ import { Menu, Zap } from 'lucide-react'
 import Sidebar from './Sidebar'
 import PushToggle from './PushToggle'
 
-type SidebarUser = { name?: string | null; email?: string | null; role?: string; accountId?: string | null }
+type SidebarUser = { name?: string | null; email?: string | null; role?: string; accountId?: string | null; accountIds?: string[] | null }
 type SidebarAccount = { id: string; name: string }
 
 export default function SidebarShell({

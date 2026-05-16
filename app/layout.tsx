@@ -5,6 +5,7 @@ import Providers from '@/components/Providers'
 export const metadata: Metadata = {
   title: 'Simple CRM',
   description: 'Lead management and platform conversion tracking',
+  icons: { icon: '/icon.svg' },
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

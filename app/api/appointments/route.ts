@@ -13,10 +13,11 @@ export async function GET(req: NextRequest) {
   const { searchParams } = req.nextUrl
   const from = searchParams.get('from')
   const to = searchParams.get('to')
+  const accountParam = searchParams.get('account')
 
   const appointments = await prisma.appointment.findMany({
     where: {
-      ...getAccountFilter(session.user),
+      ...getAccountFilter(session.user, accountParam),
       ...(from || to ? {
         startTime: {
           ...(from ? { gte: new Date(from) } : {}),

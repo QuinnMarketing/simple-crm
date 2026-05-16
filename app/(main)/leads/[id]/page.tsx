@@ -14,6 +14,7 @@ import LeadTimeline from './LeadTimeline'
 import NextStepsCard from './NextStepsCard'
 import TimeInStageCard from './TimeInStageCard'
 import CustomFieldsCard from './CustomFieldsCard'
+import TasksSection from './TasksSection'
 
 type Company = { id: string; name: string; color: string }
 
@@ -478,6 +479,7 @@ export default function LeadDetailPage() {
             initialNextStep={lead.nextStep}
             initialNextStepDue={lead.nextStepDue}
           />
+          <TasksSection leadId={id} />
 
           {/* Appointments */}
           <div className="bg-white rounded-xl border border-slate-200 p-5">

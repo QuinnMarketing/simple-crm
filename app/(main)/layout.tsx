@@ -15,12 +15,21 @@ export default async function MainLayout({ children }: { children: React.ReactNo
       select: { id: true, name: true },
       orderBy: { name: 'asc' },
     })
-  } else if (session.user.accountId) {
-    const account = await prisma.account.findUnique({
-      where: { id: session.user.accountId },
-      select: { name: true },
-    })
-    accountName = account?.name ?? null
+  } else {
+    const userAccountIds = session.user.accountIds ?? (session.user.accountId ? [session.user.accountId] : [])
+    if (userAccountIds.length > 1) {
+      accounts = await prisma.account.findMany({
+        where: { id: { in: userAccountIds } },
+        select: { id: true, name: true },
+        orderBy: { name: 'asc' },
+      })
+    } else if (session.user.accountId) {
+      const account = await prisma.account.findUnique({
+        where: { id: session.user.accountId },
+        select: { name: true },
+      })
+      accountName = account?.name ?? null
+    }
   }
 
   return (

@@ -21,6 +21,8 @@ export async function GET(req: NextRequest) {
     return NextResponse.redirect(`${redirectBase}?gcal=error`)
   }
 
+  const accountParam = `&account=${accountId}`
+
   try {
     const { refreshToken, email } = await exchangeCode(code)
     await prisma.accountIntegration.upsert({
@@ -36,9 +38,9 @@ export async function GET(req: NextRequest) {
         enabled: true,
       },
     })
-    return NextResponse.redirect(`${redirectBase}?gcal=connected`)
+    return NextResponse.redirect(`${redirectBase}?gcal=connected${accountParam}`)
   } catch (e) {
     console.error('GCal callback error:', e)
-    return NextResponse.redirect(`${redirectBase}?gcal=error`)
+    return NextResponse.redirect(`${redirectBase}?gcal=error${accountParam}`)
   }
 }

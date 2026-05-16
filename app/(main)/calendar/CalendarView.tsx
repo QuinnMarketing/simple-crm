@@ -37,7 +37,7 @@ function sameDay(a: Date, b: Date) {
 }
 
 // ─── Calendar View ────────────────────────────────────────────────────────────
-export default function CalendarView({ gcalConnected }: { gcalConnected: boolean }) {
+export default function CalendarView({ gcalConnected, accountId }: { gcalConnected: boolean; accountId: string | null }) {
   const today = new Date()
   const [year, setYear] = useState(today.getFullYear())
   const [month, setMonth] = useState(today.getMonth())
@@ -56,9 +56,10 @@ export default function CalendarView({ gcalConnected }: { gcalConnected: boolean
     const from = calFrom.toISOString()
     const to = new Date(calTo.getFullYear(), calTo.getMonth(), calTo.getDate(), 23, 59, 59).toISOString()
     try {
+      const acctQs = accountId ? `&account=${accountId}` : ''
       const [apptRes, gcalRes] = await Promise.all([
-        fetch(`/api/appointments?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`),
-        gcalConnected ? fetch(`/api/calendar/gcal-events?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`) : Promise.resolve(null),
+        fetch(`/api/appointments?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}${acctQs}`),
+        gcalConnected ? fetch(`/api/calendar/gcal-events?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}${acctQs}`) : Promise.resolve(null),
       ])
       if (apptRes.ok) setAppointments(await apptRes.json())
       if (gcalRes?.ok) setGcalEvents(await gcalRes.json())
@@ -68,7 +69,7 @@ export default function CalendarView({ gcalConnected }: { gcalConnected: boolean
       setLoading(false)
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [year, month, gcalConnected])
+  }, [year, month, gcalConnected, accountId])
 
   useEffect(() => { fetchAppointments() }, [fetchAppointments])
 
