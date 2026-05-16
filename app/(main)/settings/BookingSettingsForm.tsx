@@ -116,12 +116,9 @@ export default function BookingSettingsForm({ accountId, accountSlug, initial }:
   }
 
   return (
-    <div className="bg-white rounded-xl border border-slate-200 p-6 space-y-6">
+    <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <div>
-          <h2 className="font-semibold text-slate-900">Booking Widget</h2>
-          <p className="text-slate-500 text-sm mt-0.5">Allow clients to book appointments directly from your website.</p>
-        </div>
+        <span className="text-sm font-medium text-slate-700">Widget status</span>
         <label className="flex items-center gap-2 cursor-pointer">
           <span className="text-sm text-slate-600">{enabled ? 'Enabled' : 'Disabled'}</span>
           <button

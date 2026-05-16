@@ -23,6 +23,8 @@ type Lead = {
   source: string | null; status: string; service: string | null; notes: string | null
   value: number | null; formData: string | null; gclid: string | null
   fbclid: string | null; fbp: string | null; fbc: string | null
+  utmSource: string | null; utmMedium: string | null; utmCampaign: string | null
+  utmTerm: string | null; utmContent: string | null; utmMatchtype: string | null
   userAgent: string | null; ipAddress: string | null; pageUrl: string | null
   bestTimeToContact: string | null; firstRespondedAt: string | null
   nextStep: string | null; nextStepDue: string | null; lostReason: string | null
@@ -37,6 +39,8 @@ type Conversion = {
   id: string; platform: string; eventName: string; value: number | null
   status: string; errorMessage: string | null; sentAt: string
 }
+
+type OutboundIntegration = { id: string; name: string; url: string; enabled: boolean }
 
 type PushState = { status: 'idle' | 'pushing' | 'success' | 'error'; message?: string }
 
@@ -68,6 +72,14 @@ export default function LeadDetailPage() {
     google_ads: { status: 'idle' },
     facebook: { status: 'idle' },
   })
+  const [sm8State, setSm8State] = useState<PushState>({ status: 'idle' })
+  const [sm8Configured, setSm8Configured] = useState(false)
+  const [arofloState, setArofloState] = useState<PushState>({ status: 'idle' })
+  const [arofloConfigured, setArofloConfigured] = useState(false)
+  const [trakState, setTrakState] = useState<PushState>({ status: 'idle' })
+  const [trakConfigured, setTrakConfigured] = useState(false)
+  const [outboundIntegrations, setOutboundIntegrations] = useState<OutboundIntegration[]>([])
+  const [outboundPushState, setOutboundPushState] = useState<Record<string, PushState>>({})
 
   const fetchLead = useCallback(async () => {
     const res = await fetch(`/api/leads/${id}`)
@@ -76,6 +88,9 @@ export default function LeadDetailPage() {
       setLead(data)
       setForm(data)
       setAppointments(data.appointments ?? [])
+      setSm8Configured(!!data.sm8Configured)
+      setArofloConfigured(!!data.arofloConfigured)
+      setTrakConfigured(!!data.trakConfigured)
       setDirty(false)
     }
     setLoading(false)
@@ -85,6 +100,7 @@ export default function LeadDetailPage() {
 
   useEffect(() => {
     fetch('/api/companies').then((r) => r.json()).then((d) => { if (Array.isArray(d)) setCompanies(d) })
+    fetch('/api/outbound-integrations').then((r) => r.json()).then((d) => { if (Array.isArray(d)) setOutboundIntegrations(d.filter((i: OutboundIntegration) => i.enabled)) })
   }, [])
 
   function setField(field: keyof Lead, value: string | number | null) {
@@ -121,6 +137,61 @@ export default function LeadDetailPage() {
       [platform]: { status: result.success ? 'success' : 'error', message: result.error },
     }))
     await fetchLead()
+  }
+
+  async function pushToTrak() {
+    setTrakState({ status: 'pushing' })
+    try {
+      const res = await fetch(`/api/leads/${id}/push/trak`, { method: 'POST' })
+      const result = await res.json()
+      setTrakState(res.ok ? { status: 'success' } : { status: 'error', message: result.error })
+      setTimeout(() => setTrakState({ status: 'idle' }), 5000)
+    } catch {
+      setTrakState({ status: 'error', message: 'Network error' })
+    }
+  }
+
+  async function pushToAroFlo() {
+    setArofloState({ status: 'pushing' })
+    try {
+      const res = await fetch(`/api/leads/${id}/push/aroflo`, { method: 'POST' })
+      const result = await res.json()
+      setArofloState(res.ok ? { status: 'success' } : { status: 'error', message: result.error })
+      setTimeout(() => setArofloState({ status: 'idle' }), 5000)
+    } catch {
+      setArofloState({ status: 'error', message: 'Network error' })
+    }
+  }
+
+  async function pushToServiceM8() {
+    setSm8State({ status: 'pushing' })
+    try {
+      const res = await fetch(`/api/leads/${id}/push/servicem8`, { method: 'POST' })
+      const result = await res.json()
+      setSm8State(res.ok ? { status: 'success' } : { status: 'error', message: result.error })
+      setTimeout(() => setSm8State({ status: 'idle' }), 5000)
+    } catch {
+      setSm8State({ status: 'error', message: 'Network error' })
+    }
+  }
+
+  async function pushToOutbound(integrationId: string) {
+    setOutboundPushState((s) => ({ ...s, [integrationId]: { status: 'pushing' } }))
+    try {
+      const res = await fetch(`/api/outbound-integrations/${integrationId}/push`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ leadId: id }),
+      })
+      const result = await res.json()
+      setOutboundPushState((s) => ({
+        ...s,
+        [integrationId]: res.ok ? { status: 'success' } : { status: 'error', message: result.error },
+      }))
+      setTimeout(() => setOutboundPushState((s) => ({ ...s, [integrationId]: { status: 'idle' } })), 4000)
+    } catch {
+      setOutboundPushState((s) => ({ ...s, [integrationId]: { status: 'error', message: 'Network error' } }))
+    }
   }
 
   async function deleteLead() {
@@ -418,6 +489,9 @@ export default function LeadDetailPage() {
             leadId={id}
             leadEmail={lead.email}
             leadName={lead.name}
+            leadService={lead.service}
+            leadNotes={lead.notes}
+            leadAddress={lead.address}
             onValueChange={(value) => {
               setForm((f) => ({ ...f, value }))
               setLead((l) => l ? { ...l, value } : l)
@@ -434,19 +508,44 @@ export default function LeadDetailPage() {
               <span className="font-semibold text-slate-900 text-sm">Attribution Data</span>
               {showAttribution ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
             </button>
-            {showAttribution && (
-              <div className="px-5 pb-5 border-t border-slate-100 pt-4 grid grid-cols-2 gap-3">
-                {[
-                  ['gclid', lead.gclid], ['fbclid', lead.fbclid], ['fbp', lead.fbp],
-                  ['fbc', lead.fbc], ['Page URL', lead.pageUrl], ['IP Address', lead.ipAddress],
-                ].map(([label, value]) => (
-                  <div key={label as string}>
-                    <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">{label}</p>
-                    <p className="text-sm text-slate-700 mt-0.5 break-all font-mono">{value ?? <span className="text-slate-400 font-sans">—</span>}</p>
-                  </div>
-                ))}
-              </div>
-            )}
+            {showAttribution && (() => {
+              // Fallback: parse UTMs from raw formData for leads created before UTM columns existed
+              let fd: Record<string, string> = {}
+              try { fd = JSON.parse(lead.formData ?? '{}') } catch { /* */ }
+              const utm = (col: string | null, key: string) => col || fd[key] || fd[key.replace('_', ' ')] || null
+              const rows: [string, string | null][] = [
+                ['GCLID', lead.gclid],
+                ['FBCLID', lead.fbclid],
+                ['FBP', lead.fbp],
+                ['FBC', lead.fbc],
+                ['utm_source', utm(lead.utmSource, 'utm_source')],
+                ['utm_medium', utm(lead.utmMedium, 'utm_medium')],
+                ['utm_campaign', utm(lead.utmCampaign, 'utm_campaign')],
+                ['utm_term', utm(lead.utmTerm, 'utm_term')],
+                ['utm_matchtype', utm(lead.utmMatchtype, 'utm_matchtype')],
+                ['utm_content', utm(lead.utmContent, 'utm_content')],
+                ['suburb', fd['suburb'] ?? fd['Suburb'] ?? null],
+                ['Page URL', lead.pageUrl || fd['Page URL'] || fd['page_url'] || null],
+                ['IP Address', lead.ipAddress],
+              ].filter(([, v]) => v !== null) as [string, string][]
+              const empty = rows.length === 0
+              return (
+                <div className="px-5 pb-5 border-t border-slate-100 pt-4">
+                  {empty ? (
+                    <p className="text-sm text-slate-400">No attribution data recorded.</p>
+                  ) : (
+                    <div className="grid grid-cols-2 gap-3">
+                      {rows.map(([label, value]) => (
+                        <div key={label} className={label === 'Page URL' || label === 'User Agent' ? 'col-span-2' : ''}>
+                          <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">{label}</p>
+                          <p className="text-sm text-slate-700 mt-0.5 break-all font-mono">{value}</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )
+            })()}
           </div>
 
           {/* Raw form data */}
@@ -582,8 +681,174 @@ export default function LeadDetailPage() {
                   </div>
                 )
               })}
+
+              {/* Trak native integration */}
+              {trakConfigured && (
+                <div className="border border-slate-200 rounded-lg p-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <div>
+                      <p className="text-sm font-medium text-slate-900">Trak</p>
+                      <p className="text-xs text-slate-400 mt-0.5">Creates contact + job</p>
+                    </div>
+                    {trakState.status === 'success' && <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />}
+                  </div>
+                  <button
+                    onClick={pushToTrak}
+                    disabled={trakState.status === 'pushing'}
+                    className={`w-full py-2 px-3 rounded-md text-xs font-medium transition-colors flex items-center justify-center gap-1.5 ${
+                      trakState.status === 'success'
+                        ? 'bg-green-600 text-white'
+                        : trakState.status === 'error'
+                        ? 'bg-red-600 text-white hover:bg-red-700'
+                        : 'bg-slate-900 text-white hover:bg-slate-800 disabled:opacity-60'
+                    }`}
+                  >
+                    {trakState.status === 'pushing' ? (
+                      <><Loader2 className="w-3 h-3 animate-spin" /> Pushing…</>
+                    ) : trakState.status === 'success' ? (
+                      <><CheckCircle className="w-3 h-3" /> Sent to Trak!</>
+                    ) : trakState.status === 'error' ? (
+                      <><XCircle className="w-3 h-3" /> Failed — Retry</>
+                    ) : (
+                      'Push to Trak'
+                    )}
+                  </button>
+                  {trakState.status === 'error' && trakState.message && (
+                    <p className="text-xs text-red-600 mt-1.5 flex items-start gap-1">
+                      <AlertCircle className="w-3 h-3 mt-0.5 flex-shrink-0" />
+                      {trakState.message}
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {/* AroFlo native integration */}
+              {arofloConfigured && (
+                <div className="border border-slate-200 rounded-lg p-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <div>
+                      <p className="text-sm font-medium text-slate-900">AroFlo</p>
+                      <p className="text-xs text-slate-400 mt-0.5">Creates client + task</p>
+                    </div>
+                    {arofloState.status === 'success' && <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />}
+                  </div>
+                  <button
+                    onClick={pushToAroFlo}
+                    disabled={arofloState.status === 'pushing'}
+                    className={`w-full py-2 px-3 rounded-md text-xs font-medium transition-colors flex items-center justify-center gap-1.5 ${
+                      arofloState.status === 'success'
+                        ? 'bg-green-600 text-white'
+                        : arofloState.status === 'error'
+                        ? 'bg-red-600 text-white hover:bg-red-700'
+                        : 'bg-slate-900 text-white hover:bg-slate-800 disabled:opacity-60'
+                    }`}
+                  >
+                    {arofloState.status === 'pushing' ? (
+                      <><Loader2 className="w-3 h-3 animate-spin" /> Pushing…</>
+                    ) : arofloState.status === 'success' ? (
+                      <><CheckCircle className="w-3 h-3" /> Sent to AroFlo!</>
+                    ) : arofloState.status === 'error' ? (
+                      <><XCircle className="w-3 h-3" /> Failed — Retry</>
+                    ) : (
+                      'Push to AroFlo'
+                    )}
+                  </button>
+                  {arofloState.status === 'error' && arofloState.message && (
+                    <p className="text-xs text-red-600 mt-1.5 flex items-start gap-1">
+                      <AlertCircle className="w-3 h-3 mt-0.5 flex-shrink-0" />
+                      {arofloState.message}
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {/* ServiceM8 native integration */}
+              {sm8Configured && (
+                <div className="border border-slate-200 rounded-lg p-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <div>
+                      <p className="text-sm font-medium text-slate-900">ServiceM8</p>
+                      <p className="text-xs text-slate-400 mt-0.5">Creates client + quote job</p>
+                    </div>
+                    {sm8State.status === 'success' && <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />}
+                  </div>
+                  <button
+                    onClick={pushToServiceM8}
+                    disabled={sm8State.status === 'pushing'}
+                    className={`w-full py-2 px-3 rounded-md text-xs font-medium transition-colors flex items-center justify-center gap-1.5 ${
+                      sm8State.status === 'success'
+                        ? 'bg-green-600 text-white'
+                        : sm8State.status === 'error'
+                        ? 'bg-red-600 text-white hover:bg-red-700'
+                        : 'bg-slate-900 text-white hover:bg-slate-800 disabled:opacity-60'
+                    }`}
+                  >
+                    {sm8State.status === 'pushing' ? (
+                      <><Loader2 className="w-3 h-3 animate-spin" /> Pushing…</>
+                    ) : sm8State.status === 'success' ? (
+                      <><CheckCircle className="w-3 h-3" /> Sent to ServiceM8!</>
+                    ) : sm8State.status === 'error' ? (
+                      <><XCircle className="w-3 h-3" /> Failed — Retry</>
+                    ) : (
+                      'Push to ServiceM8'
+                    )}
+                  </button>
+                  {sm8State.status === 'error' && sm8State.message && (
+                    <p className="text-xs text-red-600 mt-1.5 flex items-start gap-1">
+                      <AlertCircle className="w-3 h-3 mt-0.5 flex-shrink-0" />
+                      {sm8State.message}
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
           </div>
+
+          {/* Outbound Integrations */}
+          {outboundIntegrations.length > 0 && (
+            <div className="bg-white rounded-xl border border-slate-200 p-5">
+              <h2 className="font-semibold text-slate-900 mb-1">Job Platforms</h2>
+              <p className="text-slate-500 text-xs mb-4">Push this lead to your connected job management platform to avoid double entry.</p>
+              <div className="space-y-2">
+                {outboundIntegrations.map((intg) => {
+                  const state = outboundPushState[intg.id] ?? { status: 'idle' }
+                  return (
+                    <div key={intg.id} className="flex items-center justify-between gap-3 border border-slate-200 rounded-lg p-3">
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-slate-900">{intg.name}</p>
+                        {state.status === 'error' && state.message && (
+                          <p className="text-xs text-red-600 mt-0.5 flex items-center gap-1">
+                            <AlertCircle className="w-3 h-3 flex-shrink-0" /> {state.message}
+                          </p>
+                        )}
+                      </div>
+                      <button
+                        onClick={() => pushToOutbound(intg.id)}
+                        disabled={state.status === 'pushing'}
+                        className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                          state.status === 'success'
+                            ? 'bg-green-600 text-white'
+                            : state.status === 'error'
+                            ? 'bg-red-600 text-white hover:bg-red-700'
+                            : 'bg-slate-900 text-white hover:bg-slate-800 disabled:opacity-60'
+                        }`}
+                      >
+                        {state.status === 'pushing' ? (
+                          <><Loader2 className="w-3 h-3 animate-spin" /> Pushing…</>
+                        ) : state.status === 'success' ? (
+                          <><CheckCircle className="w-3 h-3" /> Sent!</>
+                        ) : state.status === 'error' ? (
+                          <><XCircle className="w-3 h-3" /> Retry</>
+                        ) : (
+                          'Push lead'
+                        )}
+                      </button>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
 
           {/* Conversion History */}
           {lead.conversions.length > 0 && (

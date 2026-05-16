@@ -53,22 +53,33 @@ export async function POST(req: NextRequest) {
   const taxAmount = subtotal * taxRate / 100
   const total = subtotal + taxAmount
 
-  const count = await prisma.quote.count({ where: { accountId, type } })
-  const number = type === 'quote'
-    ? `Q-${String(count + 1).padStart(3, '0')}`
-    : `INV-${String(count + 1).padStart(3, '0')}`
-
-  const quote = await prisma.quote.create({
-    data: {
-      type, number, status,
-      lineItems: JSON.stringify(lineItems),
-      subtotal, taxRate, taxAmount, total,
-      notes: notes || null,
-      issuedAt: issuedAt ? new Date(issuedAt) : null,
-      dueAt: dueAt ? new Date(dueAt) : null,
-      leadId: leadId || null,
-      accountId,
-    },
+  const [quote] = await prisma.$transaction(async (tx) => {
+    const settings = await tx.documentSettings.upsert({
+      where: { accountId: accountId ?? '' },
+      create: { accountId: accountId ?? '' },
+      update: {},
+    })
+    const isQuote = type === 'quote'
+    const seq = isQuote ? settings.nextQuoteNum : settings.nextInvoiceNum
+    const prefix = isQuote ? settings.quotePrefix : settings.invoicePrefix
+    const number = `${prefix}${String(seq).padStart(settings.numberPadding, '0')}`
+    await tx.documentSettings.update({
+      where: { accountId: accountId ?? '' },
+      data: isQuote ? { nextQuoteNum: { increment: 1 } } : { nextInvoiceNum: { increment: 1 } },
+    })
+    const created = await tx.quote.create({
+      data: {
+        type, number, status,
+        lineItems: JSON.stringify(lineItems),
+        subtotal, taxRate, taxAmount, total,
+        notes: notes || null,
+        issuedAt: issuedAt ? new Date(issuedAt) : null,
+        dueAt: dueAt ? new Date(dueAt) : null,
+        leadId: leadId || null,
+        accountId,
+      },
+    })
+    return [created]
   })
 
   if (leadId && !INACTIVE.has(status)) {

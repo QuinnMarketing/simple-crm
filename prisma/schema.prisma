@@ -43,6 +43,9 @@ model Account {
   bookingSettings    BookingSettings?
   reviews            Review[]
   reviewSettings     ReviewSettings?
+  priceItems         PriceItem[]
+  documentSettings       DocumentSettings?
+  outboundIntegrations   OutboundIntegration[]
 }
 
 model AccountIntegration {
@@ -131,6 +134,12 @@ model Lead {
   fbclid      String?
   fbp         String?
   fbc         String?
+  utmSource    String?
+  utmMedium    String?
+  utmCampaign  String?
+  utmTerm      String?
+  utmContent   String?
+  utmMatchtype String?
   userAgent   String?
   ipAddress   String?
   pageUrl     String?
@@ -506,6 +515,53 @@ model ReviewSettings {
   replyTemplates String   @default("{}") // JSON: { positive, neutral, negative, widgetMinRating }
   createdAt      DateTime @default(now())
   updatedAt       DateTime @updatedAt
+}
+
+model PriceItem {
+  id          String   @id @default(cuid())
+  accountId   String
+  account     Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  name        String
+  description String?
+  price       Float
+  unit        String   @default("each")
+  category    String?
+  sku         String?
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([accountId])
+  @@index([accountId, active])
+}
+
+model OutboundIntegration {
+  id            String   @id @default(cuid())
+  accountId     String
+  account       Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  name          String
+  url           String
+  authType      String   @default("none") // none | bearer | api_key | basic
+  authHeader    String?  // custom header name for api_key type (e.g. "X-Api-Key")
+  authValue     String?  // token / key / "user:pass" for basic
+  enabled       Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([accountId])
+}
+
+model DocumentSettings {
+  id             String   @id @default(cuid())
+  accountId      String   @unique
+  account        Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  quotePrefix    String   @default("Q-")
+  invoicePrefix  String   @default("INV-")
+  nextQuoteNum   Int      @default(1)
+  nextInvoiceNum Int      @default(1)
+  numberPadding  Int      @default(3)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 }
 
 model BookingSettings {

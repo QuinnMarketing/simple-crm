@@ -10,6 +10,13 @@ export interface ParsedLead {
   fbclid?: string
   fbp?: string
   fbc?: string
+  utmSource?: string
+  utmMedium?: string
+  utmCampaign?: string
+  utmTerm?: string
+  utmContent?: string
+  utmMatchtype?: string
+  suburb?: string
   pageUrl?: string
   formData: string
 }
@@ -102,22 +109,34 @@ function extractAttribution(url: string): Record<string, string> {
   try {
     const params = new URL(url).searchParams
     const result: Record<string, string> = {}
-    const pick = (keys: string[]) => {
+    const pick = (...keys: string[]) => {
       for (const k of keys) {
         const v = params.get(k)
         if (v) return v
       }
     }
-    const gclid = pick(['gclid'])
-    const fbclid = pick(['fbclid'])
-    const fbp = pick(['_fbp', 'fbp'])
-    const fbc = pick(['_fbc', 'fbc'])
-    const utmSource = pick(['utm_source'])
+    const gclid = pick('gclid')
+    const fbclid = pick('fbclid')
+    const fbp = pick('_fbp', 'fbp')
+    const fbc = pick('_fbc', 'fbc')
+    const utmSource = pick('utm_source')
+    const utmMedium = pick('utm_medium')
+    const utmCampaign = pick('utm_campaign')
+    const utmTerm = pick('utm_term')
+    const utmContent = pick('utm_content')
+    const utmMatchtype = pick('utm_matchtype')
+    const suburb = pick('suburb')
     if (gclid) result.gclid = gclid
     if (fbclid) result.fbclid = fbclid
     if (fbp) result.fbp = fbp
     if (fbc) result.fbc = fbc
     if (utmSource) result.utm_source = utmSource
+    if (utmMedium) result.utm_medium = utmMedium
+    if (utmCampaign) result.utm_campaign = utmCampaign
+    if (utmTerm) result.utm_term = utmTerm
+    if (utmContent) result.utm_content = utmContent
+    if (utmMatchtype) result.utm_matchtype = utmMatchtype
+    if (suburb) result.suburb = suburb
     return result
   } catch {
     return {}
@@ -142,7 +161,10 @@ export function parseWebhookPayload(body: Record<string, unknown>): ParsedLead {
   const address = findField(flat, ADDRESS_KEYS)
   const service = findField(flat, SERVICE_KEYS)
   const notes = findField(flat, MESSAGE_KEYS)
-  const pageUrl = flat.page_url ?? flat.pageUrl ?? flat.url ?? flat.source_url ?? flat.referrer
+
+  // Page URL: handle "Page URL", "page_url", "pageUrl", "page url" etc.
+  const pageUrl = flat.page_url ?? flat.pageUrl ?? flat['page url'] ?? flat['Page URL']
+    ?? flat.url ?? flat.source_url ?? flat.referrer
     ?? flat.embed_url ?? flat.current_url ?? flat.entry_url ?? flat.form_url
 
   // Attribution: prefer explicit flat fields, fall back to parsing the page URL query string
@@ -151,7 +173,14 @@ export function parseWebhookPayload(body: Record<string, unknown>): ParsedLead {
   const fbclid = flat.fbclid ?? urlAttrib.fbclid
   const fbp = flat['_fbp'] ?? flat.fbp ?? urlAttrib.fbp
   const fbc = flat['_fbc'] ?? flat.fbc ?? urlAttrib.fbc
-  const source = flat.utm_source ?? flat['utm source'] ?? urlAttrib.utm_source
+  const utmSource = flat.utm_source ?? flat['utm source'] ?? urlAttrib.utm_source
+  const utmMedium = flat.utm_medium ?? flat['utm medium'] ?? urlAttrib.utm_medium
+  const utmCampaign = flat.utm_campaign ?? flat['utm campaign'] ?? urlAttrib.utm_campaign
+  const utmTerm = flat.utm_term ?? flat['utm term'] ?? urlAttrib.utm_term
+  const utmContent = flat.utm_content ?? flat['utm content'] ?? urlAttrib.utm_content
+  const utmMatchtype = flat.utm_matchtype ?? flat['utm matchtype'] ?? urlAttrib.utm_matchtype
+  const suburb = flat.suburb ?? urlAttrib.suburb
+  const source = utmSource
 
-  return { name, email, phone, address, service, notes, source, gclid, fbclid, fbp, fbc, pageUrl, formData: raw }
+  return { name, email, phone, address, service, notes, source, gclid, fbclid, fbp, fbc, utmSource, utmMedium, utmCampaign, utmTerm, utmContent, utmMatchtype, suburb, pageUrl, formData: raw }
 }

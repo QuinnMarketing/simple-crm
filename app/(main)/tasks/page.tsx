@@ -1,6 +1,7 @@
 'use client'
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { CheckSquare, Plus, Zap, Circle, CheckCircle2, Loader2, Trash2 } from 'lucide-react'
+import Link from 'next/link'
+import { CheckSquare, Plus, Zap, Circle, CheckCircle2, Loader2, Trash2, ExternalLink } from 'lucide-react'
 
 type LeadRef = { id: string; name: string }
 
@@ -346,9 +347,14 @@ export default function TasksPage() {
                         )}
                         {/* Lead chip */}
                         {task.lead && (
-                          <span className="text-xs bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded">
+                          <Link
+                            href={`/leads/${task.lead.id}`}
+                            onClick={(e) => e.stopPropagation()}
+                            className="inline-flex items-center gap-1 text-xs bg-indigo-50 text-indigo-700 px-1.5 py-0.5 rounded hover:bg-indigo-100 transition-colors"
+                          >
                             {task.lead.name}
-                          </span>
+                            <ExternalLink className="w-2.5 h-2.5" />
+                          </Link>
                         )}
                       </div>
                     </div>
@@ -437,7 +443,17 @@ export default function TasksPage() {
 
             {/* Lead picker */}
             <div className="relative">
-              <label className="block text-xs font-medium text-slate-500 uppercase tracking-wide mb-1.5">Linked Lead</label>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-xs font-medium text-slate-500 uppercase tracking-wide">Linked Lead</label>
+                {form.leadId && (
+                  <Link
+                    href={`/leads/${form.leadId}`}
+                    className="flex items-center gap-1 text-xs text-indigo-600 hover:text-indigo-800 font-medium transition-colors"
+                  >
+                    Open lead <ExternalLink className="w-3 h-3" />
+                  </Link>
+                )}
+              </div>
               <input
                 type="text"
                 value={form.leadSearch}
@@ -449,7 +465,7 @@ export default function TasksPage() {
               {form.leadId && (
                 <button
                   onClick={() => setForm((f) => ({ ...f, leadId: '', leadSearch: '' }))}
-                  className="absolute right-3 top-9 text-slate-400 hover:text-slate-600 text-xs"
+                  className="absolute right-3 top-[2.35rem] text-slate-400 hover:text-slate-600 text-xs"
                 >
                   Clear
                 </button>

@@ -1,13 +1,14 @@
 import { prisma } from '@/lib/prisma'
-import { after } from 'next/server'
 import { NextRequest, NextResponse } from 'next/server'
 
 export async function GET(req: NextRequest) {
   const sendId = req.nextUrl.searchParams.get('s')
   const url = req.nextUrl.searchParams.get('u')
 
+  const destination = url ? decodeURIComponent(url) : '/'
+
   if (sendId) {
-    after(async () => {
+    try {
       const result = await prisma.emailCampaignSend.updateMany({
         where: { id: sendId, clickedAt: null },
         data: { clickedAt: new Date() },
@@ -27,9 +28,10 @@ export async function GET(req: NextRequest) {
           })
         }
       }
-    })
+    } catch {
+      // Swallow — never let tracking errors block the redirect
+    }
   }
 
-  const destination = url ? decodeURIComponent(url) : '/'
   return NextResponse.redirect(destination, { status: 302 })
 }

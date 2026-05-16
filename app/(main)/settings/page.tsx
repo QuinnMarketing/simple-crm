@@ -9,6 +9,9 @@ import CustomFieldsSection from './CustomFieldsSection'
 import ChangePasswordForm from './ChangePasswordForm'
 import BookingSettingsForm from './BookingSettingsForm'
 import ReviewSettingsForm from './ReviewSettingsForm'
+import DocumentNumberingForm from './DocumentNumberingForm'
+import OutboundIntegrationsForm from './OutboundIntegrationsForm'
+import CollapsibleSection from './CollapsibleSection'
 import Link from 'next/link'
 import { UserCog, History } from 'lucide-react'
 
@@ -56,7 +59,7 @@ export default async function SettingsPage({
 
   const account = await prisma.account.findUnique({
     where: { id: accountId },
-    include: { integrations: true, bookingSettings: true, reviewSettings: true },
+    include: { integrations: true, bookingSettings: true, reviewSettings: true, documentSettings: true, outboundIntegrations: { orderBy: { createdAt: 'asc' } } },
   })
 
   if (!account) redirect('/accounts')
@@ -158,36 +161,60 @@ export default async function SettingsPage({
         {/* 4. Document Templates */}
         <DocumentTemplatesSection />
 
-        {/* 5. Booking Widget */}
-        <BookingSettingsForm
+        {/* 5. Document Numbering */}
+        <DocumentNumberingForm
           accountId={accountId}
-          accountSlug={account.slug}
-          initial={account.bookingSettings ? {
-            enabled: account.bookingSettings.enabled,
-            title: account.bookingSettings.title,
-            description: account.bookingSettings.description ?? '',
-            slotDuration: account.bookingSettings.slotDuration,
-            bufferTime: account.bookingSettings.bufferTime,
-            timezone: account.bookingSettings.timezone,
-            availableHours: account.bookingSettings.availableHours,
-            maxDaysAhead: account.bookingSettings.maxDaysAhead,
-            minNoticeHours: account.bookingSettings.minNoticeHours,
-          } : null}
+          initial={{
+            quotePrefix: account.documentSettings?.quotePrefix ?? 'Q-',
+            invoicePrefix: account.documentSettings?.invoicePrefix ?? 'INV-',
+            nextQuoteNum: account.documentSettings?.nextQuoteNum ?? 1,
+            nextInvoiceNum: account.documentSettings?.nextInvoiceNum ?? 1,
+            numberPadding: account.documentSettings?.numberPadding ?? 3,
+          }}
         />
 
-        {/* 6. Review Widget */}
-        <ReviewSettingsForm
-          accountId={accountId}
-          accountSlug={account.slug}
-          initial={account.reviewSettings ? {
-            enabled: account.reviewSettings.enabled,
-            title: account.reviewSettings.title,
-            description: account.reviewSettings.description ?? '',
-            autoApprove: account.reviewSettings.autoApprove,
-            autoReply: account.reviewSettings.autoReply,
-            replyTemplates: account.reviewSettings.replyTemplates,
-          } : null}
-        />
+        {/* 6. Booking Widget */}
+        <CollapsibleSection
+          title="Booking Widget"
+          description="Allow clients to book appointments directly from your website"
+          ok={account.bookingSettings?.enabled ?? false}
+        >
+          <BookingSettingsForm
+            accountId={accountId}
+            accountSlug={account.slug}
+            initial={account.bookingSettings ? {
+              enabled: account.bookingSettings.enabled,
+              title: account.bookingSettings.title,
+              description: account.bookingSettings.description ?? '',
+              slotDuration: account.bookingSettings.slotDuration,
+              bufferTime: account.bookingSettings.bufferTime,
+              timezone: account.bookingSettings.timezone,
+              availableHours: account.bookingSettings.availableHours,
+              maxDaysAhead: account.bookingSettings.maxDaysAhead,
+              minNoticeHours: account.bookingSettings.minNoticeHours,
+            } : null}
+          />
+        </CollapsibleSection>
+
+        {/* 7. Review Widget */}
+        <CollapsibleSection
+          title="Review Widget"
+          description="Collect and display customer reviews on your website"
+          ok={account.reviewSettings?.enabled ?? false}
+        >
+          <ReviewSettingsForm
+            accountId={accountId}
+            accountSlug={account.slug}
+            initial={account.reviewSettings ? {
+              enabled: account.reviewSettings.enabled,
+              title: account.reviewSettings.title,
+              description: account.reviewSettings.description ?? '',
+              autoApprove: account.reviewSettings.autoApprove,
+              autoReply: account.reviewSettings.autoReply,
+              replyTemplates: account.reviewSettings.replyTemplates,
+            } : null}
+          />
+        </CollapsibleSection>
 
         {/* 7. Change Password */}
         <div className="bg-white rounded-xl border border-slate-200 p-6">
@@ -201,17 +228,17 @@ export default async function SettingsPage({
           <h2 className="font-semibold text-slate-900 text-lg mb-5">Integrations</h2>
           <div className="space-y-5">
             {/* Webhook */}
-            <div className="bg-white rounded-xl border border-slate-200 p-6">
-              <h3 className="font-semibold text-slate-900 mb-1">Webhook Endpoint</h3>
-              <p className="text-slate-500 text-sm mb-4">
-                POST form submissions to this URL. The token authenticates this account automatically —
-                no additional headers required.
-              </p>
-              <div className="flex items-center gap-2 p-3 bg-slate-50 rounded-lg border border-slate-200">
+            <CollapsibleSection
+              title="Webhook Endpoint"
+              description="Receive leads from any form builder — Elementor, Typeform, JotForm, Gravity Forms"
+              ok
+              statusLabel="Active"
+            >
+              <div className="flex items-center gap-2 p-3 bg-slate-50 rounded-lg border border-slate-200 mb-5">
                 <code className="text-sm font-mono text-slate-700 flex-1 break-all">{webhookUrl}</code>
                 <CopyButton text={webhookUrl} />
               </div>
-              <div className="mt-5 grid grid-cols-2 gap-4 text-sm sm:grid-cols-4">
+              <div className="grid grid-cols-2 gap-4 text-sm sm:grid-cols-4">
                 <div className="border border-slate-200 rounded-lg p-4">
                   <p className="font-semibold text-slate-900 mb-2">Elementor</p>
                   <p className="text-slate-500 text-xs">Edit form → Actions After Submit → Add Action → Webhook → paste URL. Requires Elementor Pro.</p>
@@ -229,9 +256,18 @@ export default async function SettingsPage({
                   <p className="text-slate-500 text-xs">Form Settings → Webhooks → Add New → paste URL.</p>
                 </div>
               </div>
-            </div>
+            </CollapsibleSection>
 
             <IntegrationsForm accountId={accountId} initialConfigs={integrationConfigs} />
+
+            <CollapsibleSection
+              title="Outbound Integrations"
+              description="Push lead data to any platform via webhook — custom URL, any auth method"
+              ok={account.outboundIntegrations.length > 0}
+              statusLabel={account.outboundIntegrations.length > 0 ? `${account.outboundIntegrations.length} configured` : 'None configured'}
+            >
+              <OutboundIntegrationsForm initial={account.outboundIntegrations} />
+            </CollapsibleSection>
           </div>
         </div>
       </div>

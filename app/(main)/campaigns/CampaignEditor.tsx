@@ -159,8 +159,8 @@ export default function CampaignEditor({ campaignId, accountId, initial }: Props
   const [bodyText, setBodyText] = useState(initial?.bodyText ?? '')
   const [editorTab, setEditorTab] = useState<'visual' | 'html' | 'text'>('visual')
   const [htmlSource, setHtmlSource] = useState(initial?.bodyHtml ?? '')
-  const [trackOpens, setTrackOpens] = useState(initial?.trackOpens ?? false)
-  const [trackClicks, setTrackClicks] = useState(initial?.trackClicks ?? false)
+  const [trackOpens, setTrackOpens] = useState(initial?.trackOpens ?? true)
+  const [trackClicks, setTrackClicks] = useState(initial?.trackClicks ?? true)
   const [sendMode, setSendMode] = useState<'now' | 'scheduled'>('now')
   const [scheduledAt, setScheduledAt] = useState(
     initial?.scheduledAt ? initial.scheduledAt.slice(0, 16) : ''

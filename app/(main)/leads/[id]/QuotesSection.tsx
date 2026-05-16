@@ -1,6 +1,6 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
-import { Plus, X, Loader2, Trash2, FileText, CheckCircle, Download, Send } from 'lucide-react'
+import { Plus, X, Loader2, Trash2, FileText, CheckCircle, Download, Send, Sparkles, ChevronDown, ChevronUp } from 'lucide-react'
 import EmailModal from './EmailModal'
 
 type LineItem = { description: string; quantity: number; unitPrice: number }
@@ -52,12 +52,16 @@ interface ModalProps {
   leadId: string
   leadEmail?: string | null
   leadName?: string
+  leadService?: string | null
+  leadNotes?: string | null
+  leadAddress?: string | null
+  accountParam?: string
   onSave: (q: Quote, newValue: number | null) => void
   onDelete: (id: string) => void
   onClose: () => void
 }
 
-function QuoteModal({ initial, prefill, type, leadId, leadEmail, leadName = '', onSave, onDelete, onClose }: ModalProps) {
+function QuoteModal({ initial, prefill, type, leadId, leadEmail, leadName = '', leadService, leadNotes, leadAddress, accountParam, onSave, onDelete, onClose }: ModalProps) {
   const isEdit = !!initial
   const [status, setStatus] = useState(initial?.status ?? 'draft')
   const [sendEmail, setSendEmail] = useState(false)
@@ -73,6 +77,35 @@ function QuoteModal({ initial, prefill, type, leadId, leadEmail, leadName = '', 
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [aiOpen, setAiOpen] = useState(!initial && !prefill)
+  const [aiPrompt, setAiPrompt] = useState(() => [leadService, leadNotes].filter(Boolean).join('\n').trim())
+  const [aiGenerating, setAiGenerating] = useState(false)
+  const [aiError, setAiError] = useState<string | null>(null)
+
+  async function handleAiGenerate() {
+    if (!aiPrompt.trim()) return
+    setAiGenerating(true); setAiError(null)
+    try {
+      const res = await fetch('/api/quotes/ai-generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt: aiPrompt, leadName, leadService, leadNotes, leadAddress, type, accountParam }),
+      })
+      const data = await res.json()
+      if (!res.ok) { setAiError(data.error ?? 'Generation failed'); return }
+      setItems(data.lineItems.map((li: { description: string; quantity: number; unitPrice: number }) => ({
+        description: li.description,
+        quantity: li.quantity,
+        unitPrice: li.unitPrice,
+      })))
+      if (data.notes) setNotes(data.notes)
+      setAiOpen(false)
+    } catch (e) {
+      setAiError(e instanceof Error ? e.message : 'Network error')
+    } finally {
+      setAiGenerating(false)
+    }
+  }
 
   const { subtotal, taxAmount, total } = calcTotals(items, taxRate)
   const statuses = type === 'quote' ? QUOTE_STATUSES : INVOICE_STATUSES
@@ -166,6 +199,43 @@ function QuoteModal({ initial, prefill, type, leadId, leadEmail, leadName = '', 
               <label className={labelCls}>{type === 'quote' ? 'Valid Until' : 'Due Date'}</label>
               <input type="date" value={dueAt} onChange={(e) => setDueAt(e.target.value)} className={`${inputCls} w-full`} />
             </div>
+          </div>
+
+          {/* AI Generate panel */}
+          <div className="border border-indigo-200 bg-indigo-50/50 rounded-lg overflow-hidden">
+            <button
+              type="button"
+              onClick={() => setAiOpen(o => !o)}
+              className="w-full flex items-center justify-between px-4 py-3 text-sm font-medium text-indigo-700 hover:bg-indigo-50 transition-colors"
+            >
+              <span className="flex items-center gap-2">
+                <Sparkles className="w-4 h-4" />
+                Generate with AI
+              </span>
+              {aiOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+            </button>
+            {aiOpen && (
+              <div className="px-4 pb-4 space-y-3 border-t border-indigo-100">
+                <p className="text-xs text-indigo-600 pt-3">Describe the job and AI will suggest line items based on your price book.</p>
+                <textarea
+                  value={aiPrompt}
+                  onChange={e => setAiPrompt(e.target.value)}
+                  rows={3}
+                  placeholder="e.g. Supply and install 20m² of porcelain tiles in bathroom, including waterproofing and grout…"
+                  className="w-full px-3 py-2 text-sm border border-indigo-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white resize-none"
+                />
+                {aiError && <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded px-3 py-2">{aiError}</p>}
+                <button
+                  type="button"
+                  onClick={handleAiGenerate}
+                  disabled={aiGenerating || !aiPrompt.trim()}
+                  className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition-colors"
+                >
+                  {aiGenerating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
+                  {aiGenerating ? 'Generating…' : 'Generate line items'}
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Line items */}
@@ -337,17 +407,28 @@ interface Props {
   leadId: string
   leadEmail?: string | null
   leadName?: string
+  leadService?: string | null
+  leadNotes?: string | null
+  leadAddress?: string | null
   onValueChange: (value: number | null) => void
 }
 
-export default function QuotesSection({ leadId, leadEmail, leadName = '', onValueChange }: Props) {
+export default function QuotesSection({ leadId, leadEmail, leadName = '', leadService, leadNotes, leadAddress, onValueChange }: Props) {
   const [quotes, setQuotes] = useState<Quote[]>([])
   const [loading, setLoading] = useState(true)
+  const [accountParam, setAccountParam] = useState<string | undefined>()
   const [modal, setModal] = useState<{ open: boolean; quote: Quote | null; type: 'quote' | 'invoice'; prefill?: Quote | null }>({
     open: false, quote: null, type: 'quote',
   })
   const [emailModal, setEmailModal] = useState<{ open: boolean; quoteId?: string; quoteNumber?: string }>({ open: false })
   const [invoicePrompt, setInvoicePrompt] = useState<Quote | null>(null)
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const ap = new URLSearchParams(window.location.search).get('account')
+      if (ap) setAccountParam(ap)
+    }
+  }, [])
 
   const fetchQuotes = useCallback(async () => {
     setLoading(true)
@@ -485,6 +566,10 @@ export default function QuotesSection({ leadId, leadEmail, leadName = '', onValu
           leadId={leadId}
           leadEmail={leadEmail}
           leadName={leadName}
+          leadService={leadService}
+          leadNotes={leadNotes}
+          leadAddress={leadAddress}
+          accountParam={accountParam}
           onSave={handleSave}
           onDelete={handleDelete}
           onClose={() => setModal({ open: false, quote: null, type: 'quote' })}

@@ -72,7 +72,43 @@ export async function GET(_req: NextRequest, { params }: Params) {
   })
 
   if (!lead) return NextResponse.json({ error: 'Not found' }, { status: 404 })
-  return NextResponse.json(lead)
+
+  const accountId = lead.accountId
+  let sm8Configured = false
+  let arofloConfigured = false
+  let trakConfigured = false
+
+  if (accountId) {
+    const [sm8, arofloInt, trakInt] = await Promise.all([
+      prisma.accountIntegration.findUnique({
+        where: { accountId_platform: { accountId, platform: 'servicem8' } },
+        select: { enabled: true, config: true },
+      }),
+      prisma.accountIntegration.findUnique({
+        where: { accountId_platform: { accountId, platform: 'aroflo' } },
+        select: { enabled: true, config: true },
+      }),
+      prisma.accountIntegration.findUnique({
+        where: { accountId_platform: { accountId, platform: 'trak' } },
+        select: { enabled: true, config: true },
+      }),
+    ])
+
+    if (sm8?.enabled) {
+      try { sm8Configured = !!( JSON.parse(sm8.config) as Record<string, string> ).apiKey } catch { /* */ }
+    }
+    if (arofloInt?.enabled) {
+      try {
+        const cfg = JSON.parse(arofloInt.config) as Record<string, string>
+        arofloConfigured = !!(cfg.uEncoded && cfg.pEncoded && cfg.orgEncoded && cfg.secretKey)
+      } catch { /* */ }
+    }
+    if (trakInt?.enabled) {
+      try { trakConfigured = !!( JSON.parse(trakInt.config) as Record<string, string> ).apiKey } catch { /* */ }
+    }
+  }
+
+  return NextResponse.json({ ...lead, sm8Configured, arofloConfigured, trakConfigured })
 }
 
 export async function PATCH(req: NextRequest, { params }: Params) {
