@@ -65,6 +65,7 @@ export default async function SettingsPage({
 
   const baseUrl = process.env.NEXTAUTH_URL ?? 'http://localhost:3000'
   const webhookUrl = `${baseUrl}/api/webhooks/form?token=${account.webhookToken}`
+  const emailWebhookUrl = `${baseUrl}/api/webhooks/email?token=${account.webhookToken}`
 
   const googleAdsDefaults: Record<string, string> = {
     developerToken: process.env.GOOGLE_ADS_DEVELOPER_TOKEN ?? '',
@@ -226,11 +227,13 @@ export default async function SettingsPage({
               ok
               statusLabel="Active"
             >
-              <div className="flex items-center gap-2 p-3 bg-slate-50 rounded-lg border border-slate-200 mb-5">
+              {/* Form webhook */}
+              <p className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-1.5">Form Webhook URL</p>
+              <div className="flex items-center gap-2 p-3 bg-slate-50 rounded-lg border border-slate-200 mb-4">
                 <code className="text-sm font-mono text-slate-700 flex-1 break-all">{webhookUrl}</code>
                 <CopyButton text={webhookUrl} />
               </div>
-              <div className="grid grid-cols-2 gap-4 text-sm sm:grid-cols-4">
+              <div className="grid grid-cols-2 gap-4 text-sm sm:grid-cols-4 mb-6">
                 <div className="border border-slate-200 rounded-lg p-4">
                   <p className="font-semibold text-slate-900 mb-2">Elementor</p>
                   <p className="text-slate-500 text-xs">Edit form → Actions After Submit → Add Action → Webhook → paste URL. Requires Elementor Pro.</p>
@@ -246,6 +249,28 @@ export default async function SettingsPage({
                 <div className="border border-slate-200 rounded-lg p-4">
                   <p className="font-semibold text-slate-900 mb-2">Gravity Forms</p>
                   <p className="text-slate-500 text-xs">Form Settings → Webhooks → Add New → paste URL.</p>
+                </div>
+              </div>
+
+              {/* Email inbound */}
+              <p className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-1.5">Email Inbound URL</p>
+              <p className="text-xs text-slate-500 mb-2">Forward lead notification emails to this URL via Mailgun, SendGrid, Postmark, or Cloudflare Email Routing. The email body is automatically parsed into a lead.</p>
+              <div className="flex items-center gap-2 p-3 bg-slate-50 rounded-lg border border-slate-200 mb-4">
+                <code className="text-sm font-mono text-slate-700 flex-1 break-all">{emailWebhookUrl}</code>
+                <CopyButton text={emailWebhookUrl} />
+              </div>
+              <div className="grid grid-cols-2 gap-4 text-sm sm:grid-cols-3">
+                <div className="border border-slate-200 rounded-lg p-4">
+                  <p className="font-semibold text-slate-900 mb-2">Mailgun</p>
+                  <p className="text-slate-500 text-xs">Receiving → Routes → Create Route → Match recipient → Forward to URL above. Your inbox: <span className="font-mono">leads@mg.yourdomain.com</span></p>
+                </div>
+                <div className="border border-slate-200 rounded-lg p-4">
+                  <p className="font-semibold text-slate-900 mb-2">SendGrid</p>
+                  <p className="text-slate-500 text-xs">Settings → Inbound Parse → Add Host & URL → paste URL above. Your inbox: <span className="font-mono">leads@yourdomain.com</span></p>
+                </div>
+                <div className="border border-slate-200 rounded-lg p-4">
+                  <p className="font-semibold text-slate-900 mb-2">Cloudflare</p>
+                  <p className="text-slate-500 text-xs">Email Routing → Workers → create a Worker that POSTs the raw email to the URL above. Free on all plans.</p>
                 </div>
               </div>
             </CollapsibleSection>
