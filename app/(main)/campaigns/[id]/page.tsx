@@ -2,7 +2,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft, Send, Clock, CheckCircle, XCircle, MousePointer, Eye, Loader2, Mail, BarChart2, Copy } from 'lucide-react'
+import { ArrowLeft, Send, Clock, CheckCircle, XCircle, MousePointer, Eye, Loader2, Mail, BarChart2, Copy, FileText } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
 import CampaignEditor from '../CampaignEditor'
 
@@ -78,7 +78,7 @@ export default function CampaignDetailPage() {
   const router = useRouter()
   const [campaign, setCampaign] = useState<Campaign | null>(null)
   const [loading, setLoading] = useState(true)
-  const [tab, setTab] = useState<'analytics' | 'recipients' | 'edit'>('analytics')
+  const [tab, setTab] = useState<'analytics' | 'recipients' | 'edit' | 'preview'>('analytics')
   const [duplicating, setDuplicating] = useState(false)
 
   async function duplicateCampaign() {
@@ -125,6 +125,7 @@ export default function CampaignDetailPage() {
 
   const TABS = [
     { id: 'analytics' as const, label: 'Analytics', icon: BarChart2 },
+    { id: 'preview' as const,   label: 'Preview',   icon: FileText  },
     { id: 'recipients' as const, label: 'Recipients', icon: Mail },
     ...(!isSent ? [{ id: 'edit' as const, label: 'Edit', icon: Send }] : []),
   ]
@@ -172,7 +173,31 @@ export default function CampaignDetailPage() {
         </div>
       </div>
 
-      {tab === 'edit' && !isSent ? (
+      {tab === 'preview' ? (
+        <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+          <div className="px-5 py-3 border-b border-slate-100 flex items-center justify-between">
+            <div>
+              <p className="text-sm font-semibold text-slate-800">{campaign.subject || <em className="text-slate-400 font-normal">No subject</em>}</p>
+              <p className="text-xs text-slate-400 mt-0.5">Email content preview</p>
+            </div>
+          </div>
+          {campaign.bodyHtml ? (
+            <iframe
+              srcDoc={campaign.bodyHtml}
+              title="Campaign preview"
+              className="w-full"
+              style={{ height: '680px', border: 'none' }}
+              sandbox="allow-same-origin"
+            />
+          ) : (
+            <div className="p-12 text-center text-slate-400">
+              <FileText className="w-8 h-8 mx-auto mb-3 text-slate-200" />
+              <p className="text-sm">No content written yet</p>
+              {!isSent && <button onClick={() => setTab('edit')} className="mt-3 text-sm text-indigo-600 hover:underline">Go to Edit</button>}
+            </div>
+          )}
+        </div>
+      ) : tab === 'edit' && !isSent ? (
         <CampaignEditor
           campaignId={campaign.id}
           accountId={campaign.accountId}
