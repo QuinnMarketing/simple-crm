@@ -358,7 +358,7 @@ model EmailCampaign {
   subject       String   @default("")
   bodyHtml      String   @default("")
   bodyText      String   @default("")
-  status        String   @default("draft") // draft | scheduled | sending | sent
+  status        String   @default("draft") // draft | scheduled | sending | sent | failed
   segmentFilter String   @default("{}") // JSON: { statuses, sources, leadIds }
   trackOpens    Boolean  @default(false)
   trackClicks   Boolean  @default(false)
@@ -366,6 +366,7 @@ model EmailCampaign {
   sentAt        DateTime?
   totalSent     Int      @default(0)
   totalFailed   Int      @default(0)
+  lastError     String?
   accountId     String?
   account       Account? @relation(fields: [accountId], references: [id], onDelete: Cascade)
   createdAt     DateTime @default(now())

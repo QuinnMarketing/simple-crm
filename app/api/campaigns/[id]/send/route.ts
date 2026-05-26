@@ -20,7 +20,7 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
     return NextResponse.json({ success: true, ...result })
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Send failed'
-    await prisma.emailCampaign.update({ where: { id }, data: { status: 'draft' } })
+    await prisma.emailCampaign.update({ where: { id }, data: { status: 'failed', lastError: message } })
     return NextResponse.json({ error: message }, { status: 500 })
   }
 }
