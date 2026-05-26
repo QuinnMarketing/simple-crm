@@ -481,10 +481,8 @@ export default async function DashboardPage({
                 <tr className="border-b border-slate-100">
                   {[
                     { label: 'Name', cls: '' },
-                    { label: 'Email', cls: 'hidden md:table-cell' },
-                    { label: 'Service', cls: 'hidden lg:table-cell' },
                     { label: 'Status', cls: '' },
-                    { label: 'Platforms', cls: 'hidden xl:table-cell' },
+                    { label: 'Source', cls: 'hidden sm:table-cell' },
                     { label: 'Created', cls: 'hidden sm:table-cell' },
                   ].map(({ label, cls }) => (
                     <th key={label} className={`text-left text-xs font-medium text-slate-500 px-4 py-3 uppercase tracking-wide ${cls}`}>
@@ -494,36 +492,23 @@ export default async function DashboardPage({
                 </tr>
               </thead>
               <tbody>
-                {recentLeads.map((lead) => {
-                  const platforms = lead.conversions.map((c) => c.platform)
-                  return (
-                    <tr key={lead.id} className="border-b border-slate-50 hover:bg-slate-50 transition-colors last:border-0">
-                      <td className="px-4 py-3">
-                        <Link href={`/leads/${lead.id}`} className="font-medium text-slate-900 hover:text-indigo-600 transition-colors text-sm">
-                          {lead.name}
-                        </Link>
-                      </td>
-                      <td className="px-4 py-3 text-slate-500 text-sm hidden md:table-cell">{lead.email ?? '—'}</td>
-                      <td className="px-4 py-3 text-slate-500 text-sm hidden lg:table-cell">{lead.service ?? '—'}</td>
-                      <td className="px-4 py-3"><StatusBadge status={lead.status} /></td>
-                      <td className="px-4 py-3 hidden xl:table-cell">
-                        <div className="flex gap-1">
-                          {(['google_ga4', 'google_ads', 'facebook'] as const).map((p) => (
-                            <span key={p} className={`text-xs px-1.5 py-0.5 rounded font-medium ${platforms.includes(p) ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-400'}`}>
-                              {p === 'google_ga4' ? 'GA4' : p === 'google_ads' ? 'ADS' : 'FB'}
-                            </span>
-                          ))}
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 text-slate-500 text-sm hidden sm:table-cell">
-                        {new Date(lead.createdAt).toLocaleDateString('en-AU', { day: 'numeric', month: 'short' })}
-                      </td>
-                    </tr>
-                  )
-                })}
+                {recentLeads.map((lead) => (
+                  <tr key={lead.id} className="border-b border-slate-50 hover:bg-slate-50 transition-colors last:border-0">
+                    <td className="px-4 py-3">
+                      <Link href={`/leads/${lead.id}`} className="font-medium text-slate-900 hover:text-indigo-600 transition-colors text-sm">
+                        {lead.name}
+                      </Link>
+                    </td>
+                    <td className="px-4 py-3"><StatusBadge status={lead.status} /></td>
+                    <td className="px-4 py-3 text-slate-500 text-sm hidden sm:table-cell capitalize">{lead.source ?? '—'}</td>
+                    <td className="px-4 py-3 text-slate-500 text-sm hidden sm:table-cell">
+                      {new Date(lead.createdAt).toLocaleDateString('en-AU', { day: 'numeric', month: 'short' })}
+                    </td>
+                  </tr>
+                ))}
                 {recentLeads.length === 0 && (
                   <tr>
-                    <td colSpan={6} className="px-5 py-12 text-center text-slate-400 text-sm">
+                    <td colSpan={4} className="px-5 py-12 text-center text-slate-400 text-sm">
                       No leads yet. <Link href="/leads/new" className="text-indigo-600 hover:underline">Add your first lead</Link>.
                     </td>
                   </tr>
