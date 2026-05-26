@@ -107,6 +107,8 @@ export async function sendCampaign(campaignId: string): Promise<{ sent: number; 
   let sent = 0
   let failed = 0
   const businessName = campaign.account?.name ?? smtpConfig.from ?? smtpConfig.user
+  const fromAddress = smtpConfig.from || smtpConfig.user
+  const fromHeader = businessName ? `"${businessName}" <${fromAddress}>` : fromAddress
 
   for (const lead of leads) {
     if (!lead.email) continue
@@ -144,7 +146,7 @@ export async function sendCampaign(campaignId: string): Promise<{ sent: number; 
       const text = interpolate(campaign.bodyText || campaign.bodyHtml.replace(/<[^>]+>/g, ''), vars)
 
       await transporter.sendMail({
-        from: smtpConfig.from || smtpConfig.user,
+        from: fromHeader,
         to: lead.email,
         subject,
         html,
