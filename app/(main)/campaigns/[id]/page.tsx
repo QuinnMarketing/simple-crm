@@ -7,7 +7,7 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGri
 import CampaignEditor from '../CampaignEditor'
 
 type CampaignSend = {
-  id: string; email: string; name: string | null; status: string
+  id: string; leadId: string | null; email: string; name: string | null; status: string
   openedAt: string | null; clickedAt: string | null; sentAt: string | null; error: string | null
 }
 
@@ -232,8 +232,17 @@ export default function CampaignDetailPage() {
                   {campaign.sends.map((s) => (
                     <tr key={s.id} className="hover:bg-slate-50 transition-colors">
                       <td className="px-5 py-2.5">
-                        <p className="font-medium text-slate-800">{s.name ?? s.email}</p>
-                        {s.name && <p className="text-xs text-slate-400">{s.email}</p>}
+                        {s.leadId ? (
+                          <Link href={`/leads/${s.leadId}`} className="group/lead">
+                            <p className="font-medium text-slate-800 group-hover/lead:text-indigo-600 transition-colors">{s.name ?? s.email}</p>
+                            {s.name && <p className="text-xs text-slate-400">{s.email}</p>}
+                          </Link>
+                        ) : (
+                          <div>
+                            <p className="font-medium text-slate-800">{s.name ?? s.email}</p>
+                            {s.name && <p className="text-xs text-slate-400">{s.email}</p>}
+                          </div>
+                        )}
                         {s.error && <p className="text-xs text-red-500 mt-0.5 truncate max-w-xs">{s.error}</p>}
                       </td>
                       <td className="px-4 py-2.5">

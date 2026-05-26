@@ -17,7 +17,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
     include: {
       sends: {
         orderBy: { createdAt: 'asc' },
-        select: { id: true, email: true, name: true, status: true, openedAt: true, clickedAt: true, sentAt: true, error: true },
+        select: { id: true, leadId: true, email: true, name: true, status: true, openedAt: true, clickedAt: true, sentAt: true, error: true },
       },
     },
   })
