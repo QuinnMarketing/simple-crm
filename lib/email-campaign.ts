@@ -106,9 +106,10 @@ export async function sendCampaign(campaignId: string): Promise<{ sent: number; 
 
   let sent = 0
   let failed = 0
-  const businessName = campaign.account?.name ?? smtpConfig.from ?? smtpConfig.user
-  const fromAddress = smtpConfig.from || smtpConfig.user
-  const fromHeader = businessName ? `"${businessName}" <${fromAddress}>` : fromAddress
+  const businessName = campaign.account?.name ?? smtpConfig.user
+  const accountSlug = businessName.toLowerCase().replace(/[^a-z0-9]/g, '')
+  const fromAddress = smtpConfig.from || `${accountSlug}@expertsoncall.com.au`
+  const fromHeader = `"${businessName}" <${fromAddress}>`
 
   for (const lead of leads) {
     if (!lead.email) continue
