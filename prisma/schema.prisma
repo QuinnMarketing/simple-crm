@@ -284,6 +284,7 @@ model Quote {
   notes     String?
   issuedAt  DateTime?
   dueAt     DateTime?
+  createdByName String?
   leadId    String?
   lead      Lead?     @relation(fields: [leadId], references: [id], onDelete: SetNull)
   accountId String?

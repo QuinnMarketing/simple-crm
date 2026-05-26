@@ -77,6 +77,7 @@ export async function POST(req: NextRequest) {
         dueAt: dueAt ? new Date(dueAt) : null,
         leadId: leadId || null,
         accountId,
+        createdByName: session.user.name ?? session.user.email ?? null,
       },
     })
     return [created]

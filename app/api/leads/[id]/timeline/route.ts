@@ -34,7 +34,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     prisma.quote.findMany({
       where: { leadId: id },
       orderBy: { createdAt: 'desc' },
-      select: { id: true, type: true, number: true, status: true, total: true, createdAt: true },
+      select: { id: true, type: true, number: true, status: true, total: true, createdAt: true, createdByName: true },
     }),
     prisma.conversionEvent.findMany({
       where: { leadId: id },
@@ -151,7 +151,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       id: `quote-${q.id}`,
       type: 'quote',
       title: `${q.type === 'invoice' ? 'Invoice' : 'Quote'} ${q.number} created`,
-      detail: `$${q.total.toLocaleString('en-AU', { minimumFractionDigits: 2 })} — ${q.status}`,
+      detail: `$${q.total.toLocaleString('en-AU', { minimumFractionDigits: 2 })} — ${q.status}${q.createdByName ? ` · Raised by ${q.createdByName}` : ''}`,
       date: q.createdAt.toISOString(),
     })
   }

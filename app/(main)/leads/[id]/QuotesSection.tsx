@@ -1,6 +1,6 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
-import { Plus, X, Loader2, Trash2, FileText, CheckCircle, Download, Send, Sparkles, ChevronDown, ChevronUp } from 'lucide-react'
+import { Plus, X, Loader2, Trash2, FileText, CheckCircle, Download, Send, Sparkles, ChevronDown, ChevronUp, BookOpen, User } from 'lucide-react'
 import EmailModal from './EmailModal'
 
 type LineItem = { description: string; quantity: number; unitPrice: number }
@@ -9,8 +9,10 @@ type Quote = {
   id: string; type: string; number: string; status: string
   lineItems: string; subtotal: number; taxRate: number; taxAmount: number; total: number
   notes: string | null; issuedAt: string | null; dueAt: string | null
-  createdAt: string; updatedAt: string
+  createdByName: string | null; createdAt: string; updatedAt: string
 }
+
+type PriceItem = { id: string; name: string; description: string | null; price: number; unit: string; category: string | null }
 
 const QUOTE_STATUSES = ['draft', 'sent', 'accepted', 'declined']
 const INVOICE_STATUSES = ['draft', 'sent', 'paid', 'overdue', 'cancelled']
@@ -63,11 +65,12 @@ interface ModalProps {
 
 function QuoteModal({ initial, prefill, type, leadId, leadEmail, leadName = '', leadService, leadNotes, leadAddress, accountParam, onSave, onDelete, onClose }: ModalProps) {
   const isEdit = !!initial
+  const todayStr = new Date().toISOString().split('T')[0]
   const [status, setStatus] = useState(initial?.status ?? 'draft')
   const [sendEmail, setSendEmail] = useState(false)
   const [taxRate, setTaxRate] = useState(initial?.taxRate ?? prefill?.taxRate ?? 10)
   const [notes, setNotes] = useState(initial?.notes ?? prefill?.notes ?? '')
-  const [issuedAt, setIssuedAt] = useState(toDateInput(initial?.issuedAt ?? null))
+  const [issuedAt, setIssuedAt] = useState(initial?.issuedAt ? toDateInput(initial.issuedAt) : todayStr)
   const [dueAt, setDueAt] = useState(toDateInput(initial?.dueAt ?? null))
   const [items, setItems] = useState<LineItem[]>(() =>
     initial ? JSON.parse(initial.lineItems) :
@@ -81,6 +84,29 @@ function QuoteModal({ initial, prefill, type, leadId, leadEmail, leadName = '', 
   const [aiPrompt, setAiPrompt] = useState(() => [leadService, leadNotes].filter(Boolean).join('\n').trim())
   const [aiGenerating, setAiGenerating] = useState(false)
   const [aiError, setAiError] = useState<string | null>(null)
+  const [priceItems, setPriceItems] = useState<PriceItem[]>([])
+  const [priceBookOpen, setPriceBookOpen] = useState(false)
+  const [priceSearch, setPriceSearch] = useState('')
+
+  useEffect(() => {
+    const url = accountParam ? `/api/price-book?account=${accountParam}` : '/api/price-book'
+    fetch(url).then(r => r.json()).then(data => {
+      if (Array.isArray(data)) setPriceItems(data.filter((i: PriceItem & { active: boolean }) => i.active !== false))
+    }).catch(() => {})
+  }, [accountParam])
+
+  const filteredPriceItems = priceItems.filter(item =>
+    !priceSearch ||
+    item.name.toLowerCase().includes(priceSearch.toLowerCase()) ||
+    (item.category?.toLowerCase().includes(priceSearch.toLowerCase()))
+  )
+
+  function addFromPriceBook(item: PriceItem) {
+    const desc = item.description ? `${item.name} — ${item.description}` : item.name
+    setItems(prev => [...prev, { description: desc, quantity: 1, unitPrice: item.price }])
+    setPriceBookOpen(false)
+    setPriceSearch('')
+  }
 
   async function handleAiGenerate() {
     if (!aiPrompt.trim()) return
@@ -172,9 +198,16 @@ function QuoteModal({ initial, prefill, type, leadId, leadEmail, leadName = '', 
       >
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 flex-shrink-0">
-          <h2 className="font-semibold text-slate-900">
-            {isEdit ? `Edit ${initial!.number}` : `New ${type === 'quote' ? 'Quote' : 'Invoice'}`}
-          </h2>
+          <div>
+            <h2 className="font-semibold text-slate-900">
+              {isEdit ? `Edit ${initial!.number}` : `New ${type === 'quote' ? 'Quote' : 'Invoice'}`}
+            </h2>
+            {isEdit && initial?.createdByName && (
+              <p className="text-xs text-slate-400 mt-0.5 flex items-center gap-1">
+                <User className="w-3 h-3" /> Raised by {initial.createdByName}
+              </p>
+            )}
+          </div>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition-colors">
             <X className="w-5 h-5" />
           </button>
@@ -298,11 +331,53 @@ function QuoteModal({ initial, prefill, type, leadId, leadEmail, leadName = '', 
                   ))}
                 </tbody>
               </table>
-              <div className="px-3 py-2 border-t border-slate-100">
+              <div className="px-3 py-2 border-t border-slate-100 flex items-center gap-4">
                 <button onClick={addLine} className="text-xs text-indigo-600 hover:text-indigo-700 font-medium flex items-center gap-1">
                   <Plus className="w-3.5 h-3.5" /> Add line item
                 </button>
+                {priceItems.length > 0 && (
+                  <button
+                    onClick={() => { setPriceBookOpen(o => !o); setPriceSearch('') }}
+                    className={`text-xs font-medium flex items-center gap-1 transition-colors ${priceBookOpen ? 'text-indigo-600' : 'text-slate-500 hover:text-slate-700'}`}
+                  >
+                    <BookOpen className="w-3.5 h-3.5" /> From price book
+                  </button>
+                )}
               </div>
+              {priceBookOpen && (
+                <div className="border-t border-slate-100">
+                  <div className="px-3 pt-2 pb-1">
+                    <input
+                      type="text"
+                      value={priceSearch}
+                      onChange={e => setPriceSearch(e.target.value)}
+                      placeholder="Search price book…"
+                      autoFocus
+                      className="w-full text-sm px-2.5 py-1.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                  </div>
+                  <div className="max-h-48 overflow-y-auto divide-y divide-slate-50">
+                    {filteredPriceItems.length === 0 ? (
+                      <p className="px-3 py-3 text-xs text-slate-400 text-center">No items match</p>
+                    ) : filteredPriceItems.map(item => (
+                      <button
+                        key={item.id}
+                        onClick={() => addFromPriceBook(item)}
+                        className="w-full flex items-center justify-between px-3 py-2 hover:bg-indigo-50 transition-colors text-left"
+                      >
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium text-slate-800 truncate">{item.name}</p>
+                          {item.category && <p className="text-xs text-indigo-400">{item.category}</p>}
+                          {item.description && <p className="text-xs text-slate-400 truncate">{item.description}</p>}
+                        </div>
+                        <p className="text-sm font-semibold text-slate-700 tabular-nums ml-3 flex-shrink-0">
+                          {fmtAUD(item.price)}<span className="text-xs text-slate-400 font-normal ml-0.5">/{item.unit}</span>
+                        </p>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
@@ -519,6 +594,11 @@ export default function QuotesSection({ leadId, leadEmail, leadName = '', leadSe
                             {q.issuedAt && (
                               <p className="text-xs text-slate-400 mt-0.5">
                                 Issued {new Date(q.issuedAt).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' })}
+                              </p>
+                            )}
+                            {q.createdByName && (
+                              <p className="text-xs text-slate-400 mt-0.5 flex items-center gap-1">
+                                <User className="w-3 h-3" />{q.createdByName}
                               </p>
                             )}
                           </div>
