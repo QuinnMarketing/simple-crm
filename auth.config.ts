@@ -12,6 +12,8 @@ export const authConfig = {
       if (path.startsWith('/api/calendar/callback')) return true
       if (path.startsWith('/api/auth/forgot-password')) return true
       if (path.startsWith('/api/auth/reset-password')) return true
+      if (path.startsWith('/api/auth/magic-link')) return true
+      if (path === '/magic-link') return true
       if (path.startsWith('/api/book')) return true
       if (path.startsWith('/api/review')) return true
       if (path === '/forgot-password') return true
