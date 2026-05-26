@@ -7,7 +7,7 @@ import LeadsCsvButtons from './LeadsCsvButtons'
 import LeadsTable from './LeadsTable'
 import { Kanban } from 'lucide-react'
 
-const STATUSES = ['all', 'new', 'contacted', 'qualified', 'won', 'lost']
+const STATUSES = ['all', 'new', 'contacted', 'qualified', 'won', 'lost', 'junk']
 
 export default async function LeadsPage({
   searchParams,

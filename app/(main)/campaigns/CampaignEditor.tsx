@@ -30,7 +30,7 @@ const MERGE_TAGS = [
   { label: '{{business_name}}', desc: 'Your business name' },
 ]
 
-const STATUSES = ['new', 'contacted', 'qualified', 'won', 'lost']
+const STATUSES = ['new', 'contacted', 'qualified', 'won', 'lost', 'junk']
 const SOURCES = ['website', 'referral', 'google_ads', 'facebook_ads', 'cold_outreach', 'webhook', 'other']
 
 function StatusBadge({ status }: { status: string }) {

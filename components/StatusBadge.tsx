@@ -4,6 +4,7 @@ const STATUS_MAP: Record<string, { label: string; className: string }> = {
   qualified: { label: 'Qualified', className: 'bg-purple-100 text-purple-800' },
   won: { label: 'Won', className: 'bg-green-100 text-green-800' },
   lost: { label: 'Lost', className: 'bg-red-100 text-red-800' },
+  junk: { label: 'Junk', className: 'bg-slate-100 text-slate-500' },
 }
 
 export default function StatusBadge({ status }: { status: string }) {

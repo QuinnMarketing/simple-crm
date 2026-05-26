@@ -19,7 +19,7 @@ export default function LeadsTable({ leads, addHref, clearHref, slaHours }: {
   leads: Lead[]; addHref?: string; clearHref?: string; slaHours?: number | null
 }) {
 
-const STATUSES = ['new', 'contacted', 'qualified', 'won', 'lost']
+const STATUSES = ['new', 'contacted', 'qualified', 'won', 'lost', 'junk']
 
   const router = useRouter()
   const [selected, setSelected] = useState<Set<string>>(new Set())

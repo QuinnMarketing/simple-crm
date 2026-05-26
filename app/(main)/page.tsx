@@ -14,6 +14,7 @@ const STATUS_COLORS: Record<string, string> = {
   qualified: '#a855f7',
   won: '#22c55e',
   lost: '#ef4444',
+  junk: '#94a3b8',
 }
 
 const STATUS_LABELS: Record<string, string> = {
@@ -22,6 +23,7 @@ const STATUS_LABELS: Record<string, string> = {
   qualified: 'Qualified',
   won: 'Won',
   lost: 'Lost',
+  junk: 'Junk',
 }
 
 function dayKey(date: Date): string {
@@ -169,7 +171,7 @@ export default async function DashboardPage({
   })
 
   // Stage value data
-  const stageValues: StageValue[] = ['new', 'contacted', 'qualified', 'won', 'lost'].map((status) => {
+  const stageValues: StageValue[] = ['new', 'contacted', 'qualified', 'won', 'lost', 'junk'].map((status) => {
     const found = valueByStatus.find((v) => v.status === status)
     return {
       stage: STATUS_LABELS[status],

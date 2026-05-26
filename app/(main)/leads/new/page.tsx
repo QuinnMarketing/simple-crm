@@ -4,7 +4,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeft, Loader2 } from 'lucide-react'
 
-const STATUSES = ['new', 'contacted', 'qualified', 'won', 'lost']
+const STATUSES = ['new', 'contacted', 'qualified', 'won', 'lost', 'junk']
 const SOURCES = ['website', 'referral', 'google_ads', 'facebook_ads', 'cold_outreach', 'other']
 
 type Company = { id: string; name: string; color: string }

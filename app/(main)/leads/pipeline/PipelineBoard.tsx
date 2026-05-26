@@ -23,6 +23,7 @@ const COLUMNS: { id: string; label: string; color: string; headerCls: string; do
   { id: 'qualified', label: 'Qualified', color: '#a855f7', headerCls: 'bg-purple-50 border-purple-200', dotCls: 'bg-purple-400' },
   { id: 'won',       label: 'Won',       color: '#22c55e', headerCls: 'bg-green-50 border-green-200',   dotCls: 'bg-green-400' },
   { id: 'lost',      label: 'Lost',      color: '#ef4444', headerCls: 'bg-red-50 border-red-200',       dotCls: 'bg-red-400' },
+  { id: 'junk',      label: 'Junk',      color: '#94a3b8', headerCls: 'bg-slate-50 border-slate-200',   dotCls: 'bg-slate-400' },
 ]
 
 const AUTO_PUSH_STATUSES = new Set(['qualified', 'won'])
