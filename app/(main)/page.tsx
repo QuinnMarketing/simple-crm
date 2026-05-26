@@ -86,7 +86,7 @@ export default async function DashboardPage({
     prisma.lead.count({ where }),
     prisma.lead.groupBy({ by: ['status'], where, _count: true }),
     prisma.lead.findMany({
-      where,
+      where: { ...where, status: { not: 'junk' } },
       orderBy: { createdAt: 'desc' },
       take: 10,
       include: {
