@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { Suspense } from 'react'
 import StatusBadge from '@/components/StatusBadge'
 import { Users, TrendingUp, CalendarDays } from 'lucide-react'
-import DashboardCharts, { type WeeklyPoint, type StageValue } from './DashboardCharts'
+import DashboardCharts, { type DailyPoint, type StageValue } from './DashboardCharts'
 import DashboardDateFilter from './DashboardDateFilter'
 
 const STATUS_COLORS: Record<string, string> = {
@@ -24,12 +24,8 @@ const STATUS_LABELS: Record<string, string> = {
   lost: 'Lost',
 }
 
-function weekKey(date: Date): string {
-  const d = new Date(date)
-  d.setHours(0, 0, 0, 0)
-  const day = d.getDay()
-  d.setDate(d.getDate() - (day === 0 ? 6 : day - 1)) // Monday
-  return d.toLocaleDateString('en-AU', { day: 'numeric', month: 'short' })
+function dayKey(date: Date): string {
+  return new Date(date).toLocaleDateString('en-AU', { day: 'numeric', month: 'short' })
 }
 
 export default async function DashboardPage({
@@ -70,8 +66,8 @@ export default async function DashboardPage({
     : null
   const prevWhere = prevDateFilter ? { ...accountFilter, ...companyFilter, ...prevDateFilter } : null
 
-  // For the weekly chart: use the period if set, otherwise last 12 weeks
-  const chartFrom = fromDate ?? (() => { const d = new Date(); d.setDate(d.getDate() - 84); return d })()
+  // For the daily chart: use the period if set, otherwise last 30 days
+  const chartFrom = fromDate ?? (() => { const d = new Date(); d.setDate(d.getDate() - 29); return d })()
   const chartTo = toDate ?? new Date()
 
   const now = new Date()
@@ -152,24 +148,25 @@ export default async function DashboardPage({
     return { diff, pct: Math.round((diff / prev) * 100) }
   }
 
-  // Build week buckets between chartFrom and chartTo
-  const buckets: Record<string, { leads: number; won: number }> = {}
+  // Build daily buckets between chartFrom and chartTo
+  const buckets: Record<string, number> = {}
   const cursor = new Date(chartFrom)
-  const startDay = cursor.getDay()
-  cursor.setDate(cursor.getDate() - (startDay === 0 ? 6 : startDay - 1))
   cursor.setHours(0, 0, 0, 0)
-  while (cursor <= chartTo) {
-    buckets[weekKey(new Date(cursor))] = { leads: 0, won: 0 }
-    cursor.setDate(cursor.getDate() + 7)
+  const chartToMidnight = new Date(chartTo)
+  chartToMidnight.setHours(23, 59, 59, 999)
+  while (cursor <= chartToMidnight) {
+    buckets[dayKey(new Date(cursor))] = 0
+    cursor.setDate(cursor.getDate() + 1)
   }
   for (const lead of chartLeads) {
-    const key = weekKey(new Date(lead.createdAt))
-    if (buckets[key]) {
-      buckets[key].leads++
-      if (lead.status === 'won') buckets[key].won++
-    }
+    const key = dayKey(new Date(lead.createdAt))
+    if (key in buckets) buckets[key]++
   }
-  const weeklyData: WeeklyPoint[] = Object.entries(buckets).map(([week, d]) => ({ week, ...d }))
+  let running = 0
+  const chartData: DailyPoint[] = Object.entries(buckets).map(([day, leads]) => {
+    running += leads
+    return { day, leads, cumulative: running }
+  })
 
   // Stage value data
   const stageValues: StageValue[] = ['new', 'contacted', 'qualified', 'won', 'lost'].map((status) => {
@@ -318,7 +315,7 @@ export default async function DashboardPage({
       ? `From ${fmtDate(activeFrom)}`
       : activeTo
       ? `Until ${fmtDate(activeTo)}`
-      : '12 weeks'
+      : '30 days'
 
   const statusStats = [
     { label: 'Total',     value: total,             prev: prevTotal,          color: 'text-slate-900',   avgMs: null as number | null },
@@ -446,7 +443,7 @@ export default async function DashboardPage({
 
       <DashboardCharts
         byStatus={sm}
-        weeklyData={weeklyData}
+        chartData={chartData}
         stageValues={stageValues}
         totalPipelineValue={totalPipelineValue}
         wonValue={wonValue}

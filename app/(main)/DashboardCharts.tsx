@@ -1,16 +1,16 @@
 'use client'
 import {
   PieChart, Pie, Cell, Tooltip, ResponsiveContainer,
-  AreaChart, Area, XAxis, YAxis, CartesianGrid,
-  BarChart, Bar, LabelList,
+  ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid,
+  BarChart, LabelList,
 } from 'recharts'
 
-export type WeeklyPoint = { week: string; leads: number; won: number }
+export type DailyPoint = { day: string; leads: number; cumulative: number }
 export type StageValue  = { stage: string; value: number; count: number; color: string }
 
 interface Props {
   byStatus: Record<string, number>
-  weeklyData: WeeklyPoint[]
+  chartData: DailyPoint[]
   stageValues: StageValue[]
   totalPipelineValue: number
   wonValue: number
@@ -25,13 +25,13 @@ function fmt(n: number) {
   return `$${n.toLocaleString()}`
 }
 
-function CustomAreaTooltip({ active, payload, label }: { active?: boolean; payload?: { value: number; name: string }[]; label?: string }) {
+function LeadsTooltip({ active, payload, label }: { active?: boolean; payload?: { value: number; name: string; color: string }[]; label?: string }) {
   if (!active || !payload?.length) return null
   return (
     <div className="bg-white border border-slate-200 rounded-lg shadow-md px-3 py-2 text-xs">
       <p className="font-medium text-slate-700 mb-1">{label}</p>
       {payload.map((p) => (
-        <p key={p.name} className="text-slate-600">{p.name}: <span className="font-semibold">{p.value}</span></p>
+        <p key={p.name} style={{ color: p.color }}>{p.name}: <span className="font-semibold">{p.value}</span></p>
       ))}
     </div>
   )
@@ -49,7 +49,7 @@ function CustomBarTooltip({ active, payload }: { active?: boolean; payload?: { p
   )
 }
 
-export default function DashboardCharts({ byStatus, weeklyData, stageValues, totalPipelineValue, wonValue, chartLabel = '12 weeks' }: Props) {
+export default function DashboardCharts({ byStatus, chartData, stageValues, totalPipelineValue, wonValue, chartLabel = '30 days' }: Props) {
   const won    = byStatus.won ?? 0
   const lost   = byStatus.lost ?? 0
   const active = (byStatus.new ?? 0) + (byStatus.contacted ?? 0) + (byStatus.qualified ?? 0)
@@ -63,9 +63,12 @@ export default function DashboardCharts({ byStatus, weeklyData, stageValues, tot
 
   const hasValues = stageValues.some((s) => s.value > 0)
 
+  // Show every Nth x-axis tick to avoid crowding
+  const tickInterval = chartData.length > 60 ? 13 : chartData.length > 30 ? 6 : chartData.length > 14 ? 3 : 1
+
   return (
     <div className="space-y-4 mb-8">
-      {/* Row 1: Win/Loss donut + Weekly trend */}
+      {/* Row 1: Win/Loss donut + Daily leads chart */}
       <div className="grid grid-cols-3 gap-4">
         {/* Win / Loss donut */}
         <div className="bg-white rounded-xl border border-slate-200 p-5">
@@ -90,12 +93,9 @@ export default function DashboardCharts({ byStatus, weeklyData, stageValues, tot
                       <Cell key={entry.name} fill={entry.color ?? DONUT_COLORS[i]} />
                     ))}
                   </Pie>
-                  <Tooltip
-                    contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid #e2e8f0' }}
-                  />
+                  <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid #e2e8f0' }} />
                 </PieChart>
               </ResponsiveContainer>
-              {/* Center label */}
               <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
                 {winRate !== null ? (
                   <>
@@ -108,7 +108,6 @@ export default function DashboardCharts({ byStatus, weeklyData, stageValues, tot
               </div>
             </div>
           )}
-          {/* Legend */}
           <div className="flex flex-wrap gap-3 mt-2 justify-center">
             {donutData.map((d) => (
               <div key={d.name} className="flex items-center gap-1.5">
@@ -119,36 +118,52 @@ export default function DashboardCharts({ byStatus, weeklyData, stageValues, tot
           </div>
         </div>
 
-        {/* Leads over time */}
+        {/* Leads over time — bar (daily) + line (cumulative) */}
         <div className="col-span-2 bg-white rounded-xl border border-slate-200 p-5">
           <p className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-4">Leads Over Time ({chartLabel})</p>
           <ResponsiveContainer width="100%" height={220}>
-            <AreaChart data={weeklyData} margin={{ top: 4, right: 8, left: -16, bottom: 0 }}>
-              <defs>
-                <linearGradient id="gradLeads" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%"  stopColor="#6366f1" stopOpacity={0.2} />
-                  <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
-                </linearGradient>
-                <linearGradient id="gradWon" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%"  stopColor="#22c55e" stopOpacity={0.2} />
-                  <stop offset="95%" stopColor="#22c55e" stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-              <XAxis dataKey="week" tick={{ fontSize: 11, fill: '#94a3b8' }} tickLine={false} axisLine={false} />
-              <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: '#94a3b8' }} tickLine={false} axisLine={false} />
-              <Tooltip content={<CustomAreaTooltip />} />
-              <Area type="monotone" dataKey="leads" name="Total" stroke="#6366f1" strokeWidth={2} fill="url(#gradLeads)" dot={false} />
-              <Area type="monotone" dataKey="won"   name="Won"   stroke="#22c55e" strokeWidth={2} fill="url(#gradWon)"   dot={false} />
-            </AreaChart>
+            <ComposedChart data={chartData} margin={{ top: 4, right: 16, left: -16, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+              <XAxis
+                dataKey="day"
+                tick={{ fontSize: 11, fill: '#94a3b8' }}
+                tickLine={false}
+                axisLine={false}
+                interval={tickInterval - 1}
+              />
+              {/* Left axis — daily count */}
+              <YAxis
+                yAxisId="left"
+                allowDecimals={false}
+                tick={{ fontSize: 11, fill: '#6366f1' }}
+                tickLine={false}
+                axisLine={false}
+                width={28}
+              />
+              {/* Right axis — cumulative */}
+              <YAxis
+                yAxisId="right"
+                orientation="right"
+                allowDecimals={false}
+                tick={{ fontSize: 11, fill: '#0ea5e9' }}
+                tickLine={false}
+                axisLine={false}
+                width={36}
+              />
+              <Tooltip content={<LeadsTooltip />} cursor={{ fill: '#f8fafc' }} />
+              <Bar yAxisId="left" dataKey="leads" name="Daily" fill="#6366f1" opacity={0.85} radius={[2, 2, 0, 0]} maxBarSize={24} />
+              <Line yAxisId="right" type="monotone" dataKey="cumulative" name="Cumulative" stroke="#0ea5e9" strokeWidth={2} dot={false} />
+            </ComposedChart>
           </ResponsiveContainer>
-          <div className="flex gap-4 mt-1 justify-end">
-            {[{ label: 'Total leads', color: '#6366f1' }, { label: 'Won', color: '#22c55e' }].map((l) => (
-              <div key={l.label} className="flex items-center gap-1.5">
-                <span className="w-3 h-0.5 rounded-full inline-block" style={{ backgroundColor: l.color }} />
-                <span className="text-xs text-slate-500">{l.label}</span>
-              </div>
-            ))}
+          <div className="flex gap-5 mt-1 justify-end">
+            <div className="flex items-center gap-1.5">
+              <span className="w-3 h-3 rounded-sm inline-block bg-indigo-500 opacity-85" />
+              <span className="text-xs text-slate-500">Daily leads <span className="text-indigo-400">(left)</span></span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="w-3 h-0.5 rounded-full inline-block bg-sky-500" />
+              <span className="text-xs text-slate-500">Cumulative <span className="text-sky-400">(right)</span></span>
+            </div>
           </div>
         </div>
       </div>
