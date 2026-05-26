@@ -31,7 +31,7 @@ const MERGE_TAGS = [
 ]
 
 const STATUSES = ['new', 'contacted', 'qualified', 'won', 'lost', 'junk']
-const SOURCES = ['website', 'referral', 'google_ads', 'facebook_ads', 'cold_outreach', 'webhook', 'other']
+const SOURCES = ['website', 'organic', 'referral', 'google_ads', 'facebook_ads', 'cold_outreach', 'email', 'chatgpt', 'perplexity', 'webhook', 'other']
 
 function StatusBadge({ status }: { status: string }) {
   const colors: Record<string, string> = {

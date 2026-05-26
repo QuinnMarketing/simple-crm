@@ -4,7 +4,7 @@ import { parseCsv } from '@/lib/csv'
 import { NextRequest, NextResponse } from 'next/server'
 
 const VALID_STATUSES = new Set(['new', 'contacted', 'qualified', 'won', 'lost'])
-const VALID_SOURCES = new Set(['website', 'referral', 'google_ads', 'facebook_ads', 'cold_outreach', 'webhook', 'other'])
+const VALID_SOURCES = new Set(['website', 'organic', 'referral', 'google_ads', 'facebook_ads', 'cold_outreach', 'email', 'chatgpt', 'perplexity', 'webhook', 'other'])
 
 export async function POST(req: NextRequest) {
   const session = await auth()

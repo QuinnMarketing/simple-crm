@@ -45,7 +45,7 @@ type OutboundIntegration = { id: string; name: string; url: string; enabled: boo
 type PushState = { status: 'idle' | 'pushing' | 'success' | 'error'; message?: string }
 
 const STATUSES = ['new', 'contacted', 'qualified', 'won', 'lost', 'junk']
-const SOURCES = ['website', 'referral', 'google_ads', 'facebook_ads', 'cold_outreach', 'webhook', 'other']
+const SOURCES = ['website', 'organic', 'referral', 'google_ads', 'facebook_ads', 'cold_outreach', 'email', 'chatgpt', 'perplexity', 'webhook', 'other']
 
 const PLATFORM_LABELS: Record<string, string> = {
   google_ga4: 'Google Analytics 4',

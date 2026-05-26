@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { ArrowLeft, Loader2 } from 'lucide-react'
 
 const STATUSES = ['new', 'contacted', 'qualified', 'won', 'lost', 'junk']
-const SOURCES = ['website', 'referral', 'google_ads', 'facebook_ads', 'cold_outreach', 'other']
+const SOURCES = ['website', 'organic', 'referral', 'google_ads', 'facebook_ads', 'cold_outreach', 'email', 'chatgpt', 'perplexity', 'webhook', 'other']
 
 type Company = { id: string; name: string; color: string }
 
