@@ -4,6 +4,9 @@ import type { SmtpConfig } from './email'
 import { mergeSmtp } from './platform-defaults'
 
 const BASE_URL = process.env.NEXTAUTH_URL ?? 'http://localhost:3000'
+const SEND_DELAY_MS = 400 // ~2.5 emails/second to stay well under API limits
+
+function sleep(ms: number) { return new Promise((r) => setTimeout(r, ms)) }
 
 function interpolate(template: string, vars: Record<string, string>): string {
   return template.replace(/\{\{(\w+)\}\}/g, (_, key) => vars[key] ?? '')
@@ -167,6 +170,8 @@ export async function sendCampaign(campaignId: string): Promise<{ sent: number; 
       })
       failed++
     }
+
+    await sleep(SEND_DELAY_MS)
   }
 
   await prisma.emailCampaign.update({

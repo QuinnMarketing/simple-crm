@@ -59,7 +59,6 @@ function AccordionItem({
 }
 
 export default function IntegrationsForm({ accountId, initialConfigs }: IntegrationsFormProps) {
-  const [smtpFrom, setSmtpFrom] = useState(initialConfigs.email_smtp?.from ?? '')
   const [ga4, setGa4] = useState({ measurementId: initialConfigs.google_ga4?.measurementId ?? '', apiSecret: initialConfigs.google_ga4?.apiSecret ?? '' })
   const [gaReport, setGaReport] = useState({ propertyId: initialConfigs.google_analytics?.propertyId ?? '', refreshToken: initialConfigs.google_analytics?.refreshToken ?? '', email: initialConfigs.google_analytics?.email ?? '' })
   const [ads, setAds] = useState({ customerId: initialConfigs.google_ads?.customerId ?? '', conversionActionId: initialConfigs.google_ads?.conversionActionId ?? '', qualifiedConversionActionId: initialConfigs.google_ads?.qualifiedConversionActionId ?? '', wonConversionActionId: initialConfigs.google_ads?.wonConversionActionId ?? '' })
@@ -69,7 +68,7 @@ export default function IntegrationsForm({ accountId, initialConfigs }: Integrat
   const [aroflo, setAroflo] = useState({ uEncoded: initialConfigs.aroflo?.uEncoded ?? '', pEncoded: initialConfigs.aroflo?.pEncoded ?? '', orgEncoded: initialConfigs.aroflo?.orgEncoded ?? '', secretKey: initialConfigs.aroflo?.secretKey ?? '', taskType: initialConfigs.aroflo?.taskType ?? '' })
 
   const [saveState, setSaveState] = useState<Record<string, SaveState>>({
-    email_smtp: 'idle', google_ga4: 'idle', google_analytics: 'idle',
+    google_ga4: 'idle', google_analytics: 'idle',
     google_ads: 'idle', facebook: 'idle', servicem8: 'idle', aroflo: 'idle', trak: 'idle',
   })
 
@@ -129,7 +128,6 @@ export default function IntegrationsForm({ accountId, initialConfigs }: Integrat
   const sm8Ok      = !!sm8.apiKey.trim()
   const trakOk     = !!trak.apiKey.trim()
   const arofloOk   = !!(aroflo.uEncoded.trim() && aroflo.pEncoded.trim() && aroflo.orgEncoded.trim() && aroflo.secretKey.trim())
-  const smtpOk     = !!smtpFrom.trim()
   const ga4Ok      = isConfigured(ga4, ['measurementId', 'apiSecret'])
   const gaReportOk = !!initialConfigs.google_analytics?.refreshToken
   const adsOk      = isConfigured(ads, ['customerId'])
@@ -296,15 +294,6 @@ export default function IntegrationsForm({ accountId, initialConfigs }: Integrat
       <div>
         <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-3">Utilities</h3>
         <div className="space-y-2">
-
-          <AccordionItem id="email_smtp" title="Email" description="Sender name shown on outgoing emails from Automations and Campaigns" ok={smtpOk} open={open.has('email_smtp')} onToggle={() => toggle('email_smtp')}>
-            <div className="mb-4">
-              <label className={labelCls}>From Address</label>
-              <input type="text" value={smtpFrom} onChange={(e) => setSmtpFrom(e.target.value)} className={inputCls} placeholder="Company Name <you@example.com>" />
-              <p className="text-xs text-slate-400 mt-1.5">e.g. <code>Acme Co &lt;noreply@acme.com&gt;</code> — leave blank to use the server default</p>
-            </div>
-            <div className="flex justify-end"><SaveBtn platform="email_smtp" config={{ from: smtpFrom }} /></div>
-          </AccordionItem>
 
           <AccordionItem id="google_calendar" title="Google Calendar" description="Appointments sync automatically to your Google Calendar" ok={gcalOk} open={open.has('google_calendar')} onToggle={() => toggle('google_calendar')}>
             {gcalOk ? (

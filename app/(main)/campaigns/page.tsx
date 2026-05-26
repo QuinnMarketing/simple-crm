@@ -1,11 +1,11 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { Fragment, useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { Plus, Mail, Send, Clock, FileText, Trash2, Loader2, BarChart2, Eye, MousePointer, XCircle, Copy, AlertCircle } from 'lucide-react'
+import { Plus, Mail, Send, Clock, FileText, Trash2, Loader2, BarChart2, Eye, MousePointer, XCircle, Copy, AlertCircle, ChevronDown, ChevronUp } from 'lucide-react'
 
 type Campaign = {
-  id: string; name: string; subject: string; status: string
+  id: string; name: string; subject: string; bodyHtml: string; bodyText: string; status: string
   totalSent: number; totalFailed: number; sentAt: string | null
   scheduledAt: string | null; createdAt: string; trackOpens: boolean
   lastError: string | null
@@ -46,6 +46,7 @@ export default function CampaignsPage() {
   const [deleting, setDeleting] = useState<string | null>(null)
   const [duplicating, setDuplicating] = useState<string | null>(null)
   const [filter, setFilter] = useState<string>('all')
+  const [previewId, setPreviewId] = useState<string | null>(null)
 
   useEffect(() => {
     Promise.all([
@@ -203,69 +204,97 @@ export default function CampaignsPage() {
                 {filtered.map((c) => {
                   const cfg = STATUS_CONFIG[c.status] ?? STATUS_CONFIG.draft
                   const Icon = cfg.icon
+                  const isPreviewing = previewId === c.id
                   return (
-                    <tr key={c.id} className="hover:bg-slate-50 transition-colors group">
-                      <td className="px-5 py-3.5">
-                        <Link href={`/campaigns/${c.id}`} className="block">
-                          <p className="font-medium text-slate-900 truncate max-w-xs group-hover:text-indigo-600 transition-colors">{c.name}</p>
-                          <p className="text-xs text-slate-400 truncate mt-0.5">{c.subject || <em className="text-slate-300">No subject</em>}</p>
-                        </Link>
-                        {c.lastError && (
-                          <div className="flex items-start gap-1.5 mt-1.5 text-xs text-red-600 bg-red-50 border border-red-100 rounded-lg px-2 py-1.5 max-w-sm">
-                            <AlertCircle className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
-                            <span className="line-clamp-2">{c.lastError}</span>
-                          </div>
-                        )}
-                      </td>
-                      <td className="px-4 py-3.5 hidden sm:table-cell">
-                        <span className={`inline-flex items-center gap-1.5 text-xs font-medium px-2 py-0.5 rounded-full ${cfg.color}`}>
-                          <Icon className={`w-3 h-3 ${c.status === 'sending' ? 'animate-spin' : ''}`} />
-                          {cfg.label}
-                        </span>
-                        {c.status === 'scheduled' && c.scheduledAt && (
-                          <p className="text-xs text-slate-400 mt-0.5">
-                            {new Date(c.scheduledAt).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
-                          </p>
-                        )}
-                      </td>
-                      <td className="px-4 py-3.5 text-right hidden md:table-cell">
-                        {c.status === 'sent' ? (
-                          <div>
-                            <p className="font-medium text-slate-800">{c.totalSent.toLocaleString()}</p>
-                            {c.totalFailed > 0 && <p className="text-xs text-red-500">{c.totalFailed} failed</p>}
-                          </div>
-                        ) : (
-                          <span className="text-slate-400">—</span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3.5 text-right hidden lg:table-cell text-xs text-slate-400">
-                        {c.sentAt
-                          ? new Date(c.sentAt).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' })
-                          : new Date(c.createdAt).toLocaleDateString('en-AU', { day: 'numeric', month: 'short' })}
-                      </td>
-                      <td className="px-3 py-3.5">
-                        <div className="flex items-center gap-1 justify-end">
-                          {c.status === 'sent' && (
-                            <Link href={`/campaigns/${c.id}`} title="View stats"
-                              className="w-7 h-7 flex items-center justify-center text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded transition-colors">
-                              <BarChart2 className="w-3.5 h-3.5" />
-                            </Link>
+                    <Fragment key={c.id}>
+                      <tr className={`transition-colors group ${isPreviewing ? 'bg-indigo-50/40' : 'hover:bg-slate-50'}`}>
+                        <td className="px-5 py-3.5">
+                          <Link href={`/campaigns/${c.id}`} className="block">
+                            <p className="font-medium text-slate-900 truncate max-w-xs group-hover:text-indigo-600 transition-colors">{c.name}</p>
+                            <p className="text-xs text-slate-400 truncate mt-0.5">{c.subject || <em className="text-slate-300">No subject</em>}</p>
+                          </Link>
+                          {c.lastError && (
+                            <div className="flex items-start gap-1.5 mt-1.5 text-xs text-red-600 bg-red-50 border border-red-100 rounded-lg px-2 py-1.5 max-w-sm">
+                              <AlertCircle className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
+                              <span className="line-clamp-2">{c.lastError}</span>
+                            </div>
                           )}
-                          <button
-                            onClick={() => duplicateCampaign(c.id)}
-                            disabled={duplicating === c.id}
-                            title="Duplicate"
-                            className="w-7 h-7 flex items-center justify-center text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded transition-colors"
-                          >
-                            {duplicating === c.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Copy className="w-3.5 h-3.5" />}
-                          </button>
-                          <button onClick={() => deleteCampaign(c.id, c.name)} disabled={deleting === c.id}
-                            className="w-7 h-7 flex items-center justify-center text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors">
-                            {deleting === c.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
+                        </td>
+                        <td className="px-4 py-3.5 hidden sm:table-cell">
+                          <span className={`inline-flex items-center gap-1.5 text-xs font-medium px-2 py-0.5 rounded-full ${cfg.color}`}>
+                            <Icon className={`w-3 h-3 ${c.status === 'sending' ? 'animate-spin' : ''}`} />
+                            {cfg.label}
+                          </span>
+                          {c.status === 'scheduled' && c.scheduledAt && (
+                            <p className="text-xs text-slate-400 mt-0.5">
+                              {new Date(c.scheduledAt).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                            </p>
+                          )}
+                        </td>
+                        <td className="px-4 py-3.5 text-right hidden md:table-cell">
+                          {c.status === 'sent' ? (
+                            <div>
+                              <p className="font-medium text-slate-800">{c.totalSent.toLocaleString()}</p>
+                              {c.totalFailed > 0 && <p className="text-xs text-red-500">{c.totalFailed} failed</p>}
+                            </div>
+                          ) : (
+                            <span className="text-slate-400">—</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3.5 text-right hidden lg:table-cell text-xs text-slate-400">
+                          {c.sentAt
+                            ? new Date(c.sentAt).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' })
+                            : new Date(c.createdAt).toLocaleDateString('en-AU', { day: 'numeric', month: 'short' })}
+                        </td>
+                        <td className="px-3 py-3.5">
+                          <div className="flex items-center gap-1 justify-end">
+                            <button
+                              onClick={() => setPreviewId(isPreviewing ? null : c.id)}
+                              title={isPreviewing ? 'Hide preview' : 'Preview content'}
+                              className={`w-7 h-7 flex items-center justify-center rounded transition-colors ${isPreviewing ? 'text-indigo-600 bg-indigo-100' : 'text-slate-400 hover:text-indigo-600 hover:bg-indigo-50'}`}
+                            >
+                              {isPreviewing ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                            </button>
+                            {c.status === 'sent' && (
+                              <Link href={`/campaigns/${c.id}`} title="View stats"
+                                className="w-7 h-7 flex items-center justify-center text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded transition-colors">
+                                <BarChart2 className="w-3.5 h-3.5" />
+                              </Link>
+                            )}
+                            <button
+                              onClick={() => duplicateCampaign(c.id)}
+                              disabled={duplicating === c.id}
+                              title="Duplicate"
+                              className="w-7 h-7 flex items-center justify-center text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded transition-colors"
+                            >
+                              {duplicating === c.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Copy className="w-3.5 h-3.5" />}
+                            </button>
+                            <button onClick={() => deleteCampaign(c.id, c.name)} disabled={deleting === c.id}
+                              className="w-7 h-7 flex items-center justify-center text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors">
+                              {deleting === c.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                      {isPreviewing && (
+                        <tr className="bg-slate-50 border-b border-slate-100">
+                          <td colSpan={5} className="px-5 py-4">
+                            <p className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-2">Email preview</p>
+                            {c.bodyHtml ? (
+                              <iframe
+                                srcDoc={c.bodyHtml}
+                                title="Campaign preview"
+                                className="w-full rounded-lg border border-slate-200 bg-white"
+                                style={{ height: '420px' }}
+                                sandbox="allow-same-origin"
+                              />
+                            ) : (
+                              <p className="text-sm text-slate-400 italic">No content yet — open this campaign to write it.</p>
+                            )}
+                          </td>
+                        </tr>
+                      )}
+                    </Fragment>
                   )
                 })}
               </tbody>

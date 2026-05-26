@@ -1,8 +1,8 @@
 'use client'
 import { useState, useEffect, useMemo } from 'react'
-import { useParams } from 'next/navigation'
+import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft, Send, Clock, CheckCircle, XCircle, MousePointer, Eye, Loader2, Mail, BarChart2 } from 'lucide-react'
+import { ArrowLeft, Send, Clock, CheckCircle, XCircle, MousePointer, Eye, Loader2, Mail, BarChart2, Copy } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
 import CampaignEditor from '../CampaignEditor'
 
@@ -75,9 +75,21 @@ function buildHourlyData(sends: CampaignSend[], sentAt: string | null) {
 
 export default function CampaignDetailPage() {
   const { id } = useParams<{ id: string }>()
+  const router = useRouter()
   const [campaign, setCampaign] = useState<Campaign | null>(null)
   const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState<'analytics' | 'recipients' | 'edit'>('analytics')
+  const [duplicating, setDuplicating] = useState(false)
+
+  async function duplicateCampaign() {
+    setDuplicating(true)
+    const res = await fetch(`/api/campaigns/${id}/duplicate`, { method: 'POST' })
+    if (res.ok) {
+      const copy = await res.json()
+      router.push(`/campaigns/${copy.id}`)
+    }
+    setDuplicating(false)
+  }
 
   useEffect(() => {
     fetch(`/api/campaigns/${id}`).then((r) => r.json()).then((d) => {
@@ -139,13 +151,23 @@ export default function CampaignDetailPage() {
               </p>
             )}
           </div>
-          <div className="flex border border-slate-200 rounded-lg overflow-hidden text-sm">
-            {TABS.map(({ id: tid, label }) => (
-              <button key={tid} onClick={() => setTab(tid)}
-                className={`px-4 py-2 font-medium transition-colors ${tab === tid ? 'bg-indigo-600 text-white' : 'text-slate-600 hover:bg-slate-50'}`}>
-                {label}
-              </button>
-            ))}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={duplicateCampaign}
+              disabled={duplicating}
+              className="flex items-center gap-2 border border-slate-200 text-slate-600 px-3 py-2 rounded-lg text-sm font-medium hover:bg-slate-50 disabled:opacity-60 transition-colors"
+            >
+              {duplicating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Copy className="w-4 h-4" />}
+              Duplicate
+            </button>
+            <div className="flex border border-slate-200 rounded-lg overflow-hidden text-sm">
+              {TABS.map(({ id: tid, label }) => (
+                <button key={tid} onClick={() => setTab(tid)}
+                  className={`px-4 py-2 font-medium transition-colors ${tab === tid ? 'bg-indigo-600 text-white' : 'text-slate-600 hover:bg-slate-50'}`}>
+                  {label}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
       </div>
