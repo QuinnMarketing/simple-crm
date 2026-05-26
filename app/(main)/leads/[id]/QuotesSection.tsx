@@ -71,7 +71,7 @@ function QuoteModal({ initial, prefill, type, leadId, leadEmail, leadName = '', 
   const [taxRate, setTaxRate] = useState(initial?.taxRate ?? prefill?.taxRate ?? 10)
   const [notes, setNotes] = useState(initial?.notes ?? prefill?.notes ?? '')
   const [issuedAt, setIssuedAt] = useState(initial?.issuedAt ? toDateInput(initial.issuedAt) : todayStr)
-  const [dueAt, setDueAt] = useState(toDateInput(initial?.dueAt ?? null))
+  const [dueAt, setDueAt] = useState(initial?.dueAt ? toDateInput(initial.dueAt) : todayStr)
   const [items, setItems] = useState<LineItem[]>(() =>
     initial ? JSON.parse(initial.lineItems) :
     prefill ? JSON.parse(prefill.lineItems) :
