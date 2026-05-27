@@ -13,7 +13,10 @@ import { after, NextRequest, NextResponse } from 'next/server'
 async function getAppointment(id: string, userId: Parameters<typeof getAccountFilter>[0]) {
   return prisma.appointment.findFirst({
     where: { id, ...getAccountFilter(userId) },
-    include: { lead: { select: { id: true, name: true } } },
+    include: {
+      lead: { select: { id: true, name: true } },
+      assignedTo: { select: { id: true, name: true } },
+    },
   })
 }
 
@@ -44,8 +47,12 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       ...('allDay' in body ? { allDay: !!body.allDay } : {}),
       ...('location' in body ? { location: body.location || null } : {}),
       ...('leadId' in body ? { leadId: body.leadId || null } : {}),
+      ...('userId' in body ? { userId: body.userId || null } : {}),
     },
-    include: { lead: { select: { id: true, name: true } } },
+    include: {
+      lead: { select: { id: true, name: true } },
+      assignedTo: { select: { id: true, name: true } },
+    },
   })
 
   if (updated.accountId) {

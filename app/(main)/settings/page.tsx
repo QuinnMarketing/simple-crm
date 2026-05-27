@@ -17,12 +17,12 @@ import { UserCog, History } from 'lucide-react'
 export default async function SettingsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ account?: string; gcal?: string; ganalytics?: string }>
+  searchParams: Promise<{ account?: string; gcal?: string; ganalytics?: string; google?: string; meta?: string; linkedin?: string; msg?: string }>
 }) {
   const session = await auth()
   if (!session) redirect('/login')
 
-  const { account: accountParam, gcal, ganalytics } = await searchParams
+  const { account: accountParam, gcal, ganalytics, google, meta, linkedin, msg } = await searchParams
 
   let accountId: string | null = null
 
@@ -67,22 +67,36 @@ export default async function SettingsPage({
   const webhookUrl = `${baseUrl}/api/webhooks/form?token=${account.webhookToken}`
   const emailWebhookUrl = `${baseUrl}/api/webhooks/email?token=${account.webhookToken}`
 
-  const googleAdsDefaults: Record<string, string> = {
-    developerToken: process.env.GOOGLE_ADS_DEVELOPER_TOKEN ?? '',
-    clientId: process.env.GOOGLE_ADS_CLIENT_ID ?? '',
-    clientSecret: process.env.GOOGLE_ADS_CLIENT_SECRET ?? '',
-    refreshToken: process.env.GOOGLE_ADS_REFRESH_TOKEN ?? '',
-  }
-
   const integrationConfigs: Record<string, Record<string, string>> = {}
   for (const integration of account.integrations) {
     try {
-      integrationConfigs[integration.platform] = JSON.parse(integration.config)
+      const raw = JSON.parse(integration.config)
+      // Strip refresh/access tokens from OAuth platforms — never expose to client
+      if (integration.platform === 'google') {
+        integrationConfigs.google = { connected: 'true', email: raw.email ?? '' }
+      } else if (integration.platform === 'meta') {
+        integrationConfigs.meta = {
+          connected: 'true',
+          userName: raw.userName ?? '',
+          adAccounts: JSON.stringify(raw.adAccounts ?? []),
+          pages: JSON.stringify(raw.pages ?? []),
+        }
+      } else if (integration.platform === 'linkedin') {
+        integrationConfigs.linkedin = {
+          connected: 'true',
+          personName: raw.personName ?? '',
+          organizations: JSON.stringify(raw.organizations ?? []),
+        }
+      } else {
+        integrationConfigs[integration.platform] = raw
+      }
     } catch {
       integrationConfigs[integration.platform] = {}
     }
   }
-  integrationConfigs.google_ads = { ...googleAdsDefaults, ...integrationConfigs.google_ads }
+  // google_ads config — only customer/conversion IDs (no OAuth secrets)
+  const adsDefaults: Record<string, string> = {}
+  integrationConfigs.google_ads = { ...adsDefaults, ...integrationConfigs.google_ads }
 
   return (
     <div>
@@ -109,6 +123,36 @@ export default async function SettingsPage({
       {ganalytics === 'error' && (
         <div className="mb-6 bg-red-50 border border-red-200 rounded-xl px-5 py-3 text-sm text-red-800 font-medium">
           Google Analytics connection failed. Check your credentials and try again.
+        </div>
+      )}
+      {google === 'connected' && (
+        <div className="mb-6 bg-green-50 border border-green-200 rounded-xl px-5 py-3 text-sm text-green-800 font-medium">
+          Google connected successfully. Configure your Ads and Analytics resources below.
+        </div>
+      )}
+      {google === 'error' && (
+        <div className="mb-6 bg-red-50 border border-red-200 rounded-xl px-5 py-3 text-sm text-red-800 font-medium">
+          Google connection failed{msg ? `: ${decodeURIComponent(msg)}` : '. Check your credentials and try again.'}
+        </div>
+      )}
+      {meta === 'connected' && (
+        <div className="mb-6 bg-green-50 border border-green-200 rounded-xl px-5 py-3 text-sm text-green-800 font-medium">
+          Meta connected successfully. Configure your Pixel and Ad Account below.
+        </div>
+      )}
+      {meta === 'error' && (
+        <div className="mb-6 bg-red-50 border border-red-200 rounded-xl px-5 py-3 text-sm text-red-800 font-medium">
+          Meta connection failed{msg ? `: ${decodeURIComponent(msg)}` : '. Check your Facebook App settings and try again.'}
+        </div>
+      )}
+      {linkedin === 'connected' && (
+        <div className="mb-6 bg-green-50 border border-green-200 rounded-xl px-5 py-3 text-sm text-green-800 font-medium">
+          LinkedIn connected successfully.
+        </div>
+      )}
+      {linkedin === 'error' && (
+        <div className="mb-6 bg-red-50 border border-red-200 rounded-xl px-5 py-3 text-sm text-red-800 font-medium">
+          LinkedIn connection failed{msg ? `: ${decodeURIComponent(msg)}` : '. Check your LinkedIn App settings and try again.'}
         </div>
       )}
 

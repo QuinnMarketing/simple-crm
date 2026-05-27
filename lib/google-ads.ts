@@ -25,9 +25,11 @@ async function getAccessToken(clientId: string, clientSecret: string, refreshTok
       grant_type: 'refresh_token',
     }),
   })
-  const data = await res.json()
-  if (!data.access_token) throw new Error(`OAuth error: ${JSON.stringify(data)}`)
-  return data.access_token
+  const text = await res.text()
+  let data: Record<string, unknown> = {}
+  try { data = JSON.parse(text) } catch { throw new Error(`Google token endpoint returned non-JSON (${res.status}): ${text.slice(0, 200)}`) }
+  if (!data.access_token) throw new Error(`Google OAuth error: ${data.error_description ?? data.error ?? JSON.stringify(data)}`)
+  return data.access_token as string
 }
 
 function toAdsDateTime(date: Date): string {
@@ -91,7 +93,9 @@ export async function pushToGoogleAds(
       }
     )
 
-    const data = await res.json()
+    const text = await res.text()
+    let data: Record<string, unknown> = {}
+    try { data = JSON.parse(text) } catch { return { success: false, error: `Google Ads API returned non-JSON (${res.status}): ${text.slice(0, 200)}` } }
     if (!res.ok) return { success: false, error: JSON.stringify(data) }
     if (data.partialFailureError) return { success: false, error: JSON.stringify(data.partialFailureError) }
     return { success: true }

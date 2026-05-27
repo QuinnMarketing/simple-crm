@@ -159,25 +159,38 @@ export async function GET(req: NextRequest) {
     byDay,
   }
 
+  // Per-account Google OAuth (new unified flow) takes priority over legacy per-service tokens
+  const googleRefreshToken = configs.google?.refreshToken || configs.google_analytics?.refreshToken || ''
+  const googleClientId = process.env.GOOGLE_CALENDAR_CLIENT_ID ?? process.env.GOOGLE_ADS_CLIENT_ID ?? ''
+  const googleClientSecret = process.env.GOOGLE_CALENDAR_CLIENT_SECRET ?? process.env.GOOGLE_ADS_CLIENT_SECRET ?? ''
+
+  // Meta: per-account OAuth access token takes priority over manually entered token
+  const metaAccessToken = configs.meta?.accessToken || configs.facebook?.accessToken || ''
+  const metaAdAccountId = configs.facebook?.adAccountId || ''
+
   const [ga4Result, googleAdsResult, metaAdsResult] = await Promise.all([
     (async (): Promise<{ data: Awaited<ReturnType<typeof fetchGA4Data>> | null; status: string }> => {
-      const cfg = configs.google_analytics
-      if (!cfg?.refreshToken) return { data: null, status: 'not_connected' }
-      if (!cfg?.propertyId) return { data: null, status: 'missing_property_id' }
-      try { return { data: await fetchGA4Data(cfg.refreshToken, cfg.propertyId, days), status: 'ok' } }
+      const propertyId = configs.google_analytics?.propertyId ?? ''
+      if (!googleRefreshToken) return { data: null, status: 'not_connected' }
+      if (!propertyId) return { data: null, status: 'missing_property_id' }
+      try { return { data: await fetchGA4Data(googleRefreshToken, propertyId, days), status: 'ok' } }
       catch (e) { return { data: null, status: e instanceof Error ? e.message.slice(0, 120) : 'error' } }
     })(),
     (async (): Promise<{ data: Awaited<ReturnType<typeof fetchGoogleAdsData>> | null; status: string }> => {
-      const cfg = mergeGoogleAds(configs.google_ads)
+      // Build merged config: per-account OAuth tokens override env vars
+      const baseAds = mergeGoogleAds(configs.google_ads)
+      const cfg: Record<string, string> = {
+        ...baseAds,
+        ...(googleRefreshToken ? { refreshToken: googleRefreshToken, clientId: googleClientId, clientSecret: googleClientSecret } : {}),
+      }
       if (!cfg.developerToken || !cfg.customerId || !cfg.refreshToken || !cfg.clientId || !cfg.clientSecret) return { data: null, status: 'not_configured' }
       try { return { data: await fetchGoogleAdsData(cfg, days), status: 'ok' } }
       catch (e) { return { data: null, status: e instanceof Error ? e.message.slice(0, 120) : 'error' } }
     })(),
     (async (): Promise<{ data: Awaited<ReturnType<typeof fetchMetaAdsData>> | null; status: string }> => {
-      const cfg = configs.facebook
-      if (!cfg?.accessToken) return { data: null, status: 'not_configured' }
-      if (!cfg?.adAccountId) return { data: null, status: 'missing_ad_account_id' }
-      try { return { data: await fetchMetaAdsData(cfg.accessToken, cfg.adAccountId, days), status: 'ok' } }
+      if (!metaAccessToken) return { data: null, status: 'not_configured' }
+      if (!metaAdAccountId) return { data: null, status: 'missing_ad_account_id' }
+      try { return { data: await fetchMetaAdsData(metaAccessToken, metaAdAccountId, days), status: 'ok' } }
       catch (e) { return { data: null, status: e instanceof Error ? e.message.slice(0, 120) : 'error' } }
     })(),
   ])

@@ -76,6 +76,7 @@ model User {
   userAccounts         UserAccount[]
   passwordResetTokens  PasswordResetToken[]
   magicLinkTokens      MagicLinkToken[]
+  appointments         Appointment[]
 }
 
 model PasswordResetToken {
@@ -201,6 +202,8 @@ model Appointment {
   location      String?
   leadId        String?
   lead          Lead?    @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  userId        String?
+  assignedTo    User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
   accountId     String?
   account       Account? @relation(fields: [accountId], references: [id], onDelete: Cascade)
   googleEventId String?

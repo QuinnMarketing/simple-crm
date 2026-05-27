@@ -25,7 +25,10 @@ export async function GET(req: NextRequest) {
         },
       } : {}),
     },
-    include: { lead: { select: { id: true, name: true } } },
+    include: {
+      lead: { select: { id: true, name: true } },
+      assignedTo: { select: { id: true, name: true } },
+    },
     orderBy: { startTime: 'asc' },
   })
   return NextResponse.json(appointments)
@@ -39,7 +42,7 @@ export async function POST(req: NextRequest) {
   const accountId = session.user.accountId ?? null
 
   const body = await req.json()
-  const { title, description, startTime, endTime, allDay, location, leadId } = body
+  const { title, description, startTime, endTime, allDay, location, leadId, userId } = body
 
   if (!title || !startTime || !endTime) {
     return NextResponse.json({ error: 'title, startTime and endTime are required' }, { status: 400 })
@@ -56,9 +59,13 @@ export async function POST(req: NextRequest) {
       allDay: !!allDay,
       location: location || null,
       leadId: leadId || null,
+      userId: userId || null,
       accountId,
     },
-      include: { lead: { select: { id: true, name: true } } },
+      include: {
+        lead: { select: { id: true, name: true } },
+        assignedTo: { select: { id: true, name: true } },
+      },
     })
   } catch (e) {
     console.error('Appointment create error:', e)

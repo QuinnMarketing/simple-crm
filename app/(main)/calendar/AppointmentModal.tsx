@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { X, Loader2 } from 'lucide-react'
 
 export type Lead = { id: string; name: string }
+export type ScheduleUser = { id: string; name: string | null; email: string }
 
 export type Appointment = {
   id: string
@@ -14,6 +15,8 @@ export type Appointment = {
   location: string | null
   leadId: string | null
   lead: Lead | null
+  userId: string | null
+  assignedTo: { id: string; name: string | null } | null
   googleEventId: string | null
 }
 
@@ -36,31 +39,41 @@ export function dayToDateInput(d: Date) {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
 }
 
+function defaultTimeStr(date: Date, offsetHours: number): string {
+  const pad = (n: number) => n.toString().padStart(2, '0')
+  const hasTime = date.getHours() !== 0 || date.getMinutes() !== 0
+  const h = hasTime ? (date.getHours() + offsetHours) % 24 : (9 + offsetHours)
+  return `${dayToDateInput(date)}T${pad(h)}:${pad(date.getMinutes())}`
+}
+
 interface ModalProps {
   initial?: Appointment | null
   defaultDate?: Date
   defaultLeadId?: string
+  defaultUserId?: string
   leads: Lead[]
+  users?: ScheduleUser[]
   onSave: (appt: Appointment) => void
   onDelete?: (id: string) => void
   onClose: () => void
 }
 
-export default function AppointmentModal({ initial, defaultDate, defaultLeadId, leads, onSave, onDelete, onClose }: ModalProps) {
+export default function AppointmentModal({ initial, defaultDate, defaultLeadId, defaultUserId, leads, users, onSave, onDelete, onClose }: ModalProps) {
   const isEdit = !!initial
   const [title, setTitle] = useState(initial?.title ?? '')
   const [allDay, setAllDay] = useState(initial?.allDay ?? false)
   const [startTime, setStartTime] = useState(
     initial ? (initial.allDay ? toDateInput(initial.startTime) : toLocalInput(initial.startTime))
-    : defaultDate ? (allDay ? dayToDateInput(defaultDate) : `${dayToDateInput(defaultDate)}T09:00`) : ''
+    : defaultDate ? (allDay ? dayToDateInput(defaultDate) : defaultTimeStr(defaultDate, 0)) : ''
   )
   const [endTime, setEndTime] = useState(
     initial ? (initial.allDay ? toDateInput(initial.endTime) : toLocalInput(initial.endTime))
-    : defaultDate ? (allDay ? dayToDateInput(defaultDate) : `${dayToDateInput(defaultDate)}T10:00`) : ''
+    : defaultDate ? (allDay ? dayToDateInput(defaultDate) : defaultTimeStr(defaultDate, 1)) : ''
   )
   const [location, setLocation] = useState(initial?.location ?? '')
   const [description, setDescription] = useState(initial?.description ?? '')
   const [leadId, setLeadId] = useState(initial?.leadId ?? defaultLeadId ?? '')
+  const [userId, setUserId] = useState(initial?.userId ?? defaultUserId ?? '')
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -89,6 +102,7 @@ export default function AppointmentModal({ initial, defaultDate, defaultLeadId, 
         startTime: allDay ? `${startTime}T00:00:00.000Z` : new Date(startTime).toISOString(),
         endTime: allDay ? `${endTime}T23:59:59.000Z` : new Date(endTime).toISOString(),
         leadId: leadId || null,
+        userId: userId || null,
       }
       const res = await fetch(
         isEdit ? `/api/appointments/${initial!.id}` : '/api/appointments',
@@ -192,6 +206,18 @@ export default function AppointmentModal({ initial, defaultDate, defaultLeadId, 
               className={inputCls}
             />
           </div>
+
+          {users && users.length > 0 && (
+            <div>
+              <label className={labelCls}>Assigned to</label>
+              <select value={userId} onChange={(e) => setUserId(e.target.value)} className={`${inputCls} bg-white`}>
+                <option value="">— Unassigned —</option>
+                {users.map((u) => (
+                  <option key={u.id} value={u.id}>{u.name || u.email}</option>
+                ))}
+              </select>
+            </div>
+          )}
 
           <div>
             <label className={labelCls}>Link to Lead</label>
