@@ -46,9 +46,15 @@ function defaultTimeStr(date: Date, offsetHours: number): string {
   return `${dayToDateInput(date)}T${pad(h)}:${pad(date.getMinutes())}`
 }
 
+function toLocalFromDate(d: Date): string {
+  const pad = (n: number) => n.toString().padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+
 interface ModalProps {
   initial?: Appointment | null
   defaultDate?: Date
+  defaultEndTime?: Date
   defaultLeadId?: string
   defaultUserId?: string
   leads: Lead[]
@@ -58,7 +64,7 @@ interface ModalProps {
   onClose: () => void
 }
 
-export default function AppointmentModal({ initial, defaultDate, defaultLeadId, defaultUserId, leads, users, onSave, onDelete, onClose }: ModalProps) {
+export default function AppointmentModal({ initial, defaultDate, defaultEndTime, defaultLeadId, defaultUserId, leads, users, onSave, onDelete, onClose }: ModalProps) {
   const isEdit = !!initial
   const [title, setTitle] = useState(initial?.title ?? '')
   const [allDay, setAllDay] = useState(initial?.allDay ?? false)
@@ -68,6 +74,7 @@ export default function AppointmentModal({ initial, defaultDate, defaultLeadId, 
   )
   const [endTime, setEndTime] = useState(
     initial ? (initial.allDay ? toDateInput(initial.endTime) : toLocalInput(initial.endTime))
+    : defaultEndTime ? toLocalFromDate(defaultEndTime)
     : defaultDate ? (allDay ? dayToDateInput(defaultDate) : defaultTimeStr(defaultDate, 1)) : ''
   )
   const [location, setLocation] = useState(initial?.location ?? '')
