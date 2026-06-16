@@ -72,7 +72,7 @@ export async function POST(req: NextRequest) {
     const companyId = companyName ? (companyByName.get(companyName.toLowerCase()) ?? null) : null
 
     try {
-      await prisma.lead.create({
+      const lead = await prisma.lead.create({
         data: {
           name,
           email: row.email?.trim() || null,
@@ -90,6 +90,27 @@ export async function POST(req: NextRequest) {
           accountId,
         },
       })
+
+      // Create appointment for lead
+      try {
+        const apptStart = new Date()
+        apptStart.setDate(apptStart.getDate() + 1)
+        apptStart.setHours(9, 0, 0, 0)
+        const apptEnd = new Date(apptStart)
+        apptEnd.setHours(10, 0, 0, 0)
+        await prisma.appointment.create({
+          data: {
+            title: `Follow up: ${lead.name}`,
+            startTime: apptStart,
+            endTime: apptEnd,
+            leadId: lead.id,
+            accountId,
+          },
+        })
+      } catch (apptErr) {
+        console.error(`Failed to create appointment for lead ${lead.id}:`, apptErr)
+      }
+
       created++
     } catch (err) {
       errors.push(`Row ${rowNum} (${name}): ${err instanceof Error ? err.message : 'Unknown error'}`)

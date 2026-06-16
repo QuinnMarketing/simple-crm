@@ -84,6 +84,26 @@ export async function POST(req: NextRequest) {
     },
   })
 
+  after(async () => {
+    try {
+      const apptStart = new Date()
+      apptStart.setDate(apptStart.getDate() + 1)
+      apptStart.setHours(9, 0, 0, 0)
+      const apptEnd = new Date(apptStart)
+      apptEnd.setHours(10, 0, 0, 0)
+      await prisma.appointment.create({
+        data: {
+          title: `Follow up: ${lead.name}`,
+          startTime: apptStart,
+          endTime: apptEnd,
+          leadId: lead.id,
+          accountId,
+        },
+      })
+    } catch (err) {
+      console.error('Failed to create appointment for lead:', err)
+    }
+  })
   after(() => runAutomations('lead_created', lead))
   after(() => logAudit({ accountId, action: 'lead.created', entityType: 'lead', entityId: lead.id, entityLabel: lead.name, ipAddress: lead.ipAddress }))
   after(() => sendPushToAccount(accountId, {
