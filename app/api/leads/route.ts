@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { getAccountFilter } from '@/lib/account-scope'
 import { runAutomations } from '@/lib/automations'
 import { sendPushToAccount } from '@/lib/push'
+import { appendLeadToSheet } from '@/lib/google-sheets'
 import { after } from 'next/server'
 import { NextRequest, NextResponse } from 'next/server'
 
@@ -84,6 +85,7 @@ export async function POST(req: NextRequest) {
       console.error('Failed to create appointment for lead:', err)
     }
   })
+  after(() => appendLeadToSheet(lead))
   after(() => runAutomations('lead_created', lead))
   after(() => logAudit({ accountId, userId: session.user.id, userEmail: session.user.email, action: 'lead.created', entityType: 'lead', entityId: lead.id, entityLabel: lead.name, ipAddress: getIp(req) }))
   after(() => sendPushToAccount(accountId, {

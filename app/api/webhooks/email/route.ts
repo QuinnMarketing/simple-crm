@@ -3,6 +3,7 @@ import { parseEmailBody, parseFromHeader } from '@/lib/email-body-parser'
 import { logAudit } from '@/lib/audit'
 import { runAutomations } from '@/lib/automations'
 import { sendPushToAccount } from '@/lib/push'
+import { appendLeadToSheet } from '@/lib/google-sheets'
 import { NextRequest, NextResponse } from 'next/server'
 
 // Verification ping from email services (Mailgun, SendGrid) — respond 200
@@ -83,6 +84,7 @@ export async function POST(req: NextRequest) {
     console.error('Failed to create appointment for lead:', err)
   }
 
+  appendLeadToSheet(lead).catch(() => {})
   runAutomations('lead_created', lead).catch(() => {})
   logAudit({ accountId, action: 'lead.created', entityType: 'lead', entityId: lead.id, entityLabel: lead.name, ipAddress: null }).catch(() => {})
   sendPushToAccount(accountId, {

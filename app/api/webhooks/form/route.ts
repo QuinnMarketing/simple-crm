@@ -1,6 +1,7 @@
 import { logAudit } from '@/lib/audit'
 import { runAutomations } from '@/lib/automations'
 import { sendPushToAccount } from '@/lib/push'
+import { appendLeadToSheet } from '@/lib/google-sheets'
 import { prisma } from '@/lib/prisma'
 import { parseWebhookPayload } from '@/lib/webhook-parser'
 import { after } from 'next/server'
@@ -104,6 +105,7 @@ export async function POST(req: NextRequest) {
       console.error('Failed to create appointment for lead:', err)
     }
   })
+  after(() => appendLeadToSheet(lead))
   after(() => runAutomations('lead_created', lead))
   after(() => logAudit({ accountId, action: 'lead.created', entityType: 'lead', entityId: lead.id, entityLabel: lead.name, ipAddress: lead.ipAddress }))
   after(() => sendPushToAccount(accountId, {
