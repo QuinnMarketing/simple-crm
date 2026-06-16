@@ -6,6 +6,7 @@ const SHEET_RANGE = 'Sheet1!A:Z'
 
 const HEADERS = [
   'Lead ID',
+  'Account',
   'Name',
   'Email',
   'Phone',
@@ -31,6 +32,8 @@ interface Lead {
   status?: string
   bestTimeToContact?: string | null
   notes?: string | null
+  accountId?: string | null
+  accountName?: string | null
   createdAt: Date
 }
 
@@ -63,6 +66,7 @@ async function getAccessToken(refreshToken: string): Promise<string> {
 function leadToRow(lead: Lead): (string | number)[] {
   return [
     lead.id,
+    lead.accountName || '',
     lead.name,
     lead.email || '',
     lead.phone || '',
@@ -128,8 +132,20 @@ export async function appendLeadToSheet(lead: Lead): Promise<void> {
       return
     }
 
+    // Ensure account name is set
+    let leadWithAccount = lead
+    if (!lead.accountName && lead.accountId) {
+      // Dynamically import prisma to avoid circular dependencies
+      const { prisma } = await import('@/lib/prisma')
+      const account = await prisma.account.findUnique({
+        where: { id: lead.accountId },
+        select: { name: true },
+      })
+      leadWithAccount = { ...lead, accountName: account?.name || 'Unassigned' }
+    }
+
     const accessToken = await getAccessToken(refreshToken)
-    const row = leadToRow(lead)
+    const row = leadToRow(leadWithAccount)
 
     const res = await fetch(
       `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${SHEET_RANGE}:append?valueInputOption=USER_ENTERED`,

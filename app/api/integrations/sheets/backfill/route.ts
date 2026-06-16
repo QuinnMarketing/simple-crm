@@ -16,7 +16,7 @@ export async function POST(req: NextRequest) {
     // Ensure headers are in the sheet first
     await ensureHeadersInSheet()
 
-    // Fetch all leads
+    // Fetch all leads with their account info
     const leads = await prisma.lead.findMany({
       select: {
         id: true,
@@ -30,23 +30,33 @@ export async function POST(req: NextRequest) {
         status: true,
         bestTimeToContact: true,
         notes: true,
+        accountId: true,
+        account: {
+          select: { name: true },
+        },
         createdAt: true,
       },
       orderBy: { createdAt: 'asc' },
     })
 
-    if (leads.length === 0) {
+    // Map to include account name
+    const leadsWithAccounts = leads.map((lead) => ({
+      ...lead,
+      accountName: lead.account?.name || 'Unassigned',
+    }))
+
+    if (leadsWithAccounts.length === 0) {
       return NextResponse.json({ message: 'No leads to backfill', success: 0, failed: 0 })
     }
 
     // Backfill all leads to sheet
-    const result = await backfillLeadsToSheet(leads)
+    const result = await backfillLeadsToSheet(leadsWithAccounts)
 
     return NextResponse.json({
       message: `Backfilled ${result.success} leads to Google Sheet`,
       success: result.success,
       failed: result.failed,
-      total: leads.length,
+      total: leadsWithAccounts.length,
     })
   } catch (err) {
     console.error('Backfill error:', err)
