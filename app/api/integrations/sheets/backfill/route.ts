@@ -4,12 +4,28 @@ import { backfillLeadsToSheet, ensureHeadersInSheet } from '@/lib/google-sheets'
 import { NextRequest, NextResponse } from 'next/server'
 
 export async function POST(req: NextRequest) {
-  const session = await auth()
-  if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  // Check for admin token in header (allows running backfill without session)
+  const adminToken = req.headers.get('x-admin-token')
+  const expectedToken = process.env.ADMIN_TOKEN
 
-  // Only allow master admins to backfill
-  if (session.user.role !== 'master_admin') {
-    return NextResponse.json({ error: 'Only master admins can backfill leads' }, { status: 403 })
+  let isAuthorized = false
+
+  if (adminToken && expectedToken && adminToken === expectedToken) {
+    isAuthorized = true
+  } else {
+    // Fall back to session auth
+    const session = await auth()
+    if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+    // Only allow master admins to backfill
+    if (session.user.role !== 'master_admin') {
+      return NextResponse.json({ error: 'Only master admins can backfill leads' }, { status: 403 })
+    }
+    isAuthorized = true
+  }
+
+  if (!isAuthorized) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
   try {
