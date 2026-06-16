@@ -1,0 +1,58 @@
+import { auth } from '@/auth'
+import { prisma } from '@/lib/prisma'
+import { backfillLeadsToSheet, ensureHeadersInSheet } from '@/lib/google-sheets'
+import { NextRequest, NextResponse } from 'next/server'
+
+export async function POST(req: NextRequest) {
+  const session = await auth()
+  if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  // Only allow master admins to backfill
+  if (session.user.role !== 'master_admin') {
+    return NextResponse.json({ error: 'Only master admins can backfill leads' }, { status: 403 })
+  }
+
+  try {
+    // Ensure headers are in the sheet first
+    await ensureHeadersInSheet()
+
+    // Fetch all leads
+    const leads = await prisma.lead.findMany({
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        phone: true,
+        address: true,
+        service: true,
+        source: true,
+        value: true,
+        status: true,
+        bestTimeToContact: true,
+        notes: true,
+        createdAt: true,
+      },
+      orderBy: { createdAt: 'asc' },
+    })
+
+    if (leads.length === 0) {
+      return NextResponse.json({ message: 'No leads to backfill', success: 0, failed: 0 })
+    }
+
+    // Backfill all leads to sheet
+    const result = await backfillLeadsToSheet(leads)
+
+    return NextResponse.json({
+      message: `Backfilled ${result.success} leads to Google Sheet`,
+      success: result.success,
+      failed: result.failed,
+      total: leads.length,
+    })
+  } catch (err) {
+    console.error('Backfill error:', err)
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : 'Backfill failed' },
+      { status: 500 }
+    )
+  }
+}
