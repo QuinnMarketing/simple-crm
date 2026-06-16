@@ -13,9 +13,13 @@ export async function GET(req: NextRequest) {
 
   const clientId = process.env.GOOGLE_SHEETS_CLIENT_ID
   const clientSecret = process.env.GOOGLE_SHEETS_CLIENT_SECRET
-  const base = process.env.NEXTAUTH_URL ?? 'http://localhost:3000'
 
   if (!clientId || !clientSecret) return fail('Google credentials not configured on server')
+
+  // Use the request origin to build the redirect URI (must match the one used in /connect)
+  const protocol = req.headers.get('x-forwarded-proto') || 'https'
+  const host = req.headers.get('x-forwarded-host') || req.headers.get('host') || 'localhost:3000'
+  const redirectUri = `${protocol}://${host}/api/integrations/sheets/callback`
 
   try {
     const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
@@ -24,7 +28,7 @@ export async function GET(req: NextRequest) {
       body: new URLSearchParams({
         grant_type: 'authorization_code',
         code,
-        redirect_uri: `${base}/api/integrations/sheets/callback`,
+        redirect_uri: redirectUri,
         client_id: clientId,
         client_secret: clientSecret,
       }),
