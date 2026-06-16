@@ -4,13 +4,14 @@ import { backfillLeadsToSheet, ensureHeadersInSheet } from '@/lib/google-sheets'
 import { NextRequest, NextResponse } from 'next/server'
 
 export async function POST(req: NextRequest) {
-  // Check for admin token in header (allows running backfill without session)
-  const adminToken = req.headers.get('x-admin-token')
+  // Check for admin token in query param or header (allows running backfill without session)
+  const token = req.nextUrl.searchParams.get('token') || req.headers.get('x-admin-token')
   const expectedToken = process.env.ADMIN_TOKEN
 
   let isAuthorized = false
 
-  if (adminToken && expectedToken && adminToken === expectedToken) {
+  // Check token-based auth first
+  if (token && expectedToken && token === expectedToken) {
     isAuthorized = true
   } else {
     // Fall back to session auth
