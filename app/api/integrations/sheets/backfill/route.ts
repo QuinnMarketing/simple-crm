@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { backfillLeadsToSheet, ensureHeadersInSheet } from '@/lib/google-sheets'
 import { NextRequest, NextResponse } from 'next/server'
 
-export async function POST(req: NextRequest) {
+async function performBackfill() {
   try {
     // Ensure headers are in the sheet first
     await ensureHeadersInSheet()
@@ -44,17 +44,24 @@ export async function POST(req: NextRequest) {
     // Backfill all leads to sheet
     const result = await backfillLeadsToSheet(leadsWithAccounts)
 
-    return NextResponse.json({
+    return {
       message: `Backfilled ${result.success} leads to Google Sheet`,
       success: result.success,
       failed: result.failed,
       total: leadsWithAccounts.length,
-    })
+    }
   } catch (err) {
     console.error('Backfill error:', err)
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : 'Backfill failed' },
-      { status: 500 }
-    )
+    throw err
   }
+}
+
+export async function GET(req: NextRequest) {
+  const result = await performBackfill()
+  return NextResponse.json(result)
+}
+
+export async function POST(req: NextRequest) {
+  const result = await performBackfill()
+  return NextResponse.json(result)
 }
