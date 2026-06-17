@@ -10,15 +10,21 @@ export default function ReceiptEmailSection() {
 
   useEffect(() => {
     fetch('/api/account/receipt-email')
-      .then(r => r.json())
+      .then(async (r) => {
+        const data = await r.json()
+        if (!r.ok) {
+          throw new Error(data.error || `HTTP ${r.status}`)
+        }
+        return data
+      })
       .then(data => {
         if (data.receiptEmail) {
           setReceiptEmail(data.receiptEmail)
         } else {
-          setError(data.error || 'Failed to load receipt email')
+          setError('Failed to generate receipt email')
         }
       })
-      .catch(e => setError(e.message))
+      .catch(e => setError(e instanceof Error ? e.message : 'Failed to load receipt email'))
       .finally(() => setLoading(false))
   }, [])
 
