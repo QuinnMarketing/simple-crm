@@ -12,6 +12,7 @@ model Account {
   name            String
   slug            String   @unique
   webhookToken    String   @unique @default(cuid())
+  receiptEmailToken String @unique @default(cuid()) // Unique token for receipt email address
   plan            String   @default("starter")
   isActive        Boolean  @default(true)
   abn             String?
@@ -47,6 +48,7 @@ model Account {
   documentSettings       DocumentSettings?
   outboundIntegrations   OutboundIntegration[]
   expenses               Expense[]
+  pendingReceipts        PendingReceipt[]
 }
 
 model AccountIntegration {
@@ -517,6 +519,22 @@ model Expense {
   updatedAt   DateTime     @updatedAt
 
   @@index([projectId])
+  @@index([accountId])
+}
+
+model PendingReceipt {
+  id          String   @id @default(cuid())
+  accountId   String
+  account     Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  fileName    String
+  imageUrl    String
+  amount      Float?
+  vendor      String?
+  date        DateTime?
+  ocrData     String?  // Raw OCR text from image
+  notes       String?
+  createdAt   DateTime @default(now())
+
   @@index([accountId])
 }
 
