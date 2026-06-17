@@ -2,7 +2,7 @@
 import Link from 'next/link'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { useState } from 'react'
-import { LayoutDashboard, Users, Settings, LogOut, Zap, Building2, ChevronDown, Layers, CalendarDays, FileText, Bot, Clock, Mail, TrendingUp, BarChart2, Share2, GanttChartSquare, CheckSquare, Star, BookOpen, Receipt } from 'lucide-react'
+import { LayoutDashboard, Users, Settings, LogOut, Zap, Building2, ChevronDown, Layers, CalendarDays, FileText, Bot, Clock, Mail, TrendingUp, BarChart2, Share2, GanttChartSquare, CheckSquare, Star, BookOpen, Receipt, FolderOpen } from 'lucide-react'
 import { signOut } from 'next-auth/react'
 import PushToggle from './PushToggle'
 
@@ -30,6 +30,7 @@ const NAV: NavItem[] = [
   { href: '/campaigns', icon: Mail, label: 'Campaigns' },
   { href: '/social', icon: Share2, label: 'Social' },
   { href: '/reviews', icon: Star, label: 'Reviews' },
+  { href: '/projects', icon: FolderOpen, label: 'Projects' },
   { href: '/gantt', icon: GanttChartSquare, label: 'Gantt Charts' },
   { href: '/expenses', icon: Receipt, label: 'Expenses' },
   { href: '/time', icon: Clock, label: 'Time Tracking' },
