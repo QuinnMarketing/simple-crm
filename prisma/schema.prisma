@@ -12,7 +12,7 @@ model Account {
   name              String
   slug              String   @unique
   webhookToken      String   @unique @default(cuid())
-  receiptEmailToken String   @default(cuid()) // Token for receipt email address
+  receiptEmailToken String?  // Token for receipt email address (auto-generated on first use)
   plan              String   @default("starter")
   isActive        Boolean  @default(true)
   abn             String?
