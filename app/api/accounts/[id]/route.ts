@@ -37,7 +37,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   if (!isMasterAdmin && !isOwnAccount) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   const body = await req.json()
-  const { name, plan, isActive, abn, businessAddress, businessPhone, businessEmail, businessWebsite } = body
+  const { name, plan, isActive, featTakeoffs, abn, businessAddress, businessPhone, businessEmail, businessWebsite } = body
 
   const account = await prisma.account.update({
     where: { id },
@@ -46,6 +46,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       ...(isMasterAdmin && name?.trim() ? { name: name.trim() } : {}),
       ...(isMasterAdmin && plan ? { plan } : {}),
       ...(isMasterAdmin && isActive !== undefined ? { isActive } : {}),
+      ...(isMasterAdmin && featTakeoffs !== undefined ? { featTakeoffs } : {}),
       // Business info — any account user can update
       ...('abn' in body ? { abn: abn?.trim() || null } : {}),
       ...('businessAddress' in body ? { businessAddress: businessAddress?.trim() || null } : {}),

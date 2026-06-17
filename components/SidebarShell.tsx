@@ -12,10 +12,12 @@ export default function SidebarShell({
   user,
   accountName,
   accounts = [],
+  featTakeoffs = false,
 }: {
   user: SidebarUser
   accountName?: string | null
   accounts?: SidebarAccount[]
+  featTakeoffs?: boolean
 }) {
   const [open, setOpen] = useState(false)
   const pathname = usePathname()
@@ -68,6 +70,7 @@ export default function SidebarShell({
           user={user}
           accountName={accountName}
           accounts={accounts}
+          featTakeoffs={featTakeoffs}
           onClose={() => setOpen(false)}
         />
       </div>

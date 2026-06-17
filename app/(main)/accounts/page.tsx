@@ -10,6 +10,7 @@ type Account = {
   slug: string
   plan: string
   isActive: boolean
+  featTakeoffs: boolean
   webhookToken: string
   createdAt: string
   _count: { users: number; leads: number }
@@ -115,6 +116,18 @@ export default function AccountsPage() {
       router.refresh()
     }
     setTogglingId(null)
+  }
+
+  async function toggleTakeoffs(account: Account) {
+    const res = await fetch(`/api/accounts/${account.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ featTakeoffs: !account.featTakeoffs }),
+    })
+    if (res.ok) {
+      const updated = await res.json()
+      setAccounts((a) => a.map((acc) => acc.id === account.id ? { ...acc, ...updated } : acc))
+    }
   }
 
   async function deleteAccount(account: Account) {
@@ -285,6 +298,24 @@ export default function AccountsPage() {
                         <Users className="w-3 h-3" />
                         {account._count.users} user{account._count.users !== 1 ? 's' : ''} · {account._count.leads} lead{account._count.leads !== 1 ? 's' : ''}
                       </p>
+                      <div className="flex items-center gap-2 mt-1.5">
+                        <button
+                          onClick={() => toggleTakeoffs(account)}
+                          className={`flex items-center gap-1.5 text-xs px-2 py-0.5 rounded-full font-medium border transition-colors ${
+                            account.featTakeoffs
+                              ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'
+                              : 'bg-slate-50 text-slate-400 border-slate-200 hover:bg-slate-100'
+                          }`}
+                          title={account.featTakeoffs ? 'Disable Takeoffs & Estimating' : 'Enable Takeoffs & Estimating'}
+                        >
+                          {account.featTakeoffs ? (
+                            <ToggleRight className="w-3.5 h-3.5" />
+                          ) : (
+                            <ToggleLeft className="w-3.5 h-3.5" />
+                          )}
+                          Takeoffs & Estimating
+                        </button>
+                      </div>
                     </div>
                   </div>
                   <div className="flex items-center gap-1">

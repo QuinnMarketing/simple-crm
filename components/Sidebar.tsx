@@ -2,7 +2,7 @@
 import Link from 'next/link'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { useState } from 'react'
-import { LayoutDashboard, Users, Settings, LogOut, Zap, Building2, ChevronDown, Layers, CalendarDays, FileText, Bot, Clock, Mail, TrendingUp, BarChart2, Share2, GanttChartSquare, CheckSquare, Star, BookOpen, Receipt, FolderOpen } from 'lucide-react'
+import { LayoutDashboard, Users, Settings, LogOut, Zap, Building2, ChevronDown, Layers, CalendarDays, FileText, Bot, Clock, Mail, TrendingUp, BarChart2, Share2, GanttChartSquare, CheckSquare, Star, BookOpen, Receipt, FolderOpen, Ruler } from 'lucide-react'
 import { signOut } from 'next-auth/react'
 import PushToggle from './PushToggle'
 
@@ -46,11 +46,13 @@ export default function Sidebar({
   user,
   accountName,
   accounts: accountsProp = [],
+  featTakeoffs = false,
   onClose,
 }: {
   user: SidebarUser
   accountName?: string | null
   accounts?: SidebarAccount[]
+  featTakeoffs?: boolean
   onClose?: () => void
 }) {
   const pathname = usePathname()
@@ -82,7 +84,9 @@ export default function Sidebar({
     return qs ? `${base}?${qs}` : base
   }
 
-  const allNav: NavItem[] = isMasterAdmin ? [...MASTER_NAV, ...NAV] : NAV
+  const takeoffsItem: NavItem = { href: '/takeoffs', icon: Ruler, label: 'Takeoffs & Estimating' }
+  const baseNav = featTakeoffs ? [...NAV, takeoffsItem] : NAV
+  const allNav: NavItem[] = isMasterAdmin ? [...MASTER_NAV, ...baseNav] : baseNav
 
   return (
     <div className="fixed left-0 top-0 h-full w-64 bg-slate-900 flex flex-col z-10">

@@ -15,6 +15,7 @@ model Account {
   receiptEmailToken String?  // Token for receipt email address (auto-generated on first use)
   plan              String   @default("starter")
   isActive        Boolean  @default(true)
+  featTakeoffs    Boolean  @default(false)
   abn             String?
   businessAddress String?
   businessPhone   String?
