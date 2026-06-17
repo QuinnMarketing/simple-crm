@@ -48,9 +48,16 @@ export default function ReceiptEmailSection() {
       {loading ? (
         <div className="animate-pulse bg-slate-100 h-12 rounded-lg" />
       ) : error ? (
-        <div className="flex gap-3 p-4 bg-red-50 border border-red-200 rounded-lg">
-          <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
-          <div className="text-sm text-red-700">{error}</div>
+        <div className="space-y-3">
+          <div className="flex gap-3 p-4 bg-red-50 border border-red-200 rounded-lg">
+            <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+            <div>
+              <div className="text-sm font-medium text-red-700">{error}</div>
+              {error === 'No account' && (
+                <p className="text-xs text-red-600 mt-1">Please ensure your user account is properly assigned to an account in the system.</p>
+              )}
+            </div>
+          </div>
         </div>
       ) : receiptEmail ? (
         <>
