@@ -11,7 +11,6 @@ export async function GET(req: NextRequest) {
 
   const projects = await prisma.ganttProject.findMany({
     where: filter,
-    select: { id: true, name: true },
     orderBy: { name: 'asc' },
   })
 

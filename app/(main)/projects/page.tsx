@@ -26,10 +26,17 @@ export default function ProjectsPage() {
   useEffect(() => {
     const fetchProjects = async () => {
       try {
-        const res = await fetch('/api/gantt/projects')
-        if (res.ok) {
-          const data = await res.json()
-          setProjects(Array.isArray(data) ? data : [])
+        const res = await fetch('/api/projects')
+        const data = await res.json()
+        if (res.ok && Array.isArray(data)) {
+          setProjects(data.map((p: any) => ({
+            id: p.id,
+            name: p.name,
+            description: p.description,
+            color: p.color,
+            createdAt: p.createdAt,
+            updatedAt: p.updatedAt,
+          })))
         }
       } catch (err) {
         console.error('Failed to fetch projects:', err)
@@ -58,10 +65,14 @@ export default function ProjectsPage() {
   }
 
   const handleSave = async () => {
-    const res = await fetch('/api/gantt/projects')
-    if (res.ok) {
+    try {
+      const res = await fetch('/api/projects')
       const data = await res.json()
-      setProjects(Array.isArray(data) ? data : [])
+      if (res.ok && Array.isArray(data)) {
+        setProjects(data)
+      }
+    } catch (err) {
+      console.error('Failed to refresh projects:', err)
     }
     setShowModal(false)
     setEditingProject(null)
