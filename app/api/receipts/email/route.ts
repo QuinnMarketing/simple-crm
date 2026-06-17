@@ -111,7 +111,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Find account by receipt token
-    const account = await prisma.account.findUnique({
+    const account = await prisma.account.findFirst({
       where: { receiptEmailToken: accountToken },
     })
 
