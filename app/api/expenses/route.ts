@@ -11,23 +11,24 @@ export async function GET(req: NextRequest) {
   const projectId = searchParams.get('projectId')
   const accountParam = searchParams.get('account')
 
-  if (!projectId) {
-    return NextResponse.json({ error: 'projectId required' }, { status: 400 })
-  }
-
   const filter = getAccountFilter(session.user, accountParam)
 
-  // Verify user has access to the project
-  const project = await prisma.ganttProject.findFirst({
-    where: { id: projectId, ...filter },
-  })
+  // If projectId specified, verify user has access
+  if (projectId) {
+    const project = await prisma.ganttProject.findFirst({
+      where: { id: projectId, ...filter },
+    })
 
-  if (!project) {
-    return NextResponse.json({ error: 'Project not found' }, { status: 404 })
+    if (!project) {
+      return NextResponse.json({ error: 'Project not found' }, { status: 404 })
+    }
   }
 
   const expenses = await prisma.expense.findMany({
-    where: { projectId },
+    where: projectId ? { projectId } : filter,
+    include: {
+      project: { select: { id: true, name: true } },
+    },
     orderBy: { date: 'desc' },
   })
 

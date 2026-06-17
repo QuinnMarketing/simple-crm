@@ -10,9 +10,10 @@ import BookingSettingsForm from './BookingSettingsForm'
 import ReviewSettingsForm from './ReviewSettingsForm'
 import DocumentNumberingForm from './DocumentNumberingForm'
 import OutboundIntegrationsForm from './OutboundIntegrationsForm'
+import ReceiptEmailSection from './ReceiptEmailSection'
 import CollapsibleSection from './CollapsibleSection'
 import Link from 'next/link'
-import { UserCog, History } from 'lucide-react'
+import { UserCog, History, Mail } from 'lucide-react'
 
 export default async function SettingsPage({
   searchParams,
@@ -328,6 +329,15 @@ export default async function SettingsPage({
               statusLabel={account.outboundIntegrations.length > 0 ? `${account.outboundIntegrations.length} configured` : 'None configured'}
             >
               <OutboundIntegrationsForm initial={account.outboundIntegrations} />
+            </CollapsibleSection>
+
+            <CollapsibleSection
+              title="Receipt Email Submission"
+              description="Send receipts directly to your account email address for automatic processing"
+              ok
+              statusLabel="Active"
+            >
+              <ReceiptEmailSection />
             </CollapsibleSection>
           </div>
         </div>

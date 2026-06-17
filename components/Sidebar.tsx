@@ -2,7 +2,7 @@
 import Link from 'next/link'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { useState } from 'react'
-import { LayoutDashboard, Users, Settings, LogOut, Zap, Building2, ChevronDown, Layers, CalendarDays, FileText, Bot, Clock, Mail, TrendingUp, BarChart2, Share2, GanttChartSquare, CheckSquare, Star, BookOpen } from 'lucide-react'
+import { LayoutDashboard, Users, Settings, LogOut, Zap, Building2, ChevronDown, Layers, CalendarDays, FileText, Bot, Clock, Mail, TrendingUp, BarChart2, Share2, GanttChartSquare, CheckSquare, Star, BookOpen, Receipt } from 'lucide-react'
 import { signOut } from 'next-auth/react'
 import PushToggle from './PushToggle'
 
@@ -16,9 +16,10 @@ type SidebarUser = {
 
 type SidebarAccount = { id: string; name: string }
 
-const NAV = [
+type NavItem = { href: string; icon: React.ElementType; label: string; match?: string }
+const NAV: NavItem[] = [
   { href: '/', icon: LayoutDashboard, label: 'Dashboard' },
-  { href: '/leads', icon: Users, label: 'Leads' },
+  { href: '/leads/pipeline', icon: Users, label: 'Leads', match: '/leads' },
   { href: '/analytics', icon: TrendingUp, label: 'Analytics' },
   { href: '/reports', icon: BarChart2, label: 'Reports' },
   { href: '/calendar', icon: CalendarDays, label: 'Calendar' },
@@ -30,6 +31,7 @@ const NAV = [
   { href: '/social', icon: Share2, label: 'Social' },
   { href: '/reviews', icon: Star, label: 'Reviews' },
   { href: '/gantt', icon: GanttChartSquare, label: 'Gantt Charts' },
+  { href: '/expenses', icon: Receipt, label: 'Expenses' },
   { href: '/time', icon: Clock, label: 'Time Tracking' },
   { href: '/companies', icon: Building2, label: 'Companies' },
   { href: '/settings', icon: Settings, label: 'Settings' },
@@ -79,7 +81,7 @@ export default function Sidebar({
     return qs ? `${base}?${qs}` : base
   }
 
-  const allNav = isMasterAdmin ? [...MASTER_NAV, ...NAV] : NAV
+  const allNav: NavItem[] = isMasterAdmin ? [...MASTER_NAV, ...NAV] : NAV
 
   return (
     <div className="fixed left-0 top-0 h-full w-64 bg-slate-900 flex flex-col z-10">
@@ -147,8 +149,8 @@ export default function Sidebar({
       </div>
 
       <nav className="flex-1 p-4 space-y-0.5 overflow-y-auto" onClick={() => setAccountOpen(false)}>
-        {allNav.map(({ href, icon: Icon, label }) => {
-          const active = href === '/' ? pathname === '/' : pathname.startsWith(href)
+        {allNav.map(({ href, icon: Icon, label, match }) => {
+          const active = href === '/' ? pathname === '/' : pathname.startsWith(match ?? href)
           return (
             <Link
               key={href}
