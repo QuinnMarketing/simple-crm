@@ -11,6 +11,7 @@ import ReviewSettingsForm from './ReviewSettingsForm'
 import DocumentNumberingForm from './DocumentNumberingForm'
 import OutboundIntegrationsForm from './OutboundIntegrationsForm'
 import ReceiptEmailSection from './ReceiptEmailSection'
+import PendingReceiptsSection from './PendingReceiptsSection'
 import CollapsibleSection from './CollapsibleSection'
 import Link from 'next/link'
 import { UserCog, History, Mail } from 'lucide-react'
@@ -63,6 +64,12 @@ export default async function SettingsPage({
   })
 
   if (!account) redirect('/accounts')
+
+  const projects = await prisma.ganttProject.findMany({
+    where: { accountId },
+    select: { id: true, name: true },
+    orderBy: { name: 'asc' },
+  })
 
   const baseUrl = process.env.NEXTAUTH_URL ?? 'http://localhost:3000'
   const webhookUrl = `${baseUrl}/api/webhooks/form?token=${account.webhookToken}`
@@ -338,6 +345,13 @@ export default async function SettingsPage({
               statusLabel="Active"
             >
               <ReceiptEmailSection />
+            </CollapsibleSection>
+
+            <CollapsibleSection
+              title="Pending Receipts"
+              description="Manage receipts submitted via email before assigning to projects"
+            >
+              <PendingReceiptsSection projects={projects} />
             </CollapsibleSection>
           </div>
         </div>
