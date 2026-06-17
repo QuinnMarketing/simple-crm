@@ -46,6 +46,7 @@ model Account {
   priceItems         PriceItem[]
   documentSettings       DocumentSettings?
   outboundIntegrations   OutboundIntegration[]
+  expenses               Expense[]
 }
 
 model AccountIntegration {
@@ -475,6 +476,7 @@ model GanttProject {
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
   tasks       GanttTask[]
+  expenses    Expense[]
 
   @@index([accountId])
 }
@@ -493,6 +495,29 @@ model GanttTask {
   notes     String?
   createdAt DateTime     @default(now())
   updatedAt DateTime     @updatedAt
+}
+
+model Expense {
+  id          String       @id @default(cuid())
+  projectId   String
+  project     GanttProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  accountId   String
+  account     Account      @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  amount      Float
+  currency    String       @default("AUD")
+  vendor      String?
+  category    String?      // e.g., "materials", "labor", "equipment", "other"
+  description String?
+  date        DateTime
+  imageUrl    String?      // URL to receipt/invoice image
+  ocrData     String?      // Raw OCR text from image
+  status      String       @default("pending") // pending, verified, rejected
+  notes       String?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@index([projectId])
+  @@index([accountId])
 }
 
 model Review {
