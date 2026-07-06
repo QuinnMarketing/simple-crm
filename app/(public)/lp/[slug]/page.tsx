@@ -82,7 +82,10 @@ export default async function LandingPage({ params }: Props) {
       )}
 
       {/* Hero */}
-      <section className="bg-slate-900 text-white">
+      <section
+        className="bg-slate-900 text-white bg-cover bg-center"
+        style={c.hero.backgroundImage ? { backgroundImage: `linear-gradient(rgba(2,6,23,0.78), rgba(2,6,23,0.85)), url(${c.hero.backgroundImage})` } : undefined}
+      >
         <div className="max-w-3xl mx-auto px-5 py-16 sm:py-24 text-center">
           {c.hero.badge && (
             <p className="inline-block text-xs sm:text-sm font-semibold tracking-wide uppercase rounded-full px-4 py-1.5 mb-6 bg-white/10 text-white/90">
@@ -164,7 +167,11 @@ export default async function LandingPage({ params }: Props) {
       )}
 
       {/* Final CTA + form */}
-      <section id="enquire" className="bg-slate-900 text-white px-5 py-14 sm:py-20">
+      <section
+        id="enquire"
+        className="bg-slate-900 text-white px-5 py-14 sm:py-20 bg-cover bg-center"
+        style={c.finalCta.backgroundImage ? { backgroundImage: `linear-gradient(rgba(2,6,23,0.88), rgba(2,6,23,0.92)), url(${c.finalCta.backgroundImage})` } : undefined}
+      >
         <div className="max-w-xl mx-auto text-center">
           <h2 className="text-2xl sm:text-4xl font-extrabold">{c.finalCta.headline}</h2>
           {isCallGoal && (

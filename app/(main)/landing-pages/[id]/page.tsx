@@ -197,6 +197,47 @@ export default function LandingPageEditor() {
                 <input type="color" value={c.theme.primaryColor} onChange={e => update({ theme: { primaryColor: e.target.value } })} className="h-9 w-full rounded-lg border border-slate-300 cursor-pointer" />
               </div>
             </div>
+            <div>
+              <label className={labelCls}>Background photo</label>
+              {c.hero.backgroundImage ? (
+                <div className="space-y-2">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={c.hero.backgroundImage} alt="Hero background" className="w-full h-28 object-cover rounded-lg border border-slate-200" />
+                  <div className="flex gap-2">
+                    {c.hero.imageOptions.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const opts = c.hero.imageOptions
+                          const next = opts[(opts.indexOf(c.hero.backgroundImage) + 1) % opts.length]
+                          update({ hero: { ...c.hero, backgroundImage: next } })
+                        }}
+                        className="text-xs font-medium text-indigo-600 hover:text-indigo-700"
+                      >
+                        Try next photo ({c.hero.imageOptions.indexOf(c.hero.backgroundImage) + 1}/{c.hero.imageOptions.length})
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => update({ hero: { ...c.hero, backgroundImage: '' } })}
+                      className="text-xs font-medium text-slate-400 hover:text-red-500"
+                    >
+                      Remove photo
+                    </button>
+                  </div>
+                </div>
+              ) : c.hero.imageOptions.length > 0 ? (
+                <button
+                  type="button"
+                  onClick={() => update({ hero: { ...c.hero, backgroundImage: c.hero.imageOptions[0] } })}
+                  className="text-xs font-medium text-indigo-600 hover:text-indigo-700"
+                >
+                  Add background photo
+                </button>
+              ) : (
+                <p className="text-xs text-slate-400">Plain dark background — photos are found automatically when a page is generated</p>
+              )}
+            </div>
           </Section>
 
           <Section title="Benefits">
@@ -238,16 +279,41 @@ export default function LandingPageEditor() {
               <input type="checkbox" checked={c.reviews.enabled} onChange={e => update({ reviews: { ...c.reviews, enabled: e.target.checked } })} className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500" />
               Show reviews section
             </label>
-            {c.reviews.enabled && c.reviews.items.map((r, i) => (
-              <div key={i} className="border border-slate-100 rounded-lg p-3 space-y-2 relative">
+            {c.reviews.enabled && (
+              <>
+                {c.reviews.items.map((r, i) => (
+                  <div key={i} className="border border-slate-100 rounded-lg p-3 space-y-2 relative">
+                    <button
+                      onClick={() => update({ reviews: { ...c.reviews, items: c.reviews.items.filter((_, x) => x !== i) } })}
+                      className="absolute top-2 right-2 text-slate-300 hover:text-red-500"
+                    ><X className="w-3.5 h-3.5" /></button>
+                    <div className="flex gap-2 pr-6">
+                      <input
+                        type="text"
+                        value={r.name}
+                        placeholder="Customer name"
+                        onChange={e => update({ reviews: { ...c.reviews, items: c.reviews.items.map((x, xi) => xi === i ? { ...x, name: e.target.value } : x) } })}
+                        className={`${inputCls} flex-1`}
+                      />
+                      <select
+                        value={r.rating}
+                        onChange={e => update({ reviews: { ...c.reviews, items: c.reviews.items.map((x, xi) => xi === i ? { ...x, rating: parseInt(e.target.value) } : x) } })}
+                        className="px-2 py-2 border border-slate-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      >
+                        {[5, 4, 3].map(n => <option key={n} value={n}>{n}★</option>)}
+                      </select>
+                    </div>
+                    <textarea rows={2} value={r.text} placeholder="What they said" onChange={e => update({ reviews: { ...c.reviews, items: c.reviews.items.map((x, xi) => xi === i ? { ...x, text: e.target.value } : x) } })} className={`${inputCls} resize-none`} />
+                  </div>
+                ))}
                 <button
-                  onClick={() => update({ reviews: { ...c.reviews, items: c.reviews.items.filter((_, x) => x !== i) } })}
-                  className="absolute top-2 right-2 text-slate-300 hover:text-red-500"
-                ><X className="w-3.5 h-3.5" /></button>
-                <p className="text-xs font-medium text-slate-500">{r.name} · {r.rating}★</p>
-                <textarea rows={2} value={r.text} onChange={e => update({ reviews: { ...c.reviews, items: c.reviews.items.map((x, xi) => xi === i ? { ...x, text: e.target.value } : x) } })} className={`${inputCls} resize-none`} />
-              </div>
-            ))}
+                  onClick={() => update({ reviews: { ...c.reviews, items: [...c.reviews.items, { name: '', rating: 5, text: '' }] } })}
+                  className="flex items-center gap-1 text-xs font-medium text-indigo-600 hover:text-indigo-700"
+                >
+                  <Plus className="w-3.5 h-3.5" /> Add review
+                </button>
+              </>
+            )}
           </Section>
         </div>
 
@@ -285,6 +351,24 @@ export default function LandingPageEditor() {
               <label className={labelCls}>Button text</label>
               <input type="text" value={c.finalCta.ctaLabel} onChange={e => update({ finalCta: { ...c.finalCta, ctaLabel: e.target.value } })} className={inputCls} />
             </div>
+            {(c.finalCta.backgroundImage || c.hero.imageOptions.length > 0) && (
+              <label className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={!!c.finalCta.backgroundImage}
+                  onChange={e => update({
+                    finalCta: {
+                      ...c.finalCta,
+                      backgroundImage: e.target.checked
+                        ? (c.hero.imageOptions[1] ?? c.hero.imageOptions[0] ?? '')
+                        : '',
+                    },
+                  })}
+                  className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                />
+                Show background photo behind this section
+              </label>
+            )}
           </Section>
 
           <Section title="Lead form">

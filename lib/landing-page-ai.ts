@@ -2,6 +2,7 @@ import Anthropic from '@anthropic-ai/sdk'
 import { prisma } from './prisma'
 import type { LandingPageContent } from './landing-page-types'
 import { EMPTY_CONTENT, parseContent } from './landing-page-types'
+import { searchStockImages } from './stock-images'
 
 export interface LandingPageBrief {
   service: string      // what's being promoted, e.g. "Blocked drain clearing"
@@ -109,8 +110,12 @@ const CONTENT_TOOL = {
         },
         required: ['title', 'description'],
       },
+      imageQuery: {
+        type: 'string',
+        description: 'A 2-4 word stock photo search phrase showing this trade in action, e.g. "plumber repairing pipes" or "electrician switchboard work". Concrete and visual — no place names, no abstract concepts.',
+      },
     },
-    required: ['theme', 'hero', 'benefits', 'offer', 'faq', 'finalCta', 'form', 'thankYou', 'meta'],
+    required: ['theme', 'hero', 'benefits', 'offer', 'faq', 'finalCta', 'form', 'thankYou', 'meta', 'imageQuery'],
   },
 }
 
@@ -186,5 +191,16 @@ Rules:
     items: reviews.map(r => ({ name: r.reviewerName, rating: r.rating, text: r.body!.slice(0, 300) })),
   }
   if (!content.meta.title) content.meta.title = `${brief.service} — ${account?.name ?? ''}`.trim()
+
+  // Background imagery: topical stock photos behind the hero and closing CTA.
+  // Best-effort — no PEXELS_API_KEY (or no results) just means a plain dark hero.
+  const imageQuery = (toolUse.input as { imageQuery?: string }).imageQuery || brief.service
+  const images = await searchStockImages(imageQuery)
+  if (images.length > 0) {
+    content.hero.imageOptions = images
+    content.hero.backgroundImage = images[0]
+    content.finalCta.backgroundImage = images[1] ?? ''
+  }
+
   return { ...EMPTY_CONTENT, ...content }
 }

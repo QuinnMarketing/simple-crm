@@ -12,6 +12,8 @@ export type LandingPageContent = {
     headline: string
     subheadline: string
     ctaLabel: string
+    backgroundImage: string   // stock photo URL rendered behind a dark overlay; '' = plain dark hero
+    imageOptions: string[]    // alternative photo URLs fetched at generation time — editor cycles through these
   }
   benefits: {
     title: string
@@ -36,6 +38,7 @@ export type LandingPageContent = {
   finalCta: {
     headline: string
     ctaLabel: string
+    backgroundImage: string   // optional second photo behind the closing CTA, heavy overlay
   }
   form: {
     title: string
@@ -54,12 +57,12 @@ export type LandingPageContent = {
 
 export const EMPTY_CONTENT: LandingPageContent = {
   theme: { primaryColor: '#4f46e5' },
-  hero: { badge: '', headline: '', subheadline: '', ctaLabel: 'Get a Free Quote' },
+  hero: { badge: '', headline: '', subheadline: '', ctaLabel: 'Get a Free Quote', backgroundImage: '', imageOptions: [] },
   benefits: { title: 'Why choose us', items: [] },
   offer: { enabled: false, title: '', description: '', urgency: '' },
   reviews: { enabled: false, title: 'What our customers say', items: [] },
   faq: { enabled: false, title: 'Common questions', items: [] },
-  finalCta: { headline: '', ctaLabel: 'Get Started' },
+  finalCta: { headline: '', ctaLabel: 'Get Started', backgroundImage: '' },
   form: { title: 'Request your free quote', buttonLabel: 'Send Request', fields: ['name', 'phone', 'message'] },
   thankYou: { headline: 'Thanks — we got your request', message: "We'll be in touch shortly." },
   meta: { title: '', description: '' },
