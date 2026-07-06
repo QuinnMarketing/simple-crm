@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { Plus, Loader2, X, Sparkles, PenLine, ClipboardList, Bot } from 'lucide-react'
-import { INDUSTRY_SOP_SUGGESTIONS } from '@/lib/sop-ai'
+import { INDUSTRY_SOP_SUGGESTIONS } from '@/lib/sop-industries'
 
 type SopRow = {
   id: string
