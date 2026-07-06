@@ -181,6 +181,13 @@ export default function IntegrationsForm({ accountId, initialConfigs }: Integrat
     taskType: initialConfigs.aroflo?.taskType ?? '',
   })
 
+  // ── Messaging ────────────────────────────────────────────────────────────
+  const [whatsapp, setWhatsapp] = useState({
+    phoneNumberId: initialConfigs.whatsapp?.phoneNumberId ?? '',
+    accessToken: initialConfigs.whatsapp?.accessToken ?? '',
+    wabaId: initialConfigs.whatsapp?.wabaId ?? '',
+  })
+
   const [open, setOpen] = useState<Set<string>>(new Set())
   function toggle(id: string) {
     setOpen((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n })
@@ -209,6 +216,7 @@ export default function IntegrationsForm({ accountId, initialConfigs }: Integrat
   const sm8Ok = !!sm8.apiKey.trim()
   const trakOk = !!trak.apiKey.trim()
   const arofloOk = !!(aroflo.uEncoded.trim() && aroflo.pEncoded.trim() && aroflo.orgEncoded.trim() && aroflo.secretKey.trim())
+  const whatsappOk = !!(whatsapp.phoneNumberId.trim() && whatsapp.accessToken.trim())
   const fbOk = !!(metaConnected || (fb.pixelId.trim() && fb.adAccountId.trim()))
   const acctQs = accountId ? `?account=${accountId}` : ''
 
@@ -266,6 +274,38 @@ export default function IntegrationsForm({ accountId, initialConfigs }: Integrat
             <div className="flex items-center justify-between">
               {arofloOk && <button onClick={() => disconnect('aroflo')} className="text-xs text-red-500 hover:text-red-600 font-medium">Disconnect</button>}
               <div className="ml-auto"><SaveBtn platform="aroflo" config={aroflo} onSave={saveIntegration} /></div>
+            </div>
+          </AccordionItem>
+
+        </div>
+      </div>
+
+      {/* ── Messaging ───────────────────────────────────────────────── */}
+      <div>
+        <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-3">Messaging</h3>
+        <div className="space-y-2">
+
+          <AccordionItem id="whatsapp" title="WhatsApp Business" description="Two-way WhatsApp messaging on lead records" ok={whatsappOk} open={open.has('whatsapp')} onToggle={() => toggle('whatsapp')}>
+            <p className="text-xs text-slate-500 mb-4">
+              From Meta Business Manager → WhatsApp Business API setup. The webhook URL and verify token are configured once at the app level by your administrator — this only needs the phone number's own credentials.
+            </p>
+            <div className="space-y-4 mb-4">
+              <div>
+                <label className={labelCls}>Phone Number ID</label>
+                <input type="text" value={whatsapp.phoneNumberId} onChange={(e) => setWhatsapp((f) => ({ ...f, phoneNumberId: e.target.value }))} className={inputCls} placeholder="106540352242922" />
+              </div>
+              <div>
+                <label className={labelCls}>Access Token</label>
+                <input type="password" value={whatsapp.accessToken} onChange={(e) => setWhatsapp((f) => ({ ...f, accessToken: e.target.value }))} className={inputCls} placeholder="EAAxxxxxxxxxxxxxxxxxxxxxxxx" />
+              </div>
+              <div>
+                <label className={labelCls}>WhatsApp Business Account ID <span className="text-slate-400 normal-case font-normal">(optional)</span></label>
+                <input type="text" value={whatsapp.wabaId} onChange={(e) => setWhatsapp((f) => ({ ...f, wabaId: e.target.value }))} className={inputCls} placeholder="102290129340398" />
+              </div>
+            </div>
+            <div className="flex items-center justify-between">
+              {whatsappOk && <button onClick={() => disconnect('whatsapp')} className="text-xs text-red-500 hover:text-red-600 font-medium">Disconnect</button>}
+              <div className="ml-auto"><SaveBtn platform="whatsapp" config={whatsapp} onSave={saveIntegration} /></div>
             </div>
           </AccordionItem>
 

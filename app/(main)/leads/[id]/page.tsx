@@ -10,6 +10,7 @@ import EmailModal from './EmailModal'
 import StatusBadge from '@/components/StatusBadge'
 import AppointmentModal, { type Appointment } from '@/app/(main)/calendar/AppointmentModal'
 import QuotesSection from './QuotesSection'
+import WhatsAppSection from './WhatsAppSection'
 import LeadTimeline from './LeadTimeline'
 import NextStepsCard from './NextStepsCard'
 import TimeInStageCard from './TimeInStageCard'
@@ -498,6 +499,8 @@ export default function LeadDetailPage() {
               setDirty(true)
             }}
           />
+
+          {lead.phone && <WhatsAppSection leadId={id} />}
 
           {/* Attribution */}
           <div className="bg-white rounded-xl border border-slate-200">

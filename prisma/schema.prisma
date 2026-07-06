@@ -52,6 +52,7 @@ model Account {
   pendingReceipts        PendingReceipt[]
   takeoffs               Takeoff[]
   adPlatformAccounts     AdPlatformAccount[]
+  whatsAppMessages       WhatsAppMessage[]
 }
 
 model AccountIntegration {
@@ -182,11 +183,29 @@ model Lead {
   tasks               Task[]
   reviews             Review[]
   takeoffs            Takeoff[]
+  whatsAppMessages    WhatsAppMessage[]
 
   @@index([accountId, status])
   @@index([accountId, createdAt])
   @@index([accountId, updatedAt])
   @@index([companyId])
+}
+
+model WhatsAppMessage {
+  id          String   @id @default(cuid())
+  direction   String   // 'inbound' | 'outbound'
+  body        String
+  waMessageId String?  @unique // Meta's message id — dedupes inbound webhook retries
+  status      String   @default("sent") // sent | delivered | read | failed
+  error       String?
+  leadId      String?
+  lead        Lead?    @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  accountId   String?
+  account     Account? @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+
+  @@index([accountId, leadId])
+  @@index([leadId, createdAt])
 }
 
 model Task {
