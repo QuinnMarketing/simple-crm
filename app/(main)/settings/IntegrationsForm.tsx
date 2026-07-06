@@ -1,6 +1,6 @@
 'use client'
 import { useState, useEffect } from 'react'
-import { CheckCircle, XCircle, Loader2, Save, CalendarDays, ChevronDown, ChevronUp, ExternalLink, RefreshCw } from 'lucide-react'
+import { CheckCircle, XCircle, Loader2, Save, CalendarDays, ChevronDown, ChevronUp, ExternalLink, RefreshCw, Mail } from 'lucide-react'
 import Link from 'next/link'
 
 type SaveState = 'idle' | 'saving' | 'saved' | 'error'
@@ -169,6 +169,12 @@ export default function IntegrationsForm({ accountId, initialConfigs }: Integrat
   const linkedinOrgs: { id: string; name: string }[] = (() => {
     try { return JSON.parse(initialConfigs.linkedin?.organizations ?? '[]') } catch { return [] }
   })()
+
+  // ── Email sync ───────────────────────────────────────────────────────────
+  const gmailConnected = initialConfigs.gmail?.connected === 'true'
+  const gmailEmail = initialConfigs.gmail?.email ?? ''
+  const outlookConnected = initialConfigs.outlook?.connected === 'true'
+  const outlookEmail = initialConfigs.outlook?.email ?? ''
 
   // ── Job platforms ──────────────────────────────────────────────────────
   const [sm8, setSm8] = useState({ apiKey: initialConfigs.servicem8?.apiKey ?? '' })
@@ -589,6 +595,48 @@ export default function IntegrationsForm({ accountId, initialConfigs }: Integrat
                     <CalendarDays className="w-4 h-4" /> Calendar only
                   </Link>
                 </div>
+              </div>
+            )}
+          </AccordionItem>
+
+          <AccordionItem id="gmail" title="Gmail" description="Emails from matching leads appear on their timeline automatically" ok={gmailConnected} open={open.has('gmail')} onToggle={() => toggle('gmail')}>
+            {gmailConnected ? (
+              <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg border border-green-100">
+                <div>
+                  <p className="text-sm font-medium text-green-800">Connected</p>
+                  {gmailEmail && <p className="text-xs text-green-600 mt-0.5">{gmailEmail}</p>}
+                </div>
+                <button onClick={() => disconnect('gmail')} className="text-xs text-red-600 hover:text-red-700 font-medium transition-colors">Disconnect</button>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <p className="text-sm text-slate-600">
+                  Read-only access — the CRM watches your inbox for replies from leads, it doesn't send through your Gmail.
+                </p>
+                <Link href={`/api/integrations/gmail/connect${acctQs}`} className="inline-flex items-center gap-2 bg-slate-900 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-slate-800 transition-colors">
+                  <Mail className="w-4 h-4" /> Connect Gmail
+                </Link>
+              </div>
+            )}
+          </AccordionItem>
+
+          <AccordionItem id="outlook" title="Outlook" description="Emails from matching leads appear on their timeline automatically" ok={outlookConnected} open={open.has('outlook')} onToggle={() => toggle('outlook')}>
+            {outlookConnected ? (
+              <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg border border-green-100">
+                <div>
+                  <p className="text-sm font-medium text-green-800">Connected</p>
+                  {outlookEmail && <p className="text-xs text-green-600 mt-0.5">{outlookEmail}</p>}
+                </div>
+                <button onClick={() => disconnect('outlook')} className="text-xs text-red-600 hover:text-red-700 font-medium transition-colors">Disconnect</button>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <p className="text-sm text-slate-600">
+                  Read-only access — the CRM watches your inbox for replies from leads, it doesn't send through your Outlook.
+                </p>
+                <Link href={`/api/integrations/outlook/connect${acctQs}`} className="inline-flex items-center gap-2 bg-slate-900 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-slate-800 transition-colors">
+                  <Mail className="w-4 h-4" /> Connect Outlook
+                </Link>
               </div>
             )}
           </AccordionItem>

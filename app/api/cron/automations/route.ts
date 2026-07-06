@@ -1,6 +1,7 @@
 import { runPendingQuoteFollowups, runAppointmentReminderAutomations, runIdleDealAlerts, runIdlePushAlerts } from '@/lib/automations'
 import { resumeWaitingRuns, runScheduledAutomations } from '@/lib/automation-engine'
 import { sendCampaign } from '@/lib/email-campaign'
+import { syncAllEmailAccounts } from '@/lib/email-sync'
 import { prisma } from '@/lib/prisma'
 import { isAuthorizedCron } from '@/lib/cron-auth'
 import { NextResponse } from 'next/server'
@@ -21,14 +22,15 @@ export async function GET(req: Request) {
   const campaignsSent = campaignResults.filter((r) => r.status === 'fulfilled').length
   const campaignsFailed = campaignResults.filter((r) => r.status === 'rejected').length
 
-  const [quotes, reminders, idleDeals, idlePush, resumed, scheduled] = await Promise.all([
+  const [quotes, reminders, idleDeals, idlePush, resumed, scheduled, emailSync] = await Promise.all([
     runPendingQuoteFollowups(),
     runAppointmentReminderAutomations(),
     runIdleDealAlerts(),
     runIdlePushAlerts(),
     resumeWaitingRuns(),
     runScheduledAutomations(),
+    syncAllEmailAccounts(),
   ])
 
-  return NextResponse.json({ ok: true, quotes, reminders, idleDeals, idlePush, resumed, scheduled, campaigns: { sent: campaignsSent, failed: campaignsFailed } })
+  return NextResponse.json({ ok: true, quotes, reminders, idleDeals, idlePush, resumed, scheduled, emailSync, campaigns: { sent: campaignsSent, failed: campaignsFailed } })
 }

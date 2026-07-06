@@ -17,12 +17,12 @@ import { UserCog, History, Mail } from 'lucide-react'
 export default async function SettingsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ account?: string; gcal?: string; ganalytics?: string; google?: string; meta?: string; linkedin?: string; msg?: string }>
+  searchParams: Promise<{ account?: string; gcal?: string; ganalytics?: string; google?: string; meta?: string; linkedin?: string; gmail?: string; outlook?: string; msg?: string }>
 }) {
   const session = await auth()
   if (!session) redirect('/login')
 
-  const { account: accountParam, gcal, ganalytics, google, meta, linkedin, msg } = await searchParams
+  const { account: accountParam, gcal, ganalytics, google, meta, linkedin, gmail, outlook, msg } = await searchParams
 
   let accountId: string | null = null
 
@@ -86,6 +86,12 @@ export default async function SettingsPage({
           connected: 'true',
           personName: raw.personName ?? '',
           organizations: JSON.stringify(raw.organizations ?? []),
+        }
+      } else if (integration.platform === 'gmail' || integration.platform === 'outlook') {
+        integrationConfigs[integration.platform] = {
+          connected: 'true',
+          email: raw.email ?? '',
+          lastSyncedAt: raw.lastSyncedAt ?? '',
         }
       } else {
         integrationConfigs[integration.platform] = raw
@@ -153,6 +159,26 @@ export default async function SettingsPage({
       {linkedin === 'error' && (
         <div className="mb-6 bg-red-50 border border-red-200 rounded-xl px-5 py-3 text-sm text-red-800 font-medium">
           LinkedIn connection failed{msg ? `: ${decodeURIComponent(msg)}` : '. Check your LinkedIn App settings and try again.'}
+        </div>
+      )}
+      {gmail === 'connected' && (
+        <div className="mb-6 bg-green-50 border border-green-200 rounded-xl px-5 py-3 text-sm text-green-800 font-medium">
+          Gmail connected. New emails from matching leads will start appearing on their timeline after the next sync.
+        </div>
+      )}
+      {gmail === 'error' && (
+        <div className="mb-6 bg-red-50 border border-red-200 rounded-xl px-5 py-3 text-sm text-red-800 font-medium">
+          Gmail connection failed{msg ? `: ${decodeURIComponent(msg)}` : '. Check your Google OAuth credentials and try again.'}
+        </div>
+      )}
+      {outlook === 'connected' && (
+        <div className="mb-6 bg-green-50 border border-green-200 rounded-xl px-5 py-3 text-sm text-green-800 font-medium">
+          Outlook connected. New emails from matching leads will start appearing on their timeline after the next sync.
+        </div>
+      )}
+      {outlook === 'error' && (
+        <div className="mb-6 bg-red-50 border border-red-200 rounded-xl px-5 py-3 text-sm text-red-800 font-medium">
+          Outlook connection failed{msg ? `: ${decodeURIComponent(msg)}` : '. Check your Microsoft App credentials and try again.'}
         </div>
       )}
 

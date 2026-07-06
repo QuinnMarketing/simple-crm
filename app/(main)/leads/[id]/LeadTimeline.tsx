@@ -1,6 +1,6 @@
 'use client'
 import { useState, useEffect } from 'react'
-import { UserPlus, ArrowRightLeft, Pencil, CalendarDays, FileText, Zap, StickyNote, Loader2, Mail, MailOpen, MousePointerClick } from 'lucide-react'
+import { UserPlus, ArrowRightLeft, Pencil, CalendarDays, FileText, Zap, StickyNote, Loader2, Mail, MailOpen, MousePointerClick, Inbox } from 'lucide-react'
 import type { TimelineEvent } from '@/app/api/leads/[id]/timeline/route'
 
 const TYPE_CONFIG = {
@@ -14,6 +14,7 @@ const TYPE_CONFIG = {
   email_sent:    { icon: Mail,             bg: 'bg-sky-100',     color: 'text-sky-600'     },
   email_opened:  { icon: MailOpen,         bg: 'bg-emerald-100', color: 'text-emerald-600' },
   email_clicked: { icon: MousePointerClick, bg: 'bg-indigo-100',  color: 'text-indigo-600'  },
+  email_received:{ icon: Inbox,            bg: 'bg-teal-100',    color: 'text-teal-600'    },
 }
 
 function timeAgo(iso: string) {

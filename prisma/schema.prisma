@@ -54,6 +54,7 @@ model Account {
   adPlatformAccounts     AdPlatformAccount[]
   whatsAppMessages       WhatsAppMessage[]
   payments               Payment[]
+  syncedEmails           SyncedEmail[]
 }
 
 model AccountIntegration {
@@ -185,6 +186,7 @@ model Lead {
   reviews             Review[]
   takeoffs            Takeoff[]
   whatsAppMessages    WhatsAppMessage[]
+  syncedEmails        SyncedEmail[]
 
   @@index([accountId, status])
   @@index([accountId, createdAt])
@@ -207,6 +209,27 @@ model WhatsAppMessage {
 
   @@index([accountId, leadId])
   @@index([leadId, createdAt])
+}
+
+model SyncedEmail {
+  id         String   @id @default(cuid())
+  provider   String   // 'gmail' | 'outlook'
+  externalId String   // provider's message id — dedupes re-synced messages
+  fromEmail  String
+  fromName   String?
+  toEmail    String?
+  subject    String?
+  snippet    String   // provider-generated preview text, not the full body
+  sentAt     DateTime
+  leadId     String?
+  lead       Lead?    @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  accountId  String?
+  account    Account? @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+
+  @@unique([provider, externalId])
+  @@index([leadId, sentAt])
+  @@index([accountId, leadId, sentAt])
 }
 
 model Task {

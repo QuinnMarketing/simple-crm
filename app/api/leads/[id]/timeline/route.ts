@@ -5,7 +5,7 @@ import { NextResponse } from 'next/server'
 
 export type TimelineEvent = {
   id: string
-  type: 'created' | 'status' | 'updated' | 'appointment' | 'quote' | 'conversion' | 'note' | 'email_sent' | 'email_opened' | 'email_clicked'
+  type: 'created' | 'status' | 'updated' | 'appointment' | 'quote' | 'conversion' | 'note' | 'email_sent' | 'email_opened' | 'email_clicked' | 'email_received'
   title: string
   detail?: string
   date: string
@@ -21,7 +21,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   const lead = await prisma.lead.findFirst({ where: { id, ...filter }, select: { id: true, createdAt: true, source: true, pageUrl: true } })
   if (!lead) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
-  const [auditLogs, appointments, quotes, conversions, emailSends] = await Promise.all([
+  const [auditLogs, appointments, quotes, conversions, emailSends, syncedEmails] = await Promise.all([
     prisma.auditLog.findMany({
       where: { entityType: 'lead', entityId: id },
       orderBy: { createdAt: 'desc' },
@@ -45,6 +45,11 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       where: { leadId: id, status: 'sent' },
       select: { id: true, sentAt: true, openedAt: true, clickedAt: true, campaign: { select: { id: true, name: true } } },
       orderBy: { createdAt: 'desc' },
+    }),
+    prisma.syncedEmail.findMany({
+      where: { leadId: id },
+      select: { id: true, provider: true, fromName: true, fromEmail: true, subject: true, snippet: true, sentAt: true },
+      orderBy: { sentAt: 'desc' },
     }),
   ])
 
@@ -179,6 +184,18 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     if (s.clickedAt) {
       events.push({ id: `email-clicked-${s.id}`, type: 'email_clicked', title: `Clicked link — ${campaignName}`, date: s.clickedAt.toISOString() })
     }
+  }
+
+  // Synced inbound emails (Gmail/Outlook)
+  const PROVIDER_LABELS: Record<string, string> = { gmail: 'Gmail', outlook: 'Outlook' }
+  for (const e of syncedEmails) {
+    events.push({
+      id: `synced-email-${e.id}`,
+      type: 'email_received',
+      title: e.subject ? `Email received — ${e.subject}` : 'Email received',
+      detail: `From ${e.fromName ?? e.fromEmail} via ${PROVIDER_LABELS[e.provider] ?? e.provider} · ${e.snippet.slice(0, 100)}`,
+      date: e.sentAt.toISOString(),
+    })
   }
 
   // Sort newest first
