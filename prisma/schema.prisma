@@ -56,6 +56,55 @@ model Account {
   payments               Payment[]
   syncedEmails           SyncedEmail[]
   landingPages           LandingPage[]
+  chatConversations      ChatConversation[]
+  sops                   Sop[]
+}
+
+model ChatConversation {
+  id            String   @id @default(cuid())
+  visitorToken  String   @unique // secret held by the widget — lets the visitor read/post only their own thread
+  visitorName   String
+  visitorEmail  String?
+  visitorPhone  String?
+  status        String   @default("open") // open | closed
+  lastMessageAt DateTime @default(now())
+  leadId        String?
+  lead          Lead?    @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  accountId     String?
+  account       Account? @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  messages      ChatMessage[]
+
+  @@index([accountId, status, lastMessageAt])
+}
+
+model ChatMessage {
+  id             String           @id @default(cuid())
+  conversationId String
+  conversation   ChatConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender         String // visitor | staff
+  senderName     String?
+  body           String
+  readByStaff    Boolean          @default(false)
+  createdAt      DateTime         @default(now())
+
+  @@index([conversationId, createdAt])
+}
+
+model Sop {
+  id        String   @id @default(cuid())
+  title     String
+  industry  String?
+  category  String?  // e.g. Safety, Operations, Sales, Admin
+  content   String   // markdown
+  source    String   @default("custom") // ai | custom
+  accountId String?
+  account   Account? @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([accountId])
 }
 
 model LandingPage {
@@ -206,6 +255,7 @@ model Lead {
   takeoffs            Takeoff[]
   whatsAppMessages    WhatsAppMessage[]
   syncedEmails        SyncedEmail[]
+  chatConversations   ChatConversation[]
 
   @@index([accountId, status])
   @@index([accountId, createdAt])
