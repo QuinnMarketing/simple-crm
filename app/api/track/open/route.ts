@@ -4,14 +4,18 @@ import { NextRequest, NextResponse } from 'next/server'
 // 1×1 transparent GIF
 const GIF = Buffer.from('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7', 'base64')
 
-const GIF_RESPONSE = new NextResponse(GIF, {
-  headers: {
-    'Content-Type': 'image/gif',
-    'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
-    Pragma: 'no-cache',
-    Expires: '0',
-  },
-})
+// Built per request — a Response body can only be consumed once, so a
+// shared module-level instance breaks on the second hit per instance
+function gifResponse() {
+  return new NextResponse(GIF, {
+    headers: {
+      'Content-Type': 'image/gif',
+      'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+      Pragma: 'no-cache',
+      Expires: '0',
+    },
+  })
+}
 
 export async function GET(req: NextRequest) {
   const sendId = req.nextUrl.searchParams.get('s')
@@ -40,5 +44,5 @@ export async function GET(req: NextRequest) {
       // Swallow — never let tracking errors affect the response
     }
   }
-  return GIF_RESPONSE
+  return gifResponse()
 }

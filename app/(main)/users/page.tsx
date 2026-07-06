@@ -16,8 +16,8 @@ type UserRow = {
 
 type Account = { id: string; name: string }
 
-type FormState = { name: string; email: string; password: string; role: string; accountIds: string[] }
-const EMPTY_FORM: FormState = { name: '', email: '', password: '', role: 'account_user', accountIds: [] }
+type FormState = { name: string; email: string; password: string; role: string; accountIds: string[]; invite: boolean }
+const EMPTY_FORM: FormState = { name: '', email: '', password: '', role: 'account_user', accountIds: [], invite: true }
 
 const ROLE_LABELS: Record<string, string> = {
   master_admin: 'Master Admin',
@@ -111,7 +111,8 @@ export default function UsersPage() {
       body: JSON.stringify({
         name: addForm.name,
         email: addForm.email,
-        password: addForm.password,
+        password: addForm.invite ? undefined : addForm.password,
+        invite: addForm.invite,
         role: addForm.role,
         accountId: addForm.accountIds[0] ?? null,
         accountIds: addForm.accountIds,
@@ -122,6 +123,9 @@ export default function UsersPage() {
       setUsers((u) => [...u, data])
       setAddForm(EMPTY_FORM)
       setShowAdd(false)
+      if (addForm.invite && data.inviteSent === false) {
+        alert('User created, but the invite email could not be sent (check SMTP settings). Use "Edit" to set a password manually, or ask them to use Forgot Password.')
+      }
     } else {
       setAddError(data.error)
     }
@@ -130,7 +134,7 @@ export default function UsersPage() {
 
   function startEdit(user: UserRow) {
     setEditingId(user.id)
-    setEditForm({ name: user.name ?? '', email: user.email, password: '', role: user.role, accountIds: user.accountIds ?? (user.accountId ? [user.accountId] : []) })
+    setEditForm({ name: user.name ?? '', email: user.email, password: '', role: user.role, accountIds: user.accountIds ?? (user.accountId ? [user.accountId] : []), invite: false })
     setEditError('')
   }
 
@@ -226,15 +230,28 @@ export default function UsersPage() {
               <input type="email" required value={addForm.email} onChange={(e) => setAddForm((f) => ({ ...f, email: e.target.value }))} className={inputCls} placeholder="jane@example.com" />
             </div>
             <div>
-              <label className="block text-xs font-medium text-slate-500 mb-1.5 uppercase tracking-wide">Password <span className="text-red-500">*</span></label>
-              <input type="password" required minLength={8} value={addForm.password} onChange={(e) => setAddForm((f) => ({ ...f, password: e.target.value }))} className={inputCls} placeholder="Min. 8 characters" />
-            </div>
-            <div>
               <label className="block text-xs font-medium text-slate-500 mb-1.5 uppercase tracking-wide">Role</label>
               <select value={addForm.role} onChange={(e) => setAddForm((f) => ({ ...f, role: e.target.value }))} className={inputCls + ' bg-white'}>
                 {roleOptions.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
               </select>
             </div>
+            <div className="col-span-2">
+              <label className="flex items-center gap-2.5 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={addForm.invite}
+                  onChange={(e) => setAddForm((f) => ({ ...f, invite: e.target.checked }))}
+                  className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                />
+                <span className="text-sm text-slate-700">Send an invite email so they can set their own password</span>
+              </label>
+            </div>
+            {!addForm.invite && (
+              <div className="col-span-2">
+                <label className="block text-xs font-medium text-slate-500 mb-1.5 uppercase tracking-wide">Password <span className="text-red-500">*</span></label>
+                <input type="password" required minLength={8} value={addForm.password} onChange={(e) => setAddForm((f) => ({ ...f, password: e.target.value }))} className={inputCls} placeholder="Min. 8 characters" />
+              </div>
+            )}
             {isMasterAdmin && (
               <div className="col-span-2">
                 <label className="block text-xs font-medium text-slate-500 mb-1.5 uppercase tracking-wide">
@@ -249,7 +266,7 @@ export default function UsersPage() {
             )}
             <div className="col-span-2 flex gap-3 pt-1">
               <button type="submit" disabled={addSaving} className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 disabled:opacity-60 transition-colors">
-                {addSaving ? <><Loader2 className="w-4 h-4 animate-spin" /> Creating…</> : 'Create User'}
+                {addSaving ? <><Loader2 className="w-4 h-4 animate-spin" /> {addForm.invite ? 'Sending…' : 'Creating…'}</> : (addForm.invite ? 'Send Invite' : 'Create User')}
               </button>
               <button type="button" onClick={() => setShowAdd(false)} className="px-4 py-2 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-100 transition-colors">Cancel</button>
             </div>

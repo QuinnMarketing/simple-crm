@@ -6,7 +6,7 @@ import Link from 'next/link'
 import { Zap, Loader2, Mail, CheckCircle } from 'lucide-react'
 
 export default function LoginPage() {
-  const [tab, setTab] = useState<'password' | 'magic'>('password')
+  const [tab, setTab] = useState<'password' | 'magic'>('magic')
 
   // Password form
   const [email, setEmail] = useState('')

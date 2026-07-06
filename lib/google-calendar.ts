@@ -145,6 +145,9 @@ export interface GCalEvent {
   end: string
   allDay: boolean
   htmlLink?: string
+  description?: string
+  location?: string
+  updated?: string // RFC3339 last-modified timestamp
 }
 
 export async function listCalendarEvents(config: CalendarConfig, from: string, to: string): Promise<GCalEvent[]> {
@@ -169,5 +172,8 @@ export async function listCalendarEvents(config: CalendarConfig, from: string, t
     end: item.end.dateTime ?? item.end.date,
     allDay: !item.start.dateTime,
     htmlLink: item.htmlLink,
+    description: item.description ?? undefined,
+    location: item.location ?? undefined,
+    updated: item.updated ?? undefined,
   }))
 }

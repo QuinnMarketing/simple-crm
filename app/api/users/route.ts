@@ -2,7 +2,11 @@ import { auth } from '@/auth'
 import { logAudit, getIp } from '@/lib/audit'
 import { prisma } from '@/lib/prisma'
 import { getAccountFilter, isAdmin } from '@/lib/account-scope'
+import { sendEmail, SmtpConfig } from '@/lib/email'
+import { mergeSmtp } from '@/lib/platform-defaults'
+import { getBaseUrl } from '@/lib/base-url'
 import bcrypt from 'bcryptjs'
+import { randomBytes } from 'crypto'
 import { after, NextRequest, NextResponse } from 'next/server'
 
 const VALID_ROLES = ['master_admin', 'account_admin', 'account_user', 'admin', 'user']
@@ -34,12 +38,15 @@ export async function POST(req: NextRequest) {
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   if (!isAdmin(session.user)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
-  const { name, email, password, role, accountId: bodyAccountId, accountIds: bodyAccountIds } = await req.json()
+  const { name, email, password, role, accountId: bodyAccountId, accountIds: bodyAccountIds, invite } = await req.json()
 
-  if (!email || !password) {
-    return NextResponse.json({ error: 'Email and password are required' }, { status: 400 })
+  if (!email) {
+    return NextResponse.json({ error: 'Email is required' }, { status: 400 })
   }
-  if (password.length < 8) {
+  if (!invite && !password) {
+    return NextResponse.json({ error: 'Password is required (or send an invite instead)' }, { status: 400 })
+  }
+  if (password && password.length < 8) {
     return NextResponse.json({ error: 'Password must be at least 8 characters' }, { status: 400 })
   }
 
@@ -64,11 +71,14 @@ export async function POST(req: NextRequest) {
     ? bodyAccountIds
     : (primaryAccountId ? [primaryAccountId] : [])
 
+  // Invited users get an unguessable placeholder — they set their own via the invite link
+  const effectivePassword = password || randomBytes(32).toString('hex')
+
   const user = await prisma.user.create({
     data: {
       email,
       name: name || null,
-      password: await bcrypt.hash(password, 12),
+      password: await bcrypt.hash(effectivePassword, 12),
       role: assignedRole,
       accountId: primaryAccountId,
       userAccounts: allAccountIds.length > 0
@@ -81,11 +91,47 @@ export async function POST(req: NextRequest) {
     },
   })
 
+  let inviteSent = false
+  if (invite) {
+    const token = randomBytes(32).toString('hex')
+    await prisma.passwordResetToken.create({
+      data: { userId: user.id, token, expiresAt: new Date(Date.now() + 7 * 86_400_000) },
+    })
+    const inviteUrl = `${getBaseUrl()}/reset-password/${token}`
+
+    let accountSmtp: Partial<SmtpConfig> | null = null
+    if (primaryAccountId) {
+      const smtpRow = await prisma.accountIntegration.findUnique({
+        where: { accountId_platform: { accountId: primaryAccountId, platform: 'email_smtp' } },
+      })
+      if (smtpRow?.enabled) {
+        try { accountSmtp = JSON.parse(smtpRow.config) as Partial<SmtpConfig> } catch {}
+      }
+    }
+    const smtp = mergeSmtp(accountSmtp)
+
+    if (smtp.host && smtp.user && smtp.pass) {
+      const inviterName = session.user.name ?? session.user.email
+      try {
+        await sendEmail(
+          smtp,
+          email,
+          "You've been invited to Simple CRM",
+          `Hi${name ? ` ${name}` : ''},\n\n${inviterName} has invited you to Simple CRM.\n\nClick the link below to set your password and get started. The link is valid for 7 days.\n\n${inviteUrl}\n\nOnce you've set your password, sign in at ${getBaseUrl()}/login — or use the "Email me a login link" option any time.`,
+        )
+        inviteSent = true
+      } catch (e) {
+        console.error('Invite email failed:', e)
+      }
+    }
+  }
+
   const result = {
     ...user,
     accountIds: Array.from(new Set([...(user.accountId ? [user.accountId] : []), ...user.userAccounts.map(a => a.accountId)])),
+    ...(invite ? { inviteSent } : {}),
   }
 
-  after(() => logAudit({ accountId: primaryAccountId, userId: session.user.id, userEmail: session.user.email, action: 'user.created', entityType: 'user', entityId: user.id, entityLabel: user.email, ipAddress: getIp(req) }))
+  after(() => logAudit({ accountId: primaryAccountId, userId: session.user.id, userEmail: session.user.email, action: invite ? 'user.invited' : 'user.created', entityType: 'user', entityId: user.id, entityLabel: user.email, ipAddress: getIp(req) }))
   return NextResponse.json(result, { status: 201 })
 }

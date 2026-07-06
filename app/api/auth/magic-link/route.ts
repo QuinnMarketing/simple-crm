@@ -2,6 +2,7 @@ import { prisma } from '@/lib/prisma'
 import { sendEmail, SmtpConfig } from '@/lib/email'
 import { mergeSmtp } from '@/lib/platform-defaults'
 import { rateLimit, getClientIp } from '@/lib/rate-limit'
+import { getBaseUrl } from '@/lib/base-url'
 import { randomBytes } from 'crypto'
 import { NextRequest, NextResponse } from 'next/server'
 
@@ -34,8 +35,7 @@ export async function POST(req: NextRequest) {
     data: { userId: user.id, token, expiresAt: new Date(Date.now() + 15 * 60 * 1000) },
   })
 
-  const baseUrl = process.env.NEXTAUTH_URL ?? 'http://localhost:3000'
-  const magicUrl = `${baseUrl}/magic-link?token=${token}`
+  const magicUrl = `${getBaseUrl()}/magic-link?token=${token}`
 
   let accountSmtp: Partial<SmtpConfig> | null = null
   if (user.account?.integrations?.[0]) {

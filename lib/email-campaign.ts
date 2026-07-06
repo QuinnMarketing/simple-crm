@@ -3,7 +3,9 @@ import nodemailer from 'nodemailer'
 import type { SmtpConfig } from './email'
 import { mergeSmtp } from './platform-defaults'
 
-const BASE_URL = process.env.NEXTAUTH_URL ?? 'http://localhost:3000'
+import { getBaseUrl } from './base-url'
+
+const BASE_URL = getBaseUrl()
 const SEND_DELAY_MS = 400 // ~2.5 emails/second to stay well under API limits
 
 function sleep(ms: number) { return new Promise((r) => setTimeout(r, ms)) }

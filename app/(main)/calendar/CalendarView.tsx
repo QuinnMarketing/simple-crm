@@ -1,6 +1,6 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
-import { ChevronLeft, ChevronRight, Plus, Loader2, CalendarDays, ExternalLink } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Plus, Loader2, CalendarDays, ExternalLink, RefreshCw } from 'lucide-react'
 import Link from 'next/link'
 import AppointmentModal, { type Lead, type Appointment, type ScheduleUser, fmtTime } from './AppointmentModal'
 import ScheduleView from './ScheduleView'
@@ -51,6 +51,8 @@ export default function CalendarView({ gcalConnected, accountId }: { gcalConnect
   const [leads, setLeads] = useState<Lead[]>([])
   const [users, setUsers] = useState<ScheduleUser[]>([])
   const [loading, setLoading] = useState(true)
+  const [syncing, setSyncing] = useState(false)
+  const [syncMsg, setSyncMsg] = useState('')
   const [modal, setModal] = useState<{ open: boolean; appt?: Appointment | null; defaultDate?: Date }>({ open: false })
 
   const days = getCalendarDays(year, month)
@@ -78,6 +80,32 @@ export default function CalendarView({ gcalConnected, accountId }: { gcalConnect
   }, [year, month, gcalConnected, accountId])
 
   useEffect(() => { fetchAppointments() }, [fetchAppointments])
+
+  async function syncNow() {
+    setSyncing(true)
+    setSyncMsg('')
+    try {
+      const acctQs = accountId ? `?account=${accountId}` : ''
+      const res = await fetch(`/api/calendar/sync${acctQs}`, { method: 'POST' })
+      const data = await res.json()
+      if (res.ok) {
+        const parts: string[] = []
+        if (data.imported) parts.push(`${data.imported} imported`)
+        if (data.updated) parts.push(`${data.updated} updated`)
+        if (data.pushed) parts.push(`${data.pushed} pushed`)
+        if (data.deleted) parts.push(`${data.deleted} removed`)
+        setSyncMsg(parts.length ? parts.join(', ') : 'Up to date')
+        await fetchAppointments()
+      } else {
+        setSyncMsg(data.error ?? 'Sync failed')
+      }
+    } catch {
+      setSyncMsg('Sync failed')
+    } finally {
+      setSyncing(false)
+      setTimeout(() => setSyncMsg(''), 6000)
+    }
+  }
 
   useEffect(() => {
     fetch('/api/leads?_all=1').then((r) => r.ok ? r.json() : []).then((d) => {
@@ -184,6 +212,16 @@ export default function CalendarView({ gcalConnected, accountId }: { gcalConnect
                 <span className="w-2.5 h-2.5 bg-emerald-500 rounded-full" />
                 Google Calendar
               </div>
+              {syncMsg && <span className="text-xs text-slate-400">{syncMsg}</span>}
+              <button
+                onClick={syncNow}
+                disabled={syncing}
+                title="Two-way sync with Google Calendar"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-slate-600 border border-slate-200 hover:bg-slate-50 disabled:opacity-60 transition-colors"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${syncing ? 'animate-spin' : ''}`} />
+                {syncing ? 'Syncing…' : 'Sync'}
+              </button>
             </div>
           ) : (
             <Link href="/settings?tab=integrations" className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-indigo-600 transition-colors">

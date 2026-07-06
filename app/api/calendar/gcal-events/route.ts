@@ -1,4 +1,5 @@
 import { auth } from '@/auth'
+import { prisma } from '@/lib/prisma'
 import { getAccountFilter } from '@/lib/account-scope'
 import { getCalendarConfig, listCalendarEvents } from '@/lib/google-calendar'
 import { NextRequest, NextResponse } from 'next/server'
@@ -23,7 +24,14 @@ export async function GET(req: NextRequest) {
 
   try {
     const events = await listCalendarEvents(config, from, to)
-    return NextResponse.json(events)
+    // Hide events already synced into CRM appointments — they render as
+    // real appointments, so showing the Google copy would duplicate them
+    const linked = await prisma.appointment.findMany({
+      where: { accountId, googleEventId: { not: null } },
+      select: { googleEventId: true },
+    })
+    const linkedIds = new Set(linked.map(a => a.googleEventId))
+    return NextResponse.json(events.filter(e => !linkedIds.has(e.id)))
   } catch (e) {
     console.error('GCal list error:', e)
     return NextResponse.json([])

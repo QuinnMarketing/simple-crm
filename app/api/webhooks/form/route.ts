@@ -4,6 +4,7 @@ import { sendPushToAccount } from '@/lib/push'
 import { appendLeadToSheet } from '@/lib/google-sheets'
 import { prisma } from '@/lib/prisma'
 import { parseWebhookPayload } from '@/lib/webhook-parser'
+import { deriveLeadSource } from '@/lib/lead-source'
 import { after } from 'next/server'
 import { NextRequest, NextResponse } from 'next/server'
 
@@ -67,7 +68,7 @@ export async function POST(req: NextRequest) {
       address: parsed.address ?? null,
       service: parsed.service ?? null,
       notes: parsed.notes ?? null,
-      source: parsed.source ?? 'webhook',
+      source: deriveLeadSource(parsed) ?? 'webhook',
       status: 'new',
       gclid: parsed.gclid ?? null,
       fbclid: parsed.fbclid ?? null,

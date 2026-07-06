@@ -2,6 +2,7 @@ import { prisma } from '@/lib/prisma'
 import { sendEmail, SmtpConfig } from '@/lib/email'
 import { mergeSmtp } from '@/lib/platform-defaults'
 import { rateLimit, getClientIp } from '@/lib/rate-limit'
+import { getBaseUrl } from '@/lib/base-url'
 import { randomBytes } from 'crypto'
 import { NextRequest, NextResponse } from 'next/server'
 
@@ -37,10 +38,7 @@ export async function POST(req: NextRequest) {
     data: { userId: user.id, token, expiresAt: new Date(Date.now() + 60 * 60 * 1000) },
   })
 
-  const baseUrl = process.env.NEXTAUTH_URL ?? process.env.VERCEL_URL
-    ? `https://${process.env.VERCEL_URL}`
-    : 'http://localhost:3000'
-  const resetUrl = `${baseUrl}/reset-password/${token}`
+  const resetUrl = `${getBaseUrl()}/reset-password/${token}`
 
   let accountSmtp: Partial<SmtpConfig> | null = null
   if (user.account?.integrations?.[0]) {
