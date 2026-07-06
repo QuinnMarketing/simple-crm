@@ -2,8 +2,8 @@ import { auth } from '@/auth'
 import { logAudit, getIp } from '@/lib/audit'
 import { prisma } from '@/lib/prisma'
 import { getAccountFilter, isAdmin } from '@/lib/account-scope'
-import { sendEmail, SmtpConfig } from '@/lib/email'
-import { mergeSmtp } from '@/lib/platform-defaults'
+import { sendEmail } from '@/lib/email'
+import { getAdminSmtp } from '@/lib/email-from'
 import { getBaseUrl } from '@/lib/base-url'
 import bcrypt from 'bcryptjs'
 import { randomBytes } from 'crypto'
@@ -98,17 +98,7 @@ export async function POST(req: NextRequest) {
       data: { userId: user.id, token, expiresAt: new Date(Date.now() + 7 * 86_400_000) },
     })
     const inviteUrl = `${getBaseUrl()}/reset-password/${token}`
-
-    let accountSmtp: Partial<SmtpConfig> | null = null
-    if (primaryAccountId) {
-      const smtpRow = await prisma.accountIntegration.findUnique({
-        where: { accountId_platform: { accountId: primaryAccountId, platform: 'email_smtp' } },
-      })
-      if (smtpRow?.enabled) {
-        try { accountSmtp = JSON.parse(smtpRow.config) as Partial<SmtpConfig> } catch {}
-      }
-    }
-    const smtp = mergeSmtp(accountSmtp)
+    const smtp = getAdminSmtp()
 
     if (smtp.host && smtp.user && smtp.pass) {
       const inviterName = session.user.name ?? session.user.email

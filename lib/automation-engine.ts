@@ -1,6 +1,6 @@
 import { prisma } from './prisma'
 import { sendEmail } from './email'
-import { mergeSmtp } from './platform-defaults'
+import { getAccountSmtp } from './email-from'
 import type {
   AutomationDefinition,
   BodyStep,
@@ -97,14 +97,6 @@ async function buildContext(
   return { leadId: leadId ?? '', accountId, lead, triggerData: triggerData ?? {}, variables: {} }
 }
 
-async function getSmtp(accountId: string) {
-  const row = await prisma.accountIntegration.findUnique({
-    where: { accountId_platform: { accountId, platform: 'email_smtp' } },
-  })
-  try { return mergeSmtp(row?.enabled ? JSON.parse(row.config) : null) }
-  catch { return mergeSmtp(null) }
-}
-
 // ─── Action executor ──────────────────────────────────────────────────────────
 
 async function execAction(
@@ -118,7 +110,7 @@ async function execAction(
     case 'send_email': {
       const to = i(cfg.to) || String(ctx.lead.email ?? '')
       if (!to) throw new Error('No recipient email address')
-      const smtp = await getSmtp(ctx.accountId)
+      const smtp = await getAccountSmtp(ctx.accountId)
       await sendEmail(smtp, to, i(cfg.subject), i(cfg.body))
       return { sentTo: to }
     }
@@ -126,7 +118,7 @@ async function execAction(
     case 'notify_team': {
       const to = i(cfg.to)
       if (!to) throw new Error('No team email address specified')
-      const smtp = await getSmtp(ctx.accountId)
+      const smtp = await getAccountSmtp(ctx.accountId)
       await sendEmail(smtp, to, i(cfg.subject) || 'CRM Notification', i(cfg.body))
       return { sentTo: to }
     }

@@ -1,6 +1,6 @@
 import { prisma } from './prisma'
-import { sendEmail, type SmtpConfig } from './email'
-import { mergeSmtp } from './platform-defaults'
+import { sendEmail } from './email'
+import { getAccountSmtp } from './email-from'
 
 type LeadContext = {
   name: string
@@ -68,17 +68,13 @@ export async function runPendingQuoteFollowups(): Promise<{ sent: number; errors
 
     if (eligibleLeadIds.length === 0) continue
 
-    const [leads, smtpRow] = await Promise.all([
+    const [leads, smtpConfig] = await Promise.all([
       prisma.lead.findMany({
         where: { id: { in: eligibleLeadIds }, email: { not: null } },
         select: { id: true, name: true, email: true, phone: true, service: true, source: true, status: true },
       }),
-      prisma.accountIntegration.findUnique({
-        where: { accountId_platform: { accountId: automation.accountId, platform: 'email_smtp' } },
-      }),
+      getAccountSmtp(automation.accountId),
     ])
-
-    const smtpConfig = mergeSmtp(smtpRow?.enabled ? (() => { try { return JSON.parse(smtpRow.config) as SmtpConfig } catch { return null } })() : null)
 
     if (!smtpConfig.host || !smtpConfig.user || !smtpConfig.pass) continue
 
@@ -112,13 +108,11 @@ export async function runPendingQuoteFollowups(): Promise<{ sent: number; errors
 export async function runAppointmentBookedAutomations(appointment: AppointmentContext) {
   if (!appointment.accountId || !appointment.leadId) return
 
-  const [automations, smtpRow, lead] = await Promise.all([
+  const [automations, smtpConfig, lead] = await Promise.all([
     prisma.automation.findMany({
       where: { accountId: appointment.accountId, enabled: true, trigger: 'appointment_booked' },
     }),
-    prisma.accountIntegration.findUnique({
-      where: { accountId_platform: { accountId: appointment.accountId, platform: 'email_smtp' } },
-    }),
+    getAccountSmtp(appointment.accountId),
     prisma.lead.findUnique({
       where: { id: appointment.leadId },
       select: { id: true, name: true, email: true, phone: true, service: true, source: true, status: true },
@@ -126,8 +120,6 @@ export async function runAppointmentBookedAutomations(appointment: AppointmentCo
   ])
 
   if (automations.length === 0 || !lead?.email) return
-
-  const smtpConfig = mergeSmtp(smtpRow?.enabled ? (() => { try { return JSON.parse(smtpRow.config) as SmtpConfig } catch { return null } })() : null)
   if (!smtpConfig.host || !smtpConfig.user || !smtpConfig.pass) return
 
   const vars: Record<string, string> = {
@@ -168,17 +160,14 @@ export async function runAppointmentReminderAutomations(): Promise<{ sent: numbe
     // leadId column stores appointmentId for appointment automations (no FK constraint)
     const alreadyFiredIds = new Set(automation.logs.map((l) => l.leadId))
 
-    const [appointments, smtpRow] = await Promise.all([
+    const [appointments, smtpConfig] = await Promise.all([
       prisma.appointment.findMany({
         where: { accountId: automation.accountId, startTime: { gte: windowStart, lte: windowEnd }, leadId: { not: null } },
         include: { lead: { select: { id: true, name: true, email: true, phone: true, service: true, source: true, status: true } } },
       }),
-      prisma.accountIntegration.findUnique({
-        where: { accountId_platform: { accountId: automation.accountId, platform: 'email_smtp' } },
-      }),
+      getAccountSmtp(automation.accountId),
     ])
 
-    const smtpConfig = mergeSmtp(smtpRow?.enabled ? (() => { try { return JSON.parse(smtpRow.config) as SmtpConfig } catch { return null } })() : null)
     if (!smtpConfig.host || !smtpConfig.user || !smtpConfig.pass) continue
 
     const ac = JSON.parse(automation.actionConfig) as { subject?: string; body?: string }
@@ -226,7 +215,7 @@ export async function runIdleDealAlerts(): Promise<{ sent: number; errors: numbe
 
     const alreadyFiredLeadIds = new Set(automation.logs.map((l) => l.leadId))
 
-    const [leads, smtpRow] = await Promise.all([
+    const [leads, smtpConfig] = await Promise.all([
       prisma.lead.findMany({
         where: {
           accountId: automation.accountId,
@@ -237,12 +226,9 @@ export async function runIdleDealAlerts(): Promise<{ sent: number; errors: numbe
         },
         select: { id: true, name: true, email: true, phone: true, service: true, source: true, status: true },
       }),
-      prisma.accountIntegration.findUnique({
-        where: { accountId_platform: { accountId: automation.accountId, platform: 'email_smtp' } },
-      }),
+      getAccountSmtp(automation.accountId),
     ])
 
-    const smtpConfig = mergeSmtp(smtpRow?.enabled ? (() => { try { return JSON.parse(smtpRow.config) as SmtpConfig } catch { return null } })() : null)
     if (!smtpConfig.host || !smtpConfig.user || !smtpConfig.pass) continue
 
     const ac = JSON.parse(automation.actionConfig) as { subject?: string; body?: string }
@@ -313,18 +299,14 @@ export async function runAutomations(
 ) {
   if (!lead.accountId) return
 
-  const [automations, smtpRow] = await Promise.all([
+  const [automations, smtpConfig] = await Promise.all([
     prisma.automation.findMany({
       where: { accountId: lead.accountId, enabled: true, trigger },
     }),
-    prisma.accountIntegration.findUnique({
-      where: { accountId_platform: { accountId: lead.accountId, platform: 'email_smtp' } },
-    }),
+    getAccountSmtp(lead.accountId),
   ])
 
   if (automations.length === 0) return
-
-  const smtpConfig = mergeSmtp(smtpRow?.enabled ? (() => { try { return JSON.parse(smtpRow.config) as SmtpConfig } catch { return null } })() : null)
 
   const vars: Record<string, string> = {
     name: lead.name,

@@ -1,21 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { sendEmail, SmtpConfig } from '@/lib/email'
+import { sendEmail } from '@/lib/email'
+import { getAccountSmtp } from '@/lib/email-from'
 
-async function getSmtp(accountId: string): Promise<SmtpConfig | null> {
-  const sysHost = process.env.SYSTEM_SMTP_HOST
-  if (sysHost && process.env.SYSTEM_SMTP_USER && process.env.SYSTEM_SMTP_PASS) {
-    return { host: sysHost, port: process.env.SYSTEM_SMTP_PORT ?? '587', user: process.env.SYSTEM_SMTP_USER, pass: process.env.SYSTEM_SMTP_PASS, from: process.env.SYSTEM_SMTP_FROM ?? process.env.SYSTEM_SMTP_USER }
-  }
-  const integration = await prisma.accountIntegration.findUnique({
-    where: { accountId_platform: { accountId, platform: 'email_smtp' } },
-  })
-  if (!integration?.enabled) return null
-  try {
-    const cfg = JSON.parse(integration.config) as Partial<SmtpConfig>
-    if (cfg.host && cfg.user && cfg.pass) return { host: cfg.host, port: cfg.port ?? '587', user: cfg.user, pass: cfg.pass, from: cfg.from }
-  } catch { /* ignore */ }
-  return null
+async function getSmtp(accountId: string) {
+  const cfg = await getAccountSmtp(accountId)
+  return cfg.host && cfg.user && cfg.pass ? cfg : null
 }
 
 function getReplyTemplate(templates: Record<string, string>, rating: number): string | null {

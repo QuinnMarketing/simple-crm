@@ -1,6 +1,6 @@
 import { prisma } from '@/lib/prisma'
-import { sendEmail, SmtpConfig } from '@/lib/email'
-import { mergeSmtp } from '@/lib/platform-defaults'
+import { sendEmail } from '@/lib/email'
+import { getAdminSmtp } from '@/lib/email-from'
 import { rateLimit, getClientIp } from '@/lib/rate-limit'
 import { getBaseUrl } from '@/lib/base-url'
 import { randomBytes } from 'crypto'
@@ -18,9 +18,6 @@ export async function POST(req: NextRequest) {
 
   const user = await prisma.user.findUnique({
     where: { email: email.toLowerCase().trim() },
-    include: {
-      account: { include: { integrations: { where: { platform: 'email_smtp', enabled: true } } } },
-    },
   })
 
   // Always return ok — don't reveal whether the email exists
@@ -37,11 +34,7 @@ export async function POST(req: NextRequest) {
 
   const magicUrl = `${getBaseUrl()}/magic-link?token=${token}`
 
-  let accountSmtp: Partial<SmtpConfig> | null = null
-  if (user.account?.integrations?.[0]) {
-    try { accountSmtp = JSON.parse(user.account.integrations[0].config) as Partial<SmtpConfig> } catch {}
-  }
-  const smtp = mergeSmtp(accountSmtp)
+  const smtp = getAdminSmtp()
 
   if (smtp.host && smtp.user && smtp.pass) {
     try {

@@ -19,18 +19,6 @@ export function getGoogleAdsDefaults(): Record<string, string> {
   }
 }
 
-/** Merge saved config with defaults — saved values win, defaults fill empty fields */
-export function mergeSmtp(saved: Partial<SmtpConfig> | null | undefined): SmtpConfig {
-  const d = getSmtpDefaults()
-  return {
-    host: saved?.host || d.host,
-    port: saved?.port || d.port,
-    user: saved?.user || d.user,
-    pass: saved?.pass || d.pass,
-    from: saved?.from || d.from,
-  }
-}
-
 export function mergeGoogleAds(saved: Record<string, string> | null | undefined): Record<string, string> {
   const d = getGoogleAdsDefaults()
   const merged: Record<string, string> = { ...d }

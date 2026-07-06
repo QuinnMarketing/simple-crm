@@ -6,18 +6,14 @@ import { generateInvoicePdf } from '@/lib/pdf-invoice'
 import { after } from 'next/server'
 import nodemailer from 'nodemailer'
 import type { SmtpConfig } from '@/lib/email'
-import { mergeSmtp } from '@/lib/platform-defaults'
+import { getAccountSmtp } from '@/lib/email-from'
 import { NextRequest, NextResponse } from 'next/server'
 import crypto from 'crypto'
 
 type Params = { params: Promise<{ id: string }> }
 
 async function getSmtp(accountId: string): Promise<SmtpConfig | null> {
-  const row = await prisma.accountIntegration.findUnique({
-    where: { accountId_platform: { accountId, platform: 'email_smtp' } },
-  })
-  const saved = row?.enabled ? (() => { try { return JSON.parse(row.config) as SmtpConfig } catch { return null } })() : null
-  const cfg = mergeSmtp(saved)
+  const cfg = await getAccountSmtp(accountId)
   return cfg.host && cfg.user && cfg.pass ? cfg : null
 }
 
@@ -147,7 +143,7 @@ export async function POST(req: NextRequest, { params }: Params) {
 
   try {
     await transporter.sendMail({
-      from: smtp.from || smtp.user,
+      from: smtp.from || `"${lead.account?.name ?? 'Simple CRM'}" <${smtp.user}>`,
       to: to.trim(),
       subject: subject?.trim() || '(no subject)',
       text,

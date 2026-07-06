@@ -2,29 +2,13 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import { getAccountFilter } from '@/lib/account-scope'
-import { sendEmail, SmtpConfig } from '@/lib/email'
+import { sendEmail } from '@/lib/email'
+import { getAccountSmtp } from '@/lib/email-from'
 import { postReply } from '@/lib/google-reviews'
 
-async function getSmtpForAccount(accountId: string): Promise<SmtpConfig | null> {
-  const systemHost = process.env.SYSTEM_SMTP_HOST
-  if (systemHost && process.env.SYSTEM_SMTP_USER && process.env.SYSTEM_SMTP_PASS) {
-    return {
-      host: systemHost,
-      port: process.env.SYSTEM_SMTP_PORT ?? '587',
-      user: process.env.SYSTEM_SMTP_USER,
-      pass: process.env.SYSTEM_SMTP_PASS,
-      from: process.env.SYSTEM_SMTP_FROM ?? process.env.SYSTEM_SMTP_USER,
-    }
-  }
-  const integration = await prisma.accountIntegration.findUnique({
-    where: { accountId_platform: { accountId, platform: 'email_smtp' } },
-  })
-  if (!integration?.enabled) return null
-  try {
-    const cfg = JSON.parse(integration.config) as Partial<SmtpConfig>
-    if (cfg.host && cfg.user && cfg.pass) return { host: cfg.host, port: cfg.port ?? '587', user: cfg.user, pass: cfg.pass, from: cfg.from }
-  } catch { /* ignore */ }
-  return null
+async function getSmtpForAccount(accountId: string) {
+  const cfg = await getAccountSmtp(accountId)
+  return cfg.host && cfg.user && cfg.pass ? cfg : null
 }
 
 export async function PATCH(

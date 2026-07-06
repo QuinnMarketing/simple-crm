@@ -1,8 +1,6 @@
 import { prisma } from './prisma'
 import nodemailer from 'nodemailer'
-import type { SmtpConfig } from './email'
-import { mergeSmtp } from './platform-defaults'
-
+import { getAccountSmtp } from './email-from'
 import { getBaseUrl } from './base-url'
 
 const BASE_URL = getBaseUrl()
@@ -70,15 +68,13 @@ type SegmentFilter = {
 export async function sendCampaign(campaignId: string): Promise<{ sent: number; failed: number }> {
   const campaign = await prisma.emailCampaign.findUnique({
     where: { id: campaignId },
-    include: { account: { select: { name: true, businessEmail: true, integrations: true } } },
+    include: { account: { select: { name: true } } },
   })
   if (!campaign) throw new Error('Campaign not found')
   if (!campaign.accountId) throw new Error('Campaign has no account — re-save the campaign to fix this')
 
-  const smtpRow = campaign.account?.integrations.find((i) => i.platform === 'email_smtp' && i.enabled)
-  const savedSmtp: SmtpConfig | null = smtpRow ? (JSON.parse(smtpRow.config) as SmtpConfig) : null
-  const smtpConfig = mergeSmtp(savedSmtp)
-  if (!smtpConfig?.host || !smtpConfig?.user || !smtpConfig?.pass) {
+  const smtpConfig = await getAccountSmtp(campaign.accountId)
+  if (!smtpConfig.host || !smtpConfig.user || !smtpConfig.pass) {
     throw new Error('SMTP not configured — add email settings in Integrations')
   }
 
@@ -111,10 +107,11 @@ export async function sendCampaign(campaignId: string): Promise<{ sent: number; 
 
   let sent = 0
   let failed = 0
-  const businessName = campaign.account?.name ?? smtpConfig.user
-  const accountSlug = businessName.toLowerCase().replace(/[^a-z0-9]/g, '')
-  const fromAddress = smtpConfig.from || `${accountSlug}@expertsoncall.com.au`
-  const fromHeader = `"${businessName}" <${fromAddress}>`
+  const businessName = campaign.account?.name ?? 'Simple CRM'
+  // smtpConfig.from is already a fully-formed "Name <address>" header,
+  // resolved by getAccountSmtp (custom SMTP + name if set, else the
+  // system provider with the account name as display name)
+  const fromHeader = smtpConfig.from || `"${businessName}" <${smtpConfig.user}>`
 
   for (const lead of leads) {
     if (!lead.email) continue
