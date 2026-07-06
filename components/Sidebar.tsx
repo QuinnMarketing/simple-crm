@@ -2,7 +2,7 @@
 import Link from 'next/link'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { useState } from 'react'
-import { LayoutDashboard, Users, Settings, LogOut, Zap, Building2, ChevronDown, Layers, CalendarDays, FileText, Bot, Clock, Mail, MailOpen, TrendingUp, BarChart2, Share2, GanttChartSquare, CheckSquare, Star, BookOpen, Receipt, FolderOpen, Ruler, Inbox, Target } from 'lucide-react'
+import { LayoutDashboard, Users, Settings, LogOut, Zap, Building2, ChevronDown, Layers, CalendarDays, FileText, Bot, Clock, Mail, MailOpen, TrendingUp, BarChart2, Share2, GanttChartSquare, CheckSquare, Star, BookOpen, Receipt, FolderOpen, Ruler, Inbox, Target, Rocket } from 'lucide-react'
 import { signOut } from 'next-auth/react'
 import PushToggle from './PushToggle'
 
@@ -82,6 +82,7 @@ export default function Sidebar({
     { href: '/reports', icon: BarChart2, label: 'Reports' },
     { href: '/analytics', icon: TrendingUp, label: 'Analytics' },
     { href: '/campaigns', icon: Mail, label: 'Campaigns' },
+    { href: '/landing-pages', icon: Rocket, label: 'Landing Pages' },
     { href: '/social', icon: Share2, label: 'Social' },
     { href: '/ads', icon: Target, label: 'Ad Manager' },
     { href: '/reviews', icon: Star, label: 'Reviews' },

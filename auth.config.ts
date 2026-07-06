@@ -28,6 +28,7 @@ export const authConfig = {
       if (path.startsWith('/reset-password')) return true
       if (path.startsWith('/book')) return true
       if (path.startsWith('/review')) return true
+      if (path.startsWith('/lp')) return true // public landing pages (drafts gate themselves via auth() in the page)
       if (path === '/login') {
         if (isLoggedIn) return Response.redirect(new URL('/', nextUrl))
         return true
