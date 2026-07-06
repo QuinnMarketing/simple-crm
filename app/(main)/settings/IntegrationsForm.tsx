@@ -194,6 +194,9 @@ export default function IntegrationsForm({ accountId, initialConfigs }: Integrat
     wabaId: initialConfigs.whatsapp?.wabaId ?? '',
   })
 
+  // ── Enrichment ───────────────────────────────────────────────────────────
+  const [apollo, setApollo] = useState({ apiKey: initialConfigs.apollo?.apiKey ?? '' })
+
   const [open, setOpen] = useState<Set<string>>(new Set())
   function toggle(id: string) {
     setOpen((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n })
@@ -223,6 +226,7 @@ export default function IntegrationsForm({ accountId, initialConfigs }: Integrat
   const trakOk = !!trak.apiKey.trim()
   const arofloOk = !!(aroflo.uEncoded.trim() && aroflo.pEncoded.trim() && aroflo.orgEncoded.trim() && aroflo.secretKey.trim())
   const whatsappOk = !!(whatsapp.phoneNumberId.trim() && whatsapp.accessToken.trim())
+  const apolloOk = !!apollo.apiKey.trim()
   const fbOk = !!(metaConnected || (fb.pixelId.trim() && fb.adAccountId.trim()))
   const acctQs = accountId ? `?account=${accountId}` : ''
 
@@ -312,6 +316,26 @@ export default function IntegrationsForm({ accountId, initialConfigs }: Integrat
             <div className="flex items-center justify-between">
               {whatsappOk && <button onClick={() => disconnect('whatsapp')} className="text-xs text-red-500 hover:text-red-600 font-medium">Disconnect</button>}
               <div className="ml-auto"><SaveBtn platform="whatsapp" config={whatsapp} onSave={saveIntegration} /></div>
+            </div>
+          </AccordionItem>
+
+        </div>
+      </div>
+
+      {/* ── Enrichment ──────────────────────────────────────────────── */}
+      <div>
+        <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-3">Enrichment</h3>
+        <div className="space-y-2">
+
+          <AccordionItem id="apollo" title="Apollo.io" description="Pull job title, company, and social profiles onto lead records" ok={apolloOk} open={open.has('apollo')} onToggle={() => toggle('apollo')}>
+            <div className="mb-4">
+              <label className={labelCls}>API Key</label>
+              <input type="password" value={apollo.apiKey} onChange={(e) => setApollo({ apiKey: e.target.value })} className={inputCls} placeholder="Apollo API key" />
+              <p className="text-xs text-slate-400 mt-1.5">Apollo.io → Settings → API → API Keys</p>
+            </div>
+            <div className="flex items-center justify-between">
+              {apolloOk && <button onClick={() => disconnect('apollo')} className="text-xs text-red-500 hover:text-red-600 font-medium">Disconnect</button>}
+              <div className="ml-auto"><SaveBtn platform="apollo" config={apollo} onSave={saveIntegration} /></div>
             </div>
           </AccordionItem>
 

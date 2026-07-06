@@ -169,6 +169,8 @@ model Lead {
   nextStepDue         String?
   lostReason          String?
   unsubscribed        Boolean               @default(false)
+  profileData         String?   // JSON blob: Apollo enrichment result (title, social links, company) — provider-shaped, kept as JSON rather than columns
+  profileEnrichedAt   DateTime?
   companyId           String?
   company     Company? @relation(fields: [companyId], references: [id])
   accountId   String?

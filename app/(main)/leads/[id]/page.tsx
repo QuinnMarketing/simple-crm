@@ -13,6 +13,7 @@ import QuotesSection from './QuotesSection'
 import WhatsAppSection from './WhatsAppSection'
 import LeadTimeline from './LeadTimeline'
 import NextStepsCard from './NextStepsCard'
+import ProfileEnrichmentCard from './ProfileEnrichmentCard'
 import TimeInStageCard from './TimeInStageCard'
 import CustomFieldsCard from './CustomFieldsCard'
 import TasksSection from './TasksSection'
@@ -29,6 +30,7 @@ type Lead = {
   userAgent: string | null; ipAddress: string | null; pageUrl: string | null
   bestTimeToContact: string | null; firstRespondedAt: string | null
   nextStep: string | null; nextStepDue: string | null; lostReason: string | null
+  profileData: string | null; profileEnrichedAt: string | null
   companyId: string | null; company: Company | null
   account: { slaHours: number | null } | null
   createdAt: string; updatedAt: string
@@ -574,6 +576,12 @@ export default function LeadDetailPage() {
 
         {/* Right: Custom Fields + Next Steps + Appointments + Platform Push */}
         <div className="space-y-5">
+          <ProfileEnrichmentCard
+            leadId={id}
+            hasEmail={!!lead.email}
+            initialProfileData={lead.profileData}
+            initialEnrichedAt={lead.profileEnrichedAt}
+          />
           <CustomFieldsCard leadId={id} />
           <NextStepsCard
             leadId={id}
