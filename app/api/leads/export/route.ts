@@ -35,6 +35,9 @@ export async function GET(req: NextRequest) {
     },
     include: { company: { select: { name: true } } },
     orderBy: { createdAt: 'desc' },
+    // Relation includes generate one bind variable per row; Postgres caps
+    // prepared statements at 32,767 — keep exports under that
+    take: 30_000,
   })
 
   const rows = leads.map((l) => ({

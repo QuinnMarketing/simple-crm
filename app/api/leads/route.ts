@@ -32,6 +32,7 @@ export async function GET(req: NextRequest) {
       conversions: { orderBy: { sentAt: 'desc' } },
     },
     orderBy: { createdAt: 'desc' },
+    take: 1000,
   })
 
   return NextResponse.json(leads)
