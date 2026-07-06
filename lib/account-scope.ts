@@ -33,3 +33,7 @@ export function getAccountFilter(
 export function isMasterAdmin(user: ScopedUser): boolean {
   return user.role === 'master_admin'
 }
+
+export function isAdmin(user: ScopedUser): boolean {
+  return ['master_admin', 'account_admin', 'admin'].includes(user.role ?? '')
+}

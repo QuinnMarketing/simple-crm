@@ -57,11 +57,19 @@ async function performBackfill() {
 }
 
 export async function GET(req: NextRequest) {
+  const session = await auth()
+  if (!session || session.user.role !== 'master_admin') {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
   const result = await performBackfill()
   return NextResponse.json(result)
 }
 
 export async function POST(req: NextRequest) {
+  const session = await auth()
+  if (!session || session.user.role !== 'master_admin') {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
   const result = await performBackfill()
   return NextResponse.json(result)
 }

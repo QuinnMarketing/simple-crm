@@ -1,7 +1,7 @@
 import { auth } from '@/auth'
 import { logAudit, getIp } from '@/lib/audit'
 import { prisma } from '@/lib/prisma'
-import { getAccountFilter } from '@/lib/account-scope'
+import { getAccountFilter, isAdmin } from '@/lib/account-scope'
 import bcrypt from 'bcryptjs'
 import { after, NextRequest, NextResponse } from 'next/server'
 
@@ -10,6 +10,7 @@ type Params = { params: Promise<{ id: string }> }
 export async function PATCH(req: NextRequest, { params }: Params) {
   const session = await auth()
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!isAdmin(session.user)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   const { id } = await params
   const { name, email, password, role, accountIds: bodyAccountIds } = await req.json()
@@ -84,6 +85,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
 export async function DELETE(req: NextRequest, { params }: Params) {
   const session = await auth()
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!isAdmin(session.user)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   const { id } = await params
 

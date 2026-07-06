@@ -1,12 +1,19 @@
 import { prisma } from '@/lib/prisma'
 import { sendEmail, SmtpConfig } from '@/lib/email'
 import { mergeSmtp } from '@/lib/platform-defaults'
+import { rateLimit, getClientIp } from '@/lib/rate-limit'
 import { randomBytes } from 'crypto'
 import { NextRequest, NextResponse } from 'next/server'
 
 export async function POST(req: NextRequest) {
   const { email } = await req.json()
   if (!email) return NextResponse.json({ error: 'Email is required' }, { status: 400 })
+
+  // 5 requests per IP and 3 per target email per 15 minutes
+  const ip = getClientIp(req)
+  if (!rateLimit(`fp:ip:${ip}`, 5, 15 * 60_000) || !rateLimit(`fp:email:${email.toLowerCase().trim()}`, 3, 15 * 60_000)) {
+    return NextResponse.json({ error: 'Too many requests. Try again later.' }, { status: 429 })
+  }
 
   const user = await prisma.user.findUnique({
     where: { email: email.toLowerCase().trim() },

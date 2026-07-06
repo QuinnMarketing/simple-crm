@@ -182,6 +182,11 @@ model Lead {
   tasks               Task[]
   reviews             Review[]
   takeoffs            Takeoff[]
+
+  @@index([accountId, status])
+  @@index([accountId, createdAt])
+  @@index([accountId, updatedAt])
+  @@index([companyId])
 }
 
 model Task {
@@ -197,6 +202,9 @@ model Task {
   account      Account?  @relation(fields: [accountId], references: [id], onDelete: Cascade)
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
+
+  @@index([accountId, status])
+  @@index([leadId])
 }
 
 model Appointment {
@@ -216,6 +224,9 @@ model Appointment {
   googleEventId String?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+
+  @@index([accountId, startTime])
+  @@index([leadId])
 }
 
 model Automation {

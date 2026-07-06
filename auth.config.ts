@@ -10,6 +10,14 @@ export const authConfig = {
 
       if (path.startsWith('/api/webhooks')) return true
       if (path.startsWith('/api/calendar/callback')) return true
+      // System + public-facing endpoints: cron runner, email tracking pixels,
+      // unsubscribe links, quote accept/decline links, inbound receipt emails.
+      // Each does its own auth (cron secret, tokens) — login sessions don't apply.
+      if (path.startsWith('/api/cron')) return true
+      if (path.startsWith('/api/track')) return true
+      if (path.startsWith('/api/unsubscribe')) return true
+      if (/^\/api\/quotes\/[^/]+\/respond/.test(path)) return true
+      if (path.startsWith('/api/receipts/email')) return true
       if (path.startsWith('/api/auth/forgot-password')) return true
       if (path.startsWith('/api/auth/reset-password')) return true
       if (path.startsWith('/api/auth/magic-link')) return true

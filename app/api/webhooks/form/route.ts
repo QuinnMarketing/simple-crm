@@ -45,13 +45,15 @@ export async function POST(req: NextRequest) {
     }
     accountId = account.id
   } else {
-    // Legacy: fall back to WEBHOOK_SECRET header check (no account scoping)
+    // Legacy: fall back to WEBHOOK_SECRET header check (no account scoping).
+    // If no secret is configured either, reject — never accept anonymous leads.
     const secret = process.env.WEBHOOK_SECRET
-    if (secret) {
-      const header = req.headers.get('x-webhook-secret') ?? req.headers.get('authorization')
-      if (header !== secret && header !== `Bearer ${secret}`) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-      }
+    if (!secret) {
+      return NextResponse.json({ error: 'Missing webhook token' }, { status: 401 })
+    }
+    const header = req.headers.get('x-webhook-secret') ?? req.headers.get('authorization')
+    if (header !== secret && header !== `Bearer ${secret}`) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
   }
 

@@ -1,7 +1,7 @@
 import { auth } from '@/auth'
 import { logAudit, getIp } from '@/lib/audit'
 import { prisma } from '@/lib/prisma'
-import { getAccountFilter } from '@/lib/account-scope'
+import { getAccountFilter, isAdmin } from '@/lib/account-scope'
 import bcrypt from 'bcryptjs'
 import { after, NextRequest, NextResponse } from 'next/server'
 
@@ -32,6 +32,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const session = await auth()
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!isAdmin(session.user)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   const { name, email, password, role, accountId: bodyAccountId, accountIds: bodyAccountIds } = await req.json()
 
