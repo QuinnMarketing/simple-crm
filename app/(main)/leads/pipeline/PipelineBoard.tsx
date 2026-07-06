@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { DragDropContext, Droppable, Draggable, type DropResult } from '@hello-pangea/dnd'
 import Link from 'next/link'
 import { LayoutList, Zap } from 'lucide-react'
+import LeadsCsvButtons from '../LeadsCsvButtons'
 
 type Lead = {
   id: string
@@ -87,7 +88,7 @@ function LeadCard({ lead, index }: { lead: Lead; index: number }) {
   )
 }
 
-export default function PipelineBoard({ initialLeads }: { initialLeads: Lead[] }) {
+export default function PipelineBoard({ initialLeads, exportHref, accountId }: { initialLeads: Lead[]; exportHref: string; accountId?: string | null }) {
   const [columns, setColumns] = useState<Record<string, Lead[]>>(
     () => groupByStatus(initialLeads)
   )
@@ -144,22 +145,25 @@ export default function PipelineBoard({ initialLeads }: { initialLeads: Lead[] }
             {wonValue > 0 && ` · $${wonValue.toLocaleString()} won`}
           </p>
         </div>
-        <Link
-          href="/leads"
-          className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-slate-600 border border-slate-200 hover:bg-slate-50 transition-colors"
-        >
-          <LayoutList className="w-4 h-4" />
-          List view
-        </Link>
+        <div className="flex items-center gap-2 flex-wrap">
+          <LeadsCsvButtons exportHref={exportHref} accountId={accountId} />
+          <Link
+            href="/leads"
+            className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-slate-600 border border-slate-200 hover:bg-slate-50 transition-colors"
+          >
+            <LayoutList className="w-4 h-4" />
+            List view
+          </Link>
+        </div>
       </div>
 
       <DragDropContext onDragEnd={onDragEnd}>
-        <div className="flex gap-4 overflow-x-auto pb-4" style={{ minHeight: '70vh' }}>
+        <div className="flex gap-4 overflow-x-auto pb-4 -mx-4 px-4 sm:mx-0 sm:px-0" style={{ minHeight: '70vh' }}>
           {COLUMNS.map((col) => {
             const leads = columns[col.id] ?? []
             const colValue = leads.reduce((sum, l) => sum + (l.value ?? 0), 0)
             return (
-              <div key={col.id} className="flex-shrink-0 w-64 flex flex-col">
+              <div key={col.id} className="flex-shrink-0 w-56 flex flex-col">
                 <div className={`flex items-center justify-between px-3 py-2 rounded-t-lg border-x border-t ${col.headerCls} mb-0`}>
                   <div className="flex items-center gap-2">
                     <span className={`w-2 h-2 rounded-full ${col.dotCls}`} />

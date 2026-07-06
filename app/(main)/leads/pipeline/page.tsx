@@ -23,5 +23,12 @@ export default async function PipelinePage({
     take: 500,
   })
 
-  return <PipelineBoard initialLeads={leads} />
+  const exportParams = new URLSearchParams()
+  if (company) exportParams.set('company', company)
+  if (account) exportParams.set('account', account)
+  const exportHref = `/api/leads/export${exportParams.toString() ? `?${exportParams}` : ''}`
+
+  const accountId = account ?? session!.user.accountId ?? null
+
+  return <PipelineBoard initialLeads={leads} exportHref={exportHref} accountId={accountId} />
 }

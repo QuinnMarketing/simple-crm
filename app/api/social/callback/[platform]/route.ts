@@ -122,6 +122,52 @@ export async function GET(req: NextRequest, { params }: P) {
         create: { accountId, platform: 'linkedin', platformId: urn, name, pictureUrl: pic, accessToken: tokenData.access_token, refreshToken: tokenData.refresh_token ?? null, expiresAt: exp },
         update: { name, pictureUrl: pic, accessToken: tokenData.access_token, refreshToken: tokenData.refresh_token ?? null, expiresAt: exp },
       })
+
+      // Discover Company Pages the member administers (requires the
+      // rw_organization_admin scope + Community Management API product
+      // approval on the LinkedIn app) and connect them too, so posts can be
+      // authored as the company rather than only the personal profile.
+      try {
+        const restHeaders = {
+          Authorization: `Bearer ${tokenData.access_token}`,
+          'X-Restli-Protocol-Version': '2.0.0',
+          'LinkedIn-Version': '202401',
+        }
+        const aclsRes = await fetch(
+          'https://api.linkedin.com/rest/organizationAcls?q=roleAssignee&role=ADMINISTRATOR&state=APPROVED',
+          { headers: restHeaders },
+        )
+        if (aclsRes.ok) {
+          const acls = await aclsRes.json()
+          const orgIds: string[] = (acls.elements ?? [])
+            .map((el: { organizationTarget?: string }) => el.organizationTarget?.split(':').pop())
+            .filter((id: string | undefined): id is string => !!id)
+
+          if (orgIds.length > 0) {
+            const lookupRes = await fetch(
+              `https://api.linkedin.com/rest/organizationsLookup?ids=List(${orgIds.join(',')})`,
+              { headers: restHeaders },
+            )
+            const lookupData = lookupRes.ok ? await lookupRes.json() : { results: {} }
+
+            for (const orgId of orgIds) {
+              const org = lookupData.results?.[orgId]
+              const orgUrn = `urn:li:organization:${orgId}`
+              const orgName = org?.localizedName ?? 'LinkedIn Company Page'
+              await prisma.socialAccount.upsert({
+                where: { accountId_platform_platformId: { accountId, platform: 'linkedin', platformId: orgUrn } },
+                create: { accountId, platform: 'linkedin', platformId: orgUrn, name: orgName, pictureUrl: null, accessToken: tokenData.access_token, refreshToken: tokenData.refresh_token ?? null, expiresAt: exp },
+                update: { name: orgName, accessToken: tokenData.access_token, refreshToken: tokenData.refresh_token ?? null, expiresAt: exp },
+              })
+            }
+          }
+        }
+      } catch (e) {
+        // Company Page discovery failing shouldn't block the personal profile
+        // connection succeeding — log and continue
+        console.error('LinkedIn organization discovery failed:', e)
+      }
+
       return redirect(req, 'social=connected&platform=linkedin')
     }
 
