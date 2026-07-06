@@ -1,6 +1,6 @@
 'use client'
 import { useState, useEffect } from 'react'
-import { X, Send, Loader2, AlertCircle, Paperclip } from 'lucide-react'
+import { X, Send, Loader2, AlertCircle, Paperclip, CheckSquare } from 'lucide-react'
 
 interface Props {
   leadId: string
@@ -121,9 +121,15 @@ export default function EmailModal({ leadId, leadEmail, leadName, quoteId, quote
           </div>
 
           {isQuote && (
-            <div className="flex items-center gap-2 text-sm text-slate-500 bg-slate-50 rounded-lg px-3 py-2.5 border border-slate-200">
-              <Paperclip className="w-4 h-4 flex-shrink-0 text-slate-400" />
-              <span><span className="font-medium text-slate-700">{quoteNumber}.pdf</span> will be attached</span>
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 text-sm text-slate-500 bg-slate-50 rounded-lg px-3 py-2.5 border border-slate-200">
+                <Paperclip className="w-4 h-4 flex-shrink-0 text-slate-400" />
+                <span><span className="font-medium text-slate-700">{quoteNumber}.pdf</span> will be attached</span>
+              </div>
+              <div className="flex items-start gap-2 text-sm text-emerald-700 bg-emerald-50 rounded-lg px-3 py-2.5 border border-emerald-200">
+                <CheckSquare className="w-4 h-4 flex-shrink-0 mt-0.5 text-emerald-500" />
+                <span><span className="font-medium">Accept / Decline buttons</span> will be included — clicking either updates the quote status automatically.</span>
+              </div>
             </div>
           )}
 

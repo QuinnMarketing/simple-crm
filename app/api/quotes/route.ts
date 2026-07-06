@@ -32,7 +32,7 @@ export async function GET(req: NextRequest) {
       ...(type ? { type } : {}),
     },
     orderBy: { createdAt: 'desc' },
-    include: { lead: { select: { id: true, name: true } } },
+    include: { lead: { select: { id: true, name: true, email: true, service: true, notes: true, address: true } } },
   })
   return NextResponse.json(quotes)
 }

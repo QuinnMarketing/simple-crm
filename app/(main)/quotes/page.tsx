@@ -1,28 +1,11 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
-import Link from 'next/link'
-import { FileText, Plus, Loader2 } from 'lucide-react'
+import { FileText, Loader2 } from 'lucide-react'
+import QuoteModal, { Quote as ModalQuote, STATUS_STYLES, fmtAUD } from '../leads/[id]/QuoteModal'
 
-type Quote = {
-  id: string; type: string; number: string; status: string
-  lineItems: string; subtotal: number; taxRate: number; taxAmount: number; total: number
-  notes: string | null; issuedAt: string | null; dueAt: string | null
-  createdAt: string; updatedAt: string
-  lead: { id: string; name: string } | null
-}
-
-const STATUS_STYLES: Record<string, string> = {
-  draft:     'bg-slate-100 text-slate-600',
-  sent:      'bg-blue-100 text-blue-700',
-  accepted:  'bg-emerald-100 text-emerald-700',
-  declined:  'bg-red-100 text-red-700',
-  paid:      'bg-emerald-100 text-emerald-700',
-  overdue:   'bg-orange-100 text-orange-700',
-  cancelled: 'bg-slate-100 text-slate-400',
-}
-
-function fmtAUD(n: number) {
-  return n.toLocaleString('en-AU', { style: 'currency', currency: 'AUD', minimumFractionDigits: 2 })
+type Quote = ModalQuote & {
+  leadId: string | null
+  lead: { id: string; name: string; email: string | null; service: string | null; notes: string | null; address: string | null } | null
 }
 
 const TABS = [
@@ -35,6 +18,7 @@ export default function QuotesPage() {
   const [quotes, setQuotes] = useState<Quote[]>([])
   const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState('')
+  const [selected, setSelected] = useState<Quote | null>(null)
 
   const fetchQuotes = useCallback(async () => {
     setLoading(true)
@@ -51,7 +35,17 @@ export default function QuotesPage() {
   useEffect(() => { fetchQuotes() }, [fetchQuotes])
 
   const totalValue = quotes.reduce((s, q) => s + q.total, 0)
-  const paidValue = quotes.filter((q) => q.status === 'paid' || q.status === 'accepted').reduce((s, q) => s + q.total, 0)
+  const paidValue = quotes.filter((q) => q.status === 'paid' || q.status === 'accepted' || q.status === 'approved').reduce((s, q) => s + q.total, 0)
+
+  function handleSave(saved: ModalQuote) {
+    setQuotes((prev) => prev.map((q) => q.id === saved.id ? { ...q, ...saved } : q))
+    setSelected(null)
+  }
+
+  function handleDelete(id: string) {
+    setQuotes((prev) => prev.filter((q) => q.id !== id))
+    setSelected(null)
+  }
 
   return (
     <div>
@@ -127,19 +121,16 @@ export default function QuotesPage() {
               </thead>
               <tbody>
                 {quotes.map((q) => (
-                  <tr key={q.id} className="border-b border-slate-50 hover:bg-slate-50 transition-colors last:border-0">
+                  <tr
+                    key={q.id}
+                    onClick={() => setSelected(q)}
+                    className="border-b border-slate-50 hover:bg-slate-50 transition-colors last:border-0 cursor-pointer"
+                  >
                     <td className="px-4 py-3">
-                      {q.lead ? (
-                        <Link href={`/leads/${q.lead.id}`} className="font-medium text-slate-900 hover:text-indigo-600 transition-colors flex items-center gap-1.5">
-                          <FileText className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
-                          {q.number}
-                        </Link>
-                      ) : (
-                        <span className="font-medium text-slate-900 flex items-center gap-1.5">
-                          <FileText className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
-                          {q.number}
-                        </span>
-                      )}
+                      <span className="font-medium text-slate-900 flex items-center gap-1.5">
+                        <FileText className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
+                        {q.number}
+                      </span>
                     </td>
                     <td className="px-4 py-3 hidden sm:table-cell">
                       <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${q.type === 'quote' ? 'bg-violet-100 text-violet-700' : 'bg-amber-100 text-amber-700'}`}>
@@ -147,11 +138,9 @@ export default function QuotesPage() {
                       </span>
                     </td>
                     <td className="px-4 py-3 text-sm">
-                      {q.lead ? (
-                        <Link href={`/leads/${q.lead.id}`} className="text-indigo-600 hover:underline truncate block max-w-[120px]">
-                          {q.lead.name}
-                        </Link>
-                      ) : <span className="text-slate-400">—</span>}
+                      {q.lead
+                        ? <span className="text-slate-700 truncate block max-w-[120px]">{q.lead.name}</span>
+                        : <span className="text-slate-400">—</span>}
                     </td>
                     <td className="px-4 py-3">
                       <span className={`text-xs px-2 py-0.5 rounded-full font-medium capitalize ${STATUS_STYLES[q.status] ?? 'bg-slate-100 text-slate-600'}`}>
@@ -174,6 +163,22 @@ export default function QuotesPage() {
           </div>
         )}
       </div>
+
+      {selected && (
+        <QuoteModal
+          initial={selected}
+          type={selected.type as 'quote' | 'invoice'}
+          leadId={selected.leadId ?? ''}
+          leadEmail={selected.lead?.email}
+          leadName={selected.lead?.name}
+          leadService={selected.lead?.service}
+          leadNotes={selected.lead?.notes}
+          leadAddress={selected.lead?.address}
+          onSave={handleSave}
+          onDelete={handleDelete}
+          onClose={() => setSelected(null)}
+        />
+      )}
     </div>
   )
 }

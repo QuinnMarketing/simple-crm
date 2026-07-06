@@ -20,12 +20,15 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       ...(body.durationMin !== undefined ? { durationMin: parseInt(body.durationMin) } : {}),
       ...(body.startedAt !== undefined ? { startedAt: new Date(body.startedAt) } : {}),
       ...(body.leadId !== undefined ? { leadId: body.leadId || null } : {}),
+      ...(body.projectId !== undefined ? { projectId: body.projectId || null } : {}),
       ...(body.userId !== undefined ? { userId: body.userId || null } : {}),
       ...(body.assignedTo !== undefined ? { assignedTo: body.assignedTo?.trim() || null } : {}),
+      ...(body.hourlyRate !== undefined ? { hourlyRate: body.hourlyRate != null ? parseFloat(body.hourlyRate) : null } : {}),
     },
     include: {
       lead: { select: { id: true, name: true } },
       user: { select: { id: true, name: true, email: true } },
+      project: { select: { id: true, name: true, color: true } },
     },
   })
 

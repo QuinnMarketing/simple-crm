@@ -166,6 +166,29 @@ async function execAction(
       return { status: res.status, ok: res.ok }
     }
 
+    case 'create_appointment': {
+      if (!ctx.leadId) throw new Error('No lead in context')
+      const title = i(cfg.appointmentTitle) || `Follow up: ${String(ctx.lead.name ?? '')}`
+      const days = cfg.daysFromNow ?? 1
+      const hour = cfg.hour ?? 9
+      const duration = cfg.duration ?? 60
+      const start = new Date()
+      start.setDate(start.getDate() + days)
+      start.setHours(hour, 0, 0, 0)
+      const end = new Date(start.getTime() + duration * 60_000)
+      const appt = await prisma.appointment.create({
+        data: {
+          title,
+          startTime: start,
+          endTime: end,
+          leadId: ctx.leadId,
+          accountId: ctx.accountId,
+          description: cfg.appointmentNotes ? i(cfg.appointmentNotes) : undefined,
+        },
+      })
+      return { appointmentId: appt.id, title, startTime: start.toISOString() }
+    }
+
     default:
       throw new Error(`Unknown action type: ${(step as ActionStep).actionType}`)
   }

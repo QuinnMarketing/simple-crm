@@ -11,6 +11,7 @@ type EntryType = 'call' | 'meeting' | 'work' | 'email' | 'admin' | 'other'
 
 interface Lead { id: string; name: string }
 interface User { id: string; name?: string | null; email: string }
+interface Project { id: string; name: string; color: string }
 
 interface TimeEntry {
   id: string
@@ -19,10 +20,12 @@ interface TimeEntry {
   durationMin: number
   startedAt: string
   assignedTo: string | null
+  hourlyRate: number | null
   latitude: number | null
   longitude: number | null
   lead: Lead | null
   user: User | null
+  project: Project | null
 }
 
 const TYPE_META: Record<EntryType, { label: string; color: string; bg: string; Icon: React.ElementType }> = {
@@ -70,13 +73,14 @@ interface ModalProps {
   prefillLng?: number | null
   leads: Lead[]
   users: User[]
+  projects: Project[]
   currentUserId: string
   onSave: (entry: TimeEntry) => void
   onDelete?: (id: string) => void
   onClose: () => void
 }
 
-function EntryModal({ initial, prefillDuration, prefillStartedAt, prefillLat, prefillLng, leads, users, currentUserId, onSave, onDelete, onClose }: ModalProps) {
+function EntryModal({ initial, prefillDuration, prefillStartedAt, prefillLat, prefillLng, leads, users, projects, currentUserId, onSave, onDelete, onClose }: ModalProps) {
   const isEdit = !!initial
   const inputCls = 'w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent'
   const labelCls = 'block text-xs font-medium text-slate-500 mb-1.5 uppercase tracking-wide'
@@ -90,6 +94,8 @@ function EntryModal({ initial, prefillDuration, prefillStartedAt, prefillLat, pr
     return new Date(d).toISOString().slice(0, 16)
   })
   const [leadId, setLeadId] = useState(initial?.lead?.id ?? '')
+  const [projectId, setProjectId] = useState(initial?.project?.id ?? '')
+  const [hourlyRate, setHourlyRate] = useState(initial?.hourlyRate != null ? String(initial.hourlyRate) : '')
   const defaultName = initial
     ? (initial.assignedTo ?? initial.user?.name ?? initial.user?.email ?? '')
     : (users.find((u) => u.id === currentUserId)?.name ?? users.find((u) => u.id === currentUserId)?.email ?? '')
@@ -99,18 +105,20 @@ function EntryModal({ initial, prefillDuration, prefillStartedAt, prefillLat, pr
   const [error, setError] = useState<string | null>(null)
 
   const totalMin = (parseInt(hours) || 0) * 60 + (parseInt(minutes) || 0)
+  const cost = hourlyRate && totalMin > 0 ? (parseFloat(hourlyRate) * totalMin) / 60 : null
 
   async function handleSave() {
     if (totalMin < 1) { setError('Duration must be at least 1 minute'); return }
     setSaving(true); setError(null)
     try {
-      // Match typed name to a registered user if possible (for linking)
       const matchedUser = users.find((u) => (u.name ?? u.email) === assignedTo)
       const payload = {
         type, description, durationMin: totalMin,
         startedAt: new Date(startedAt).toISOString(),
         leadId: leadId || null,
+        projectId: projectId || null,
         assignedTo: assignedTo.trim() || null,
+        hourlyRate: hourlyRate ? parseFloat(hourlyRate) : null,
         userId: matchedUser?.id || null,
         latitude: initial ? (initial.latitude ?? null) : (prefillLat ?? null),
         longitude: initial ? (initial.longitude ?? null) : (prefillLng ?? null),
@@ -200,6 +208,37 @@ function EntryModal({ initial, prefillDuration, prefillStartedAt, prefillLat, pr
             </select>
           </div>
 
+          {/* Project */}
+          <div>
+            <label className={labelCls}>Project (optional)</label>
+            <select value={projectId} onChange={(e) => setProjectId(e.target.value)} className={`${inputCls} bg-white`}>
+              <option value="">— No project —</option>
+              {projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+            </select>
+          </div>
+
+          {/* Hourly rate */}
+          <div>
+            <label className={labelCls}>Hourly Rate (optional)</label>
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">$</span>
+              <input
+                type="number"
+                min={0}
+                step="0.01"
+                value={hourlyRate}
+                onChange={(e) => setHourlyRate(e.target.value)}
+                placeholder="0.00"
+                className={`${inputCls} pl-7`}
+              />
+            </div>
+            {cost != null && (
+              <p className="text-xs text-emerald-600 mt-1 font-medium">
+                Cost: ${cost.toFixed(2)} for {fmtDuration(totalMin)}
+              </p>
+            )}
+          </div>
+
           {/* Employee */}
           <div>
             <label className={labelCls}>Logged by</label>
@@ -264,6 +303,7 @@ export default function TimePage() {
   const [entries, setEntries] = useState<TimeEntry[]>([])
   const [leads, setLeads] = useState<Lead[]>([])
   const [users, setUsers] = useState<User[]>([])
+  const [projects, setProjects] = useState<Project[]>([])
   const [currentUserId, setCurrentUserId] = useState('')
   const [loading, setLoading] = useState(true)
   const [modal, setModal] = useState<{ open: boolean; entry?: TimeEntry | null; prefillDuration?: number; prefillStartedAt?: string; prefillLat?: number | null; prefillLng?: number | null }>({ open: false })
@@ -351,6 +391,10 @@ export default function TimePage() {
       if (Array.isArray(d)) setLeads(d.map((l: Lead) => ({ id: l.id, name: l.name })))
     }).catch(() => {})
 
+    fetch('/api/projects').then((r) => r.json()).then((d) => {
+      if (Array.isArray(d)) setProjects(d.map((p: Project) => ({ id: p.id, name: p.name, color: p.color })))
+    }).catch(() => {})
+
     Promise.all([
       fetch('/api/users').then((r) => r.json()),
       fetch('/api/auth/session').then((r) => r.json()),
@@ -382,9 +426,12 @@ export default function TimePage() {
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
 
   const sumMin = (arr: TimeEntry[]) => arr.reduce((s, e) => s + e.durationMin, 0)
+  const sumCost = (arr: TimeEntry[]) => arr.reduce((s, e) => s + (e.hourlyRate != null ? (e.hourlyRate * e.durationMin) / 60 : 0), 0)
   const todayMin = sumMin(entries.filter((e) => new Date(e.startedAt).toDateString() === todayStr))
   const weekMin  = sumMin(entries.filter((e) => new Date(e.startedAt) >= weekStart))
   const monthMin = sumMin(entries.filter((e) => new Date(e.startedAt) >= monthStart))
+  const monthCost = sumCost(entries.filter((e) => new Date(e.startedAt) >= monthStart))
+  const fmtCurrency = (n: number) => new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD', maximumFractionDigits: 0 }).format(n)
 
   // Group by date for the list
   const grouped: { date: string; items: TimeEntry[] }[] = []
@@ -413,15 +460,16 @@ export default function TimePage() {
       </div>
 
       {/* Summary cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
         {[
-          { label: 'Today', value: fmtDuration(todayMin), sub: `${todayMin} minutes` },
-          { label: 'This Week', value: fmtDuration(weekMin), sub: `${weekMin} minutes` },
-          { label: 'This Month', value: fmtDuration(monthMin), sub: `${monthMin} minutes` },
+          { label: 'Today', value: fmtDuration(todayMin), sub: `${todayMin} min` },
+          { label: 'This Week', value: fmtDuration(weekMin), sub: `${weekMin} min` },
+          { label: 'This Month', value: fmtDuration(monthMin), sub: `${monthMin} min` },
+          { label: 'Month Earnings', value: fmtCurrency(monthCost), sub: monthCost > 0 ? 'from rated entries' : 'no rates set' },
         ].map((s) => (
           <div key={s.label} className="bg-white rounded-xl border border-slate-200 p-5">
             <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">{s.label}</p>
-            <p className="text-3xl font-bold text-slate-900 mt-2">{s.value}</p>
+            <p className="text-2xl font-bold text-slate-900 mt-2">{s.value}</p>
             <p className="text-xs text-slate-400 mt-1">{s.sub}</p>
           </div>
         ))}
@@ -557,8 +605,14 @@ export default function TimePage() {
                           <Icon className={`w-4 h-4 ${meta.color}`} />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2 flex-wrap">
                             <span className={`text-xs font-semibold ${meta.color}`}>{meta.label}</span>
+                            {entry.project && (
+                              <span className="flex items-center gap-1 text-xs text-slate-600">
+                                <span className="w-2 h-2 rounded-full" style={{ background: entry.project.color }} />
+                                {entry.project.name}
+                              </span>
+                            )}
                             {entry.lead && (
                               <Link href={`/leads/${entry.lead.id}`} className="text-xs text-indigo-600 hover:underline truncate" onClick={(e) => e.stopPropagation()}>
                                 {entry.lead.name}
@@ -587,8 +641,15 @@ export default function TimePage() {
                             )}
                           </p>
                         </div>
-                        <div className="flex items-center gap-3 flex-shrink-0">
-                          <span className="text-sm font-semibold text-slate-700">{fmtDuration(entry.durationMin)}</span>
+                        <div className="flex items-center gap-3 flex-shrink-0 text-right">
+                          <div>
+                            <p className="text-sm font-semibold text-slate-700">{fmtDuration(entry.durationMin)}</p>
+                            {entry.hourlyRate != null && (
+                              <p className="text-xs text-emerald-600 font-medium">
+                                {fmtCurrency((entry.hourlyRate * entry.durationMin) / 60)}
+                              </p>
+                            )}
+                          </div>
                           <button
                             onClick={() => setModal({ open: true, entry })}
                             className="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-indigo-600 transition-all"
@@ -596,6 +657,7 @@ export default function TimePage() {
                             <Edit2 className="w-4 h-4" />
                           </button>
                         </div>
+
                       </div>
                     )
                   })}
@@ -615,6 +677,7 @@ export default function TimePage() {
           prefillLng={modal.prefillLng}
           leads={leads}
           users={users}
+          projects={projects}
           currentUserId={currentUserId}
           onSave={handleSave}
           onDelete={handleDelete}

@@ -10,7 +10,7 @@ import '@xyflow/react/dist/style.css'
 import {
   Plus, Trash2, ChevronLeft, Save, Loader2, Mail, Clock, GitBranch,
   Zap, Edit2, Bell, RefreshCw, Webhook, ToggleLeft, ToggleRight, Check,
-  Play, X, History, CheckCircle2, XCircle, Pause, AlertCircle,
+  Play, X, History, CheckCircle2, XCircle, Pause, AlertCircle, CalendarPlus,
 } from 'lucide-react'
 import type {
   AutomationDefinition, BodyStep, ActionStep, ConditionStep, DelayStep,
@@ -33,11 +33,12 @@ const TRIGGER_OPTIONS: { value: TriggerType; label: string; desc: string }[] = [
 ]
 
 const ACTION_OPTIONS: { value: ActionType; label: string; icon: React.ReactNode }[] = [
-  { value: 'send_email',   label: 'Send email to lead',   icon: <Mail className="w-4 h-4" /> },
-  { value: 'notify_team',  label: 'Notify team member',   icon: <Bell className="w-4 h-4" /> },
-  { value: 'update_lead',  label: 'Update lead field',    icon: <RefreshCw className="w-4 h-4" /> },
-  { value: 'add_note',     label: 'Add note to lead',     icon: <Edit2 className="w-4 h-4" /> },
-  { value: 'send_webhook', label: 'Send webhook',         icon: <Webhook className="w-4 h-4" /> },
+  { value: 'send_email',         label: 'Send email to lead',   icon: <Mail className="w-4 h-4" /> },
+  { value: 'notify_team',        label: 'Notify team member',   icon: <Bell className="w-4 h-4" /> },
+  { value: 'create_appointment', label: 'Create appointment',   icon: <CalendarPlus className="w-4 h-4" /> },
+  { value: 'update_lead',        label: 'Update lead field',    icon: <RefreshCw className="w-4 h-4" /> },
+  { value: 'add_note',           label: 'Add note to lead',     icon: <Edit2 className="w-4 h-4" /> },
+  { value: 'send_webhook',       label: 'Send webhook',         icon: <Webhook className="w-4 h-4" /> },
 ]
 
 const STATUS_OPTIONS = ['new', 'contacted', 'qualified', 'won', 'lost']
@@ -93,6 +94,7 @@ function actionSummary(step: ActionStep): string {
     case 'update_lead': return c.field ? `${c.field} = ${c.value ?? '?'}` : 'No field'
     case 'add_note': return c.content ? c.content.slice(0, 50) : 'Empty note'
     case 'send_webhook': return c.url ?? 'No URL'
+    case 'create_appointment': return c.appointmentTitle ?? 'Follow up: {{name}}'
     default: return ''
   }
 }
@@ -255,6 +257,7 @@ function ActionNodeComp({ data }: NodeProps) {
   const iconMap: Partial<Record<ActionType, React.ReactNode>> = {
     send_email: <Mail className="w-4 h-4" />,
     notify_team: <Bell className="w-4 h-4" />,
+    create_appointment: <CalendarPlus className="w-4 h-4" />,
     update_lead: <RefreshCw className="w-4 h-4" />,
     add_note: <Edit2 className="w-4 h-4" />,
     send_webhook: <Webhook className="w-4 h-4" />,
@@ -597,6 +600,38 @@ function ActionConfigForm({ step, onChange }: { step: ActionStep; onChange: (s: 
           <div>
             <label className={lbl}>Body template (JSON)</label>
             <textarea rows={3} value={cfg.webhookBody ?? ''} onChange={e => set({ webhookBody: e.target.value })} className={`${inp} resize-none font-mono text-xs`} />
+          </div>
+        </>
+      )}
+
+      {step.actionType === 'create_appointment' && (
+        <>
+          <div>
+            <label className={lbl}>Appointment title</label>
+            <input type="text" value={cfg.appointmentTitle ?? 'Follow up: {{name}}'} onChange={e => set({ appointmentTitle: e.target.value })} className={inp} placeholder="Follow up: {{name}}" />
+            <VarChips onInsert={v => set({ appointmentTitle: (cfg.appointmentTitle ?? 'Follow up: {{name}}') + v })} />
+          </div>
+          <div className="grid grid-cols-3 gap-3">
+            <div>
+              <label className={lbl}>Days from now</label>
+              <input type="number" min={0} max={365} value={cfg.daysFromNow ?? 1} onChange={e => set({ daysFromNow: Math.max(0, parseInt(e.target.value) || 1) })} className={inp} />
+            </div>
+            <div>
+              <label className={lbl}>Hour of day</label>
+              <select value={cfg.hour ?? 9} onChange={e => set({ hour: parseInt(e.target.value) })} className={inp}>
+                {Array.from({ length: 24 }, (_, i) => (
+                  <option key={i} value={i}>{i === 0 ? '12:00 am' : i < 12 ? `${i}:00 am` : i === 12 ? '12:00 pm' : `${i - 12}:00 pm`}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className={lbl}>Duration (mins)</label>
+              <input type="number" min={15} max={480} step={15} value={cfg.duration ?? 60} onChange={e => set({ duration: Math.max(15, parseInt(e.target.value) || 60) })} className={inp} />
+            </div>
+          </div>
+          <div>
+            <label className={lbl}>Notes (optional)</label>
+            <textarea rows={2} value={cfg.appointmentNotes ?? ''} onChange={e => set({ appointmentNotes: e.target.value })} className={`${inp} resize-none`} placeholder="Optional appointment notes" />
           </div>
         </>
       )}

@@ -2,7 +2,7 @@
 import Link from 'next/link'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { useState } from 'react'
-import { LayoutDashboard, Users, Settings, LogOut, Zap, Building2, ChevronDown, Layers, CalendarDays, FileText, Bot, Clock, Mail, TrendingUp, BarChart2, Share2, GanttChartSquare, CheckSquare, Star, BookOpen, Receipt, FolderOpen, Ruler } from 'lucide-react'
+import { LayoutDashboard, Users, Settings, LogOut, Zap, Building2, ChevronDown, Layers, CalendarDays, FileText, Bot, Clock, Mail, TrendingUp, BarChart2, Share2, GanttChartSquare, CheckSquare, Star, BookOpen, Receipt, FolderOpen, Ruler, Inbox, Target } from 'lucide-react'
 import { signOut } from 'next-auth/react'
 import PushToggle from './PushToggle'
 
@@ -17,28 +17,8 @@ type SidebarUser = {
 type SidebarAccount = { id: string; name: string }
 
 type NavItem = { href: string; icon: React.ElementType; label: string; match?: string }
-const NAV: NavItem[] = [
-  { href: '/', icon: LayoutDashboard, label: 'Dashboard' },
-  { href: '/leads/pipeline', icon: Users, label: 'Leads', match: '/leads' },
-  { href: '/analytics', icon: TrendingUp, label: 'Analytics' },
-  { href: '/reports', icon: BarChart2, label: 'Reports' },
-  { href: '/calendar', icon: CalendarDays, label: 'Calendar' },
-  { href: '/tasks', icon: CheckSquare, label: 'Tasks' },
-  { href: '/quotes', icon: FileText, label: 'Quotes & Invoices' },
-  { href: '/price-book', icon: BookOpen, label: 'Price Book' },
-  { href: '/automations', icon: Bot, label: 'Automations' },
-  { href: '/campaigns', icon: Mail, label: 'Campaigns' },
-  { href: '/social', icon: Share2, label: 'Social' },
-  { href: '/reviews', icon: Star, label: 'Reviews' },
-  { href: '/projects', icon: FolderOpen, label: 'Projects' },
-  { href: '/gantt', icon: GanttChartSquare, label: 'Gantt Charts' },
-  { href: '/expenses', icon: Receipt, label: 'Expenses' },
-  { href: '/time', icon: Clock, label: 'Time Tracking' },
-  { href: '/companies', icon: Building2, label: 'Companies' },
-  { href: '/settings', icon: Settings, label: 'Settings' },
-]
 
-const MASTER_NAV = [
+const MASTER_NAV: NavItem[] = [
   { href: '/accounts', icon: Layers, label: 'Accounts' },
 ]
 
@@ -84,8 +64,29 @@ export default function Sidebar({
     return qs ? `${base}?${qs}` : base
   }
 
-  const takeoffsItem: NavItem = { href: '/takeoffs', icon: Ruler, label: 'Takeoffs & Estimating' }
-  const baseNav = featTakeoffs ? [...NAV, takeoffsItem] : NAV
+  const baseNav: NavItem[] = [
+    { href: '/', icon: LayoutDashboard, label: 'Dashboard' },
+    { href: '/calendar', icon: CalendarDays, label: 'Calendar' },
+    { href: '/leads', icon: Users, label: 'Leads', match: '/leads' },
+    { href: '/quotes', icon: FileText, label: 'Quotes & Invoices' },
+    ...(featTakeoffs ? [{ href: '/takeoffs', icon: Ruler, label: 'Takeoffs & Estimating' }] : []),
+    { href: '/price-book', icon: BookOpen, label: 'Price Book' },
+    { href: '/gantt', icon: GanttChartSquare, label: 'Gantt Charts' },
+    { href: '/companies', icon: Building2, label: 'Companies' },
+    { href: '/projects', icon: FolderOpen, label: 'Projects' },
+    { href: '/expenses', icon: Receipt, label: 'Expenses' },
+    { href: '/receipts', icon: Inbox, label: 'Receipts' },
+    { href: '/automations', icon: Bot, label: 'Automations' },
+    { href: '/tasks', icon: CheckSquare, label: 'Tasks' },
+    { href: '/reports', icon: BarChart2, label: 'Reports' },
+    { href: '/analytics', icon: TrendingUp, label: 'Analytics' },
+    { href: '/campaigns', icon: Mail, label: 'Campaigns' },
+    { href: '/social', icon: Share2, label: 'Social' },
+    { href: '/ads', icon: Target, label: 'Ad Manager' },
+    { href: '/reviews', icon: Star, label: 'Reviews' },
+    { href: '/time', icon: Clock, label: 'Time Tracking' },
+    { href: '/settings', icon: Settings, label: 'Settings' },
+  ]
   const allNav: NavItem[] = isMasterAdmin ? [...MASTER_NAV, ...baseNav] : baseNav
 
   return (

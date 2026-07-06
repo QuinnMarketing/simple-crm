@@ -50,6 +50,8 @@ model Account {
   outboundIntegrations   OutboundIntegration[]
   expenses               Expense[]
   pendingReceipts        PendingReceipt[]
+  takeoffs               Takeoff[]
+  adPlatformAccounts     AdPlatformAccount[]
 }
 
 model AccountIntegration {
@@ -179,6 +181,7 @@ model Lead {
   customFieldValues   CustomFieldValue[]
   tasks               Task[]
   reviews             Review[]
+  takeoffs            Takeoff[]
 }
 
 model Task {
@@ -283,6 +286,7 @@ model Quote {
   type      String    // 'quote' | 'invoice'
   number    String
   status    String    @default("draft")
+  clientToken String? @unique // one-time token for accept/reject links in emails
   lineItems String    @default("[]") // JSON: [{description,quantity,unitPrice}]
   subtotal  Float     @default(0)
   taxRate   Float     @default(10)
@@ -307,14 +311,17 @@ model TimeEntry {
   durationMin Int      // minutes
   startedAt   DateTime
   assignedTo  String?  // free-text name — works for non-registered employees/contractors
+  hourlyRate  Float?   // optional rate in account currency
   latitude    Float?
   longitude   Float?
   leadId      String?
-  lead        Lead?    @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  lead        Lead?        @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  projectId   String?
+  project     GanttProject? @relation(fields: [projectId], references: [id], onDelete: SetNull)
   userId      String?
-  user        User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  user        User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
   accountId   String?
-  account     Account? @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  account     Account?     @relation(fields: [accountId], references: [id], onDelete: Cascade)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }
@@ -480,6 +487,8 @@ model GanttProject {
   updatedAt   DateTime    @updatedAt
   tasks       GanttTask[]
   expenses    Expense[]
+  takeoffs    Takeoff[]
+  timeEntries TimeEntry[]
 
   @@index([accountId])
 }
@@ -638,4 +647,192 @@ model BookingSettings {
   minNoticeHours Int      @default(24)
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
+}
+
+model Takeoff {
+  id          String        @id @default(cuid())
+  accountId   String
+  account     Account       @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  projectId   String?
+  project     GanttProject? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  leadId      String?
+  lead        Lead?         @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  name        String
+  description String?
+  status      String        @default("draft") // draft | sent | approved | rejected
+  lineItems   String        @default("[]") // JSON: [{id,section,description,quantity,unit,unitCost,markup,total}]
+  subtotal    Float         @default(0)
+  total       Float         @default(0)
+  notes       String?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  plans       TakeoffPlan[]
+
+  @@index([accountId])
+}
+
+model TakeoffPlan {
+  id           String   @id @default(cuid())
+  takeoffId    String
+  takeoff      Takeoff  @relation(fields: [takeoffId], references: [id], onDelete: Cascade)
+  name         String
+  imageData    String   // base64 data URL
+  scale        String?  // JSON: {p1,p2,pixelDist,realDist,unit}
+  measurements String   @default("[]") // JSON array of measurement objects
+  order        Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([takeoffId])
+}
+
+// ─── Ads Management ───────────────────────────────────────────────────────────
+
+model AdPlatformAccount {
+  id                  String   @id @default(cuid())
+  accountId           String
+  account             Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  platform            String   // 'google_ads' | 'meta_ads' | 'tiktok_ads'
+  platformAccountId   String
+  platformAccountName String
+  accessToken         String?
+  refreshToken        String?
+  expiresAt           DateTime?
+  currencyCode        String   @default("AUD")
+  timezone            String   @default("Australia/Sydney")
+  developerToken      String?
+  loginCustomerId     String?  // MCC manager account ID required when accessing client accounts
+  enabled             Boolean  @default(true)
+  syncedAt            DateTime?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  campaigns AdCampaign[]
+  audiences AdAudience[]
+  snapshots AdPerformanceSnapshot[]
+
+  @@unique([accountId, platform, platformAccountId])
+  @@index([accountId])
+}
+
+model AdCampaign {
+  id                  String            @id @default(cuid())
+  accountId           String
+  adPlatformAccountId String
+  adPlatformAccount   AdPlatformAccount @relation(fields: [adPlatformAccountId], references: [id], onDelete: Cascade)
+  platform            String
+  platformCampaignId  String
+  name                String
+  status              String            @default("paused")
+  objective           String?
+  budgetType          String?
+  budgetAmount        Float?
+  budgetCurrency      String            @default("AUD")
+  startDate           String?
+  endDate             String?
+  syncedAt            DateTime?
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+
+  adSets AdSet[]
+
+  @@unique([adPlatformAccountId, platformCampaignId])
+  @@index([accountId])
+  @@index([adPlatformAccountId])
+}
+
+model AdSet {
+  id                  String     @id @default(cuid())
+  campaignId          String
+  campaign            AdCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  adPlatformAccountId String
+  platform            String
+  platformAdSetId     String
+  name                String
+  status              String     @default("paused")
+  budgetAmount        Float?
+  bidStrategy         String?
+  bidAmount           Float?
+  targeting           String     @default("{}")
+  syncedAt            DateTime?
+  createdAt           DateTime   @default(now())
+  updatedAt           DateTime   @updatedAt
+
+  ads AdCreative[]
+
+  @@unique([campaignId, platformAdSetId])
+  @@index([campaignId])
+}
+
+model AdCreative {
+  id             String   @id @default(cuid())
+  adSetId        String
+  adSet          AdSet    @relation(fields: [adSetId], references: [id], onDelete: Cascade)
+  campaignId     String
+  platform       String
+  platformAdId   String
+  name           String
+  status         String   @default("paused")
+  format         String?
+  headline       String?
+  body           String?
+  callToAction   String?
+  imageUrl       String?
+  videoUrl       String?
+  destinationUrl String?
+  displayUrl     String?
+  creativeData   String   @default("{}")
+  syncedAt       DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([adSetId, platformAdId])
+  @@index([campaignId])
+}
+
+model AdPerformanceSnapshot {
+  id                  String            @id @default(cuid())
+  accountId           String
+  adPlatformAccountId String
+  adPlatformAccount   AdPlatformAccount @relation(fields: [adPlatformAccountId], references: [id], onDelete: Cascade)
+  platform            String
+  entityType          String
+  entityId            String
+  date                DateTime
+  impressions         Int               @default(0)
+  clicks              Int               @default(0)
+  spend               Float             @default(0)
+  conversions         Float             @default(0)
+  conversionValue     Float             @default(0)
+  ctr                 Float             @default(0)
+  cpc                 Float             @default(0)
+  cpm                 Float             @default(0)
+  roas                Float             @default(0)
+  cpl                 Float             @default(0)
+  createdAt           DateTime          @default(now())
+
+  @@unique([adPlatformAccountId, entityType, entityId, date])
+  @@index([accountId, date])
+  @@index([adPlatformAccountId, entityType])
+}
+
+model AdAudience {
+  id                  String            @id @default(cuid())
+  accountId           String
+  adPlatformAccountId String
+  adPlatformAccount   AdPlatformAccount @relation(fields: [adPlatformAccountId], references: [id], onDelete: Cascade)
+  platform            String
+  name                String
+  description         String?
+  segmentFilter       String            @default("{}")
+  platformAudienceId  String?
+  memberCount         Int               @default(0)
+  uploadedAt          DateTime?
+  status              String            @default("pending")
+  errorMessage        String?
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+
+  @@index([accountId])
+  @@index([adPlatformAccountId])
 }

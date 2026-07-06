@@ -43,6 +43,7 @@ export type ActionType =
   | 'update_lead'
   | 'add_note'
   | 'send_webhook'
+  | 'create_appointment'
 
 export interface ActionConfig {
   // send_email / notify_team
@@ -59,6 +60,12 @@ export interface ActionConfig {
   method?: 'GET' | 'POST' | 'PUT' | 'PATCH'
   headers?: string // JSON string
   webhookBody?: string // JSON template string
+  // create_appointment
+  appointmentTitle?: string
+  daysFromNow?: number  // days from now, default 1
+  hour?: number         // hour of day 0-23, default 9
+  duration?: number     // minutes, default 60
+  appointmentNotes?: string
 }
 
 export interface ActionStep {

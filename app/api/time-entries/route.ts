@@ -31,6 +31,7 @@ export async function GET(req: Request) {
     include: {
       lead: { select: { id: true, name: true } },
       user: { select: { id: true, name: true, email: true } },
+      project: { select: { id: true, name: true, color: true } },
     },
   })
 
@@ -45,7 +46,7 @@ export async function POST(req: Request) {
   const accountId = (accountFilter as { accountId?: string }).accountId ?? session.user.accountId ?? null
 
   const body = await req.json()
-  const { type, description, durationMin, startedAt, leadId, userId, assignedTo, latitude, longitude } = body
+  const { type, description, durationMin, startedAt, leadId, projectId, userId, assignedTo, latitude, longitude, hourlyRate } = body
 
   if (!type) return NextResponse.json({ error: 'type is required' }, { status: 400 })
   if (!durationMin || durationMin < 1) return NextResponse.json({ error: 'durationMin must be >= 1' }, { status: 400 })
@@ -57,15 +58,18 @@ export async function POST(req: Request) {
       durationMin: parseInt(durationMin),
       startedAt: startedAt ? new Date(startedAt) : new Date(),
       assignedTo: assignedTo?.trim() || null,
+      hourlyRate: hourlyRate != null ? parseFloat(hourlyRate) : null,
       latitude: typeof latitude === 'number' ? latitude : null,
       longitude: typeof longitude === 'number' ? longitude : null,
       leadId: leadId || null,
+      projectId: projectId || null,
       userId: userId || session.user.id || null,
       accountId,
     },
     include: {
       lead: { select: { id: true, name: true } },
       user: { select: { id: true, name: true, email: true } },
+      project: { select: { id: true, name: true, color: true } },
     },
   })
 

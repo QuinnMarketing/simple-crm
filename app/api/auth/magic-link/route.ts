@@ -1,15 +1,8 @@
 import { prisma } from '@/lib/prisma'
 import { sendEmail, SmtpConfig } from '@/lib/email'
+import { mergeSmtp } from '@/lib/platform-defaults'
 import { randomBytes } from 'crypto'
 import { NextRequest, NextResponse } from 'next/server'
-
-function getSystemSmtp(): SmtpConfig | null {
-  const host = process.env.SYSTEM_SMTP_HOST
-  const user = process.env.SYSTEM_SMTP_USER
-  const pass = process.env.SYSTEM_SMTP_PASS
-  if (!host || !user || !pass) return null
-  return { host, port: process.env.SYSTEM_SMTP_PORT ?? '587', user, pass, from: process.env.SYSTEM_SMTP_FROM ?? user }
-}
 
 export async function POST(req: NextRequest) {
   const { email } = await req.json()
@@ -37,15 +30,13 @@ export async function POST(req: NextRequest) {
   const baseUrl = process.env.NEXTAUTH_URL ?? 'http://localhost:3000'
   const magicUrl = `${baseUrl}/magic-link?token=${token}`
 
-  let smtp = getSystemSmtp()
-  if (!smtp && user.account?.integrations?.[0]) {
-    try {
-      const cfg = JSON.parse(user.account.integrations[0].config) as Partial<SmtpConfig>
-      if (cfg.host && cfg.user && cfg.pass) smtp = { host: cfg.host, port: cfg.port ?? '587', user: cfg.user, pass: cfg.pass, from: cfg.from }
-    } catch {}
+  let accountSmtp: Partial<SmtpConfig> | null = null
+  if (user.account?.integrations?.[0]) {
+    try { accountSmtp = JSON.parse(user.account.integrations[0].config) as Partial<SmtpConfig> } catch {}
   }
+  const smtp = mergeSmtp(accountSmtp)
 
-  if (smtp) {
+  if (smtp.host && smtp.user && smtp.pass) {
     try {
       await sendEmail(
         smtp,

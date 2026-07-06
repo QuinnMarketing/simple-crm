@@ -101,7 +101,9 @@ export default function ReviewsPage() {
       if (!r.ok) {
         setSyncMsg(data.error ?? 'Sync failed')
       } else {
-        setSyncMsg(`Synced: ${data.created} new, ${data.updated} updated${data.errors?.length ? ` (${data.errors.length} error${data.errors.length > 1 ? 's' : ''})` : ''}`)
+        const parts = [`${data.created} new`, `${data.updated} updated`]
+        if (data.autoReplied > 0) parts.push(`${data.autoReplied} auto-replied`)
+        setSyncMsg(`Synced: ${parts.join(', ')}${data.errors?.length ? ` (${data.errors.length} error${data.errors.length > 1 ? 's' : ''})` : ''}`)
         fetchReviews()
       }
     } finally {

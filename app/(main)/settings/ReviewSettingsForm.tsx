@@ -192,27 +192,30 @@ export default function ReviewSettingsForm({ accountId, accountSlug, initial }: 
             className="w-4 h-4 text-indigo-600 border-slate-300 rounded"
           />
           <div>
-            <p className="text-sm text-slate-800">Auto-reply by email</p>
-            <p className="text-xs text-slate-500">Send a templated reply when a reviewer provides their email</p>
+            <p className="text-sm text-slate-800">Auto-reply to Google reviews</p>
+            <p className="text-xs text-slate-500">When syncing, AI automatically writes and posts a personalised reply to new Google reviews that haven't been replied to yet</p>
           </div>
         </label>
       </div>
 
-      {/* Reply templates */}
+      {/* AI tone guidance */}
       {autoReply && (
         <div className="space-y-3 pl-4 border-l-2 border-indigo-100">
-          <p className="text-sm font-medium text-slate-700">Auto-reply templates</p>
+          <div>
+            <p className="text-sm font-medium text-slate-700">AI tone guidance <span className="text-slate-400 font-normal">(optional)</span></p>
+            <p className="text-xs text-slate-500 mt-0.5">Tell the AI how to sound for each rating tier. Leave blank to use the default style.</p>
+          </div>
           {[
-            { key: 'positive', label: '4–5 stars (Positive)', placeholder: 'Thank you so much for the kind words! We really appreciate your feedback…' },
-            { key: 'neutral', label: '3 stars (Neutral)', placeholder: 'Thank you for your feedback. We\'d love to know how we can improve…' },
-            { key: 'negative', label: '1–2 stars (Negative)', placeholder: 'We\'re sorry to hear about your experience. Please reach out so we can make this right…' },
+            { key: 'positive', label: '4–5 stars (Positive)', placeholder: 'Warm and enthusiastic. Thank the reviewer by name and mention a specific detail from their review.' },
+            { key: 'neutral', label: '3 stars (Neutral)', placeholder: 'Friendly and curious. Acknowledge what went well and invite them to share more feedback.' },
+            { key: 'negative', label: '1–2 stars (Negative)', placeholder: 'Empathetic and professional. Apologise sincerely and offer to resolve the issue offline.' },
           ].map(({ key, label, placeholder }) => (
             <div key={key}>
               <label className="block text-xs font-medium text-slate-600 mb-1">{label}</label>
               <textarea
                 value={templates[key as keyof Templates]}
                 onChange={(e) => setTemplates((t) => ({ ...t, [key]: e.target.value }))}
-                rows={3}
+                rows={2}
                 placeholder={placeholder}
                 className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none"
               />
