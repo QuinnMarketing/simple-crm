@@ -47,6 +47,7 @@ export default function LiveChatPage() {
   const [sending, setSending] = useState(false)
   const [showInstall, setShowInstall] = useState(false)
   const [copied, setCopied] = useState(false)
+  const [embedSlug, setEmbedSlug] = useState<string | null>(null)
   const [creatingLead, setCreatingLead] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
 
@@ -72,6 +73,14 @@ export default function LiveChatPage() {
     const timer = setInterval(fetchList, 6000)
     return () => clearInterval(timer)
   }, [fetchList])
+
+  useEffect(() => {
+    const qs = accountParam ? `?account=${accountParam}` : ''
+    fetch(`/api/live-chat/embed${qs}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => setEmbedSlug(d?.slug ?? null))
+      .catch(() => {})
+  }, [accountParam])
 
   useEffect(() => {
     if (!activeId) return
@@ -124,7 +133,7 @@ export default function LiveChatPage() {
   }
 
   function copySnippet() {
-    const snippet = `<script src="${window.location.origin}/api/chat/widget?slug=YOUR_ACCOUNT_SLUG" async></script>`
+    const snippet = `<script src="${window.location.origin}/api/chat/widget?slug=${embedSlug ?? 'YOUR_ACCOUNT_SLUG'}" async></script>`
     navigator.clipboard.writeText(snippet)
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
@@ -155,15 +164,31 @@ export default function LiveChatPage() {
 
       {showInstall && (
         <div className="bg-white rounded-xl border border-slate-200 p-5 mb-6">
-          <p className="text-sm text-slate-600 mb-3">Paste this before the closing <code className="bg-slate-100 px-1 rounded">&lt;/body&gt;</code> tag on any website. Replace <code className="bg-slate-100 px-1 rounded">YOUR_ACCOUNT_SLUG</code> with the account slug (shown in Accounts, or ask your administrator).</p>
-          <div className="flex items-center gap-2 p-3 bg-slate-50 rounded-lg border border-slate-200">
-            <code className="text-xs font-mono text-slate-700 flex-1 break-all">
-              {`<script src="${typeof window !== 'undefined' ? window.location.origin : ''}/api/chat/widget?slug=YOUR_ACCOUNT_SLUG" async></script>`}
-            </code>
-            <button onClick={copySnippet} className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs hover:bg-slate-50 flex-shrink-0">
-              {copied ? <><Check className="w-3.5 h-3.5 text-emerald-500" /> Copied</> : <><Copy className="w-3.5 h-3.5" /> Copy</>}
-            </button>
-          </div>
+          {embedSlug ? (
+            <>
+              <p className="text-sm text-slate-600 mb-3">Paste this before the closing <code className="bg-slate-100 px-1 rounded">&lt;/body&gt;</code> tag on any website — it&apos;s ready to go for this account.</p>
+              <div className="flex items-center gap-2 p-3 bg-slate-50 rounded-lg border border-slate-200">
+                <code className="text-xs font-mono text-slate-700 flex-1 break-all">
+                  {`<script src="${typeof window !== 'undefined' ? window.location.origin : ''}/api/chat/widget?slug=${embedSlug}" async></script>`}
+                </code>
+                <button onClick={copySnippet} className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs hover:bg-slate-50 flex-shrink-0">
+                  {copied ? <><Check className="w-3.5 h-3.5 text-emerald-500" /> Copied</> : <><Copy className="w-3.5 h-3.5" /> Copy</>}
+                </button>
+              </div>
+              <a
+                href={`/chat/${embedSlug}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 mt-3 text-sm font-medium text-indigo-600 hover:text-indigo-700"
+              >
+                <ExternalLink className="w-4 h-4" /> Open your chat page to test it
+              </a>
+            </>
+          ) : (
+            <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+              Select an account from the sidebar first — the install snippet is generated per account.
+            </p>
+          )}
         </div>
       )}
 
