@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
 import { Plus, FileText, CheckCircle, Download, Send, Loader2, User } from 'lucide-react'
-import QuoteModal, { Quote, STATUS_STYLES, fmtAUD } from './QuoteModal'
+import QuoteModal, { Quote, STATUS_STYLES, fmtAUD, paymentBalance } from './QuoteModal'
 import EmailModal from './EmailModal'
 
 // ─── Section ───────────────────────────────────────────────────────────────────
@@ -134,9 +134,20 @@ export default function QuotesSection({ leadId, leadEmail, leadName = '', leadSe
                             {q.status}
                           </span>
                         </div>
-                        <p className="text-sm font-semibold text-slate-900 tabular-nums ml-4 flex-shrink-0">
-                          {fmtAUD(q.total)}
-                        </p>
+                        <div className="text-right ml-4 flex-shrink-0">
+                          <p className="text-sm font-semibold text-slate-900 tabular-nums">
+                            {fmtAUD(q.total)}
+                          </p>
+                          {q.type === 'invoice' && (() => {
+                            const { paid, balance, state } = paymentBalance(q)
+                            if (state === 'unpaid') return null
+                            return (
+                              <p className={`text-xs mt-0.5 font-medium ${state === 'paid' ? 'text-emerald-600' : 'text-amber-600'}`}>
+                                {state === 'paid' ? 'Paid in full' : `${fmtAUD(paid)} paid · ${fmtAUD(balance)} due`}
+                              </p>
+                            )
+                          })()}
+                        </div>
                       </button>
                       {leadEmail && (
                         <button

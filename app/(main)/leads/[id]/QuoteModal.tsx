@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react'
 import { Plus, X, Loader2, Trash2, Send, Sparkles, ChevronDown, ChevronUp, BookOpen, User } from 'lucide-react'
 import EmailModal from './EmailModal'
+import PaymentsPanel from './PaymentsPanel'
 
 type LineItem = { description: string; quantity: number; unitPrice: number }
 
@@ -10,6 +11,15 @@ export type Quote = {
   lineItems: string; subtotal: number; taxRate: number; taxAmount: number; total: number
   notes: string | null; issuedAt: string | null; dueAt: string | null
   createdByName: string | null; createdAt: string; updatedAt: string
+  payments?: { amount: number }[]
+}
+
+/** Derived from recorded payments, never a stored field — can't drift out of sync with reality. */
+export function paymentBalance(q: Quote): { paid: number; balance: number; state: 'paid' | 'partial' | 'unpaid' } {
+  const paid = (q.payments ?? []).reduce((s, p) => s + p.amount, 0)
+  const balance = Math.max(0, q.total - paid)
+  const state = balance <= 0.01 && paid > 0 ? 'paid' : paid > 0 ? 'partial' : 'unpaid'
+  return { paid, balance, state }
 }
 
 type PriceItem = { id: string; name: string; description: string | null; price: number; unit: string; category: string | null }
@@ -419,6 +429,10 @@ export default function QuoteModal({ initial, prefill, type, leadId, leadEmail, 
               </div>
             </div>
           </div>
+
+          {type === 'invoice' && isEdit && (
+            <PaymentsPanel quoteId={initial!.id} total={total} />
+          )}
 
           {error && (
             <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{error}</p>

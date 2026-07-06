@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
 import { FileText, Loader2 } from 'lucide-react'
-import QuoteModal, { Quote as ModalQuote, STATUS_STYLES, fmtAUD } from '../leads/[id]/QuoteModal'
+import QuoteModal, { Quote as ModalQuote, STATUS_STYLES, fmtAUD, paymentBalance } from '../leads/[id]/QuoteModal'
 
 type Quote = ModalQuote & {
   leadId: string | null
@@ -155,6 +155,15 @@ export default function QuotesPage() {
                     </td>
                     <td className="px-4 py-3 text-sm font-semibold text-slate-900 tabular-nums whitespace-nowrap">
                       {fmtAUD(q.total)}
+                      {q.type === 'invoice' && (() => {
+                        const { paid, balance, state } = paymentBalance(q)
+                        if (state === 'unpaid') return null
+                        return (
+                          <p className={`text-xs font-medium mt-0.5 ${state === 'paid' ? 'text-emerald-600' : 'text-amber-600'}`}>
+                            {state === 'paid' ? 'Paid in full' : `${fmtAUD(balance)} due`}
+                          </p>
+                        )
+                      })()}
                     </td>
                   </tr>
                 ))}

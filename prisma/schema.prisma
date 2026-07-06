@@ -53,6 +53,7 @@ model Account {
   takeoffs               Takeoff[]
   adPlatformAccounts     AdPlatformAccount[]
   whatsAppMessages       WhatsAppMessage[]
+  payments               Payment[]
 }
 
 model AccountIntegration {
@@ -332,6 +333,24 @@ model Quote {
   account   Account?  @relation(fields: [accountId], references: [id], onDelete: Cascade)
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
+
+  payments  Payment[]
+}
+
+model Payment {
+  id        String   @id @default(cuid())
+  quoteId   String
+  quote     Quote    @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+  amount    Float
+  method    String   // 'bank_transfer' | 'cash' | 'card' | 'other'
+  paidAt    DateTime
+  notes     String?
+  accountId String?
+  account   Account? @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@index([quoteId])
+  @@index([accountId])
 }
 
 model TimeEntry {
