@@ -1,6 +1,6 @@
 'use client'
 import { useState } from 'react'
-import { X, Loader2 } from 'lucide-react'
+import { X, Loader2, Mic, CheckCircle2 } from 'lucide-react'
 
 export type Lead = { id: string; name: string }
 export type ScheduleUser = { id: string; name: string | null; email: string }
@@ -18,6 +18,7 @@ export type Appointment = {
   userId: string | null
   assignedTo: { id: string; name: string | null } | null
   googleEventId: string | null
+  firefliesStatus?: string | null
 }
 
 export function fmtTime(iso: string) {
@@ -78,6 +79,9 @@ export default function AppointmentModal({ initial, defaultDate, defaultEndTime,
     : defaultDate ? (allDay ? dayToDateInput(defaultDate) : defaultTimeStr(defaultDate, 1)) : ''
   )
   const [location, setLocation] = useState(initial?.location ?? '')
+  const [firefliesStatus, setFirefliesStatus] = useState(initial?.firefliesStatus ?? null)
+  const [firefliesLoading, setFirefliesLoading] = useState(false)
+  const [firefliesError, setFirefliesError] = useState('')
   const [description, setDescription] = useState(initial?.description ?? '')
   const [leadId, setLeadId] = useState(initial?.leadId ?? defaultLeadId ?? '')
   const [userId, setUserId] = useState(initial?.userId ?? defaultUserId ?? '')
@@ -144,6 +148,29 @@ export default function AppointmentModal({ initial, defaultDate, defaultEndTime,
       setDeleting(false)
     }
   }
+
+  async function startRecording() {
+    if (!initial) return
+    setFirefliesLoading(true)
+    setFirefliesError('')
+    try {
+      const res = await fetch(`/api/appointments/${initial.id}/fireflies`, { method: 'POST' })
+      const data = await res.json()
+      if (res.ok) {
+        setFirefliesStatus('requested')
+      } else {
+        setFirefliesError(data.error ?? 'Failed to start recording')
+      }
+    } catch {
+      setFirefliesError('Network error')
+    } finally {
+      setFirefliesLoading(false)
+    }
+  }
+
+  const isMeetingLink = (() => {
+    try { const u = new URL(location); return u.protocol === 'http:' || u.protocol === 'https:' } catch { return false }
+  })()
 
   const inputCls = 'w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent'
   const labelCls = 'block text-xs font-medium text-slate-500 mb-1.5 uppercase tracking-wide'
@@ -213,6 +240,31 @@ export default function AppointmentModal({ initial, defaultDate, defaultEndTime,
               className={inputCls}
             />
           </div>
+
+          {isEdit && isMeetingLink && (
+            <div>
+              {firefliesStatus === 'recorded' ? (
+                <p className="flex items-center gap-1.5 text-xs font-medium text-emerald-600">
+                  <CheckCircle2 className="w-3.5 h-3.5" /> Recorded — time entry logged automatically
+                </p>
+              ) : firefliesStatus === 'requested' ? (
+                <p className="flex items-center gap-1.5 text-xs font-medium text-slate-500">
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" /> Fireflies will join at meeting time — a time entry will be logged once it's transcribed
+                </p>
+              ) : (
+                <button
+                  type="button"
+                  onClick={startRecording}
+                  disabled={firefliesLoading}
+                  className="flex items-center gap-1.5 text-xs font-medium text-indigo-600 hover:text-indigo-700 border border-indigo-200 bg-indigo-50 hover:bg-indigo-100 rounded-lg px-3 py-1.5 transition-colors disabled:opacity-50"
+                >
+                  {firefliesLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Mic className="w-3.5 h-3.5" />}
+                  Start Fireflies Recording
+                </button>
+              )}
+              {firefliesError && <p className="text-xs text-red-600 mt-1">{firefliesError}</p>}
+            </div>
+          )}
 
           {users && users.length > 0 && (
             <div>

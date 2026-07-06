@@ -228,22 +228,24 @@ model Task {
 }
 
 model Appointment {
-  id            String   @id @default(cuid())
-  title         String
-  description   String?
-  startTime     DateTime
-  endTime       DateTime
-  allDay        Boolean  @default(false)
-  location      String?
-  leadId        String?
-  lead          Lead?    @relation(fields: [leadId], references: [id], onDelete: SetNull)
-  userId        String?
-  assignedTo    User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
-  accountId     String?
-  account       Account? @relation(fields: [accountId], references: [id], onDelete: Cascade)
-  googleEventId String?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id              String   @id @default(cuid())
+  title           String
+  description     String?
+  startTime       DateTime
+  endTime         DateTime
+  allDay          Boolean  @default(false)
+  location        String?
+  leadId          String?
+  lead            Lead?    @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  userId          String?
+  assignedTo      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  accountId       String?
+  account         Account? @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  googleEventId   String?
+  firefliesRef    String?  @unique // short token embedded in the Fireflies meeting title to match the transcribed webhook back to this appointment
+  firefliesStatus String?  // 'requested' | 'recorded' | 'failed'
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
   @@index([accountId, startTime])
   @@index([leadId])
