@@ -134,8 +134,10 @@ async function publishToLinkedIn(
 }
 
 async function refreshGoogleToken(refreshToken: string): Promise<string | null> {
-  const clientId = process.env.GOOGLE_CALENDAR_CLIENT_ID
-  const clientSecret = process.env.GOOGLE_CALENDAR_CLIENT_SECRET
+  // GBP refresh tokens are bound to the OAuth client that issued them —
+  // must match the connect/callback client (dedicated GBP project wins)
+  const clientId = process.env.GOOGLE_GBP_CLIENT_ID || process.env.GOOGLE_CALENDAR_CLIENT_ID
+  const clientSecret = process.env.GOOGLE_GBP_CLIENT_SECRET || process.env.GOOGLE_CALENDAR_CLIENT_SECRET
   if (!clientId || !clientSecret) return null
 
   const res = await fetch('https://oauth2.googleapis.com/token', {

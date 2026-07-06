@@ -31,7 +31,8 @@ export async function GET(req: NextRequest, { params }: P) {
   }
 
   if (platform === 'google_business') {
-    const clientId = process.env.GOOGLE_CALENDAR_CLIENT_ID
+    // Dedicated GBP client (an approved Cloud project) wins over the Calendar client
+    const clientId = process.env.GOOGLE_GBP_CLIENT_ID || process.env.GOOGLE_CALENDAR_CLIENT_ID
     if (!clientId) return errorRedirect(req, platform, 'Google isn\'t configured yet — contact your administrator')
     const scopes = 'https://www.googleapis.com/auth/business.manage'
     const url = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirect)}&response_type=code&scope=${encodeURIComponent(scopes)}&access_type=offline&prompt=consent&state=${state}`

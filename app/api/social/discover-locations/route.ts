@@ -3,6 +3,9 @@ import { auth } from '@/auth'
 import { getAccountFilter } from '@/lib/account-scope'
 import { discoverLocations } from '@/lib/google-reviews'
 
+// Discovery retries once after a 20s backoff on GBP quota errors
+export const maxDuration = 60
+
 export async function POST(req: NextRequest) {
   const session = await auth()
   if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })

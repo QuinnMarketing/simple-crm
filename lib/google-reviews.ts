@@ -17,14 +17,24 @@ export interface GBPReview {
   replyUpdateTime: string | null
 }
 
+// GBP API access is approved per Google Cloud project (new projects have
+// ZERO quota until approved). These allow pointing GBP at a dedicated,
+// already-approved project without touching the Calendar OAuth client.
+export function gbpClientId() {
+  return process.env.GOOGLE_GBP_CLIENT_ID || process.env.GOOGLE_CALENDAR_CLIENT_ID || ''
+}
+export function gbpClientSecret() {
+  return process.env.GOOGLE_GBP_CLIENT_SECRET || process.env.GOOGLE_CALENDAR_CLIENT_SECRET || ''
+}
+
 async function refreshAccessToken(refreshTokenStr: string): Promise<string> {
   const res = await fetch(TOKEN_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({
       refresh_token: refreshTokenStr,
-      client_id: process.env.GOOGLE_CALENDAR_CLIENT_ID!,
-      client_secret: process.env.GOOGLE_CALENDAR_CLIENT_SECRET!,
+      client_id: gbpClientId(),
+      client_secret: gbpClientSecret(),
       grant_type: 'refresh_token',
     }),
   })
@@ -55,12 +65,24 @@ export async function getTokenForAccount(accountId: string): Promise<string> {
 }
 
 // Discover and upsert SocialAccount location rows from the master credential
+const QUOTA_HELP =
+  'Google Business Profile API quota exceeded. Note: Google Cloud projects have ZERO Business Profile quota until Google approves API access for that specific project (apply via the "Business Profile APIs" access request form) — if this happens on the very first attempt, the project needs approval, not a retry.'
+
+async function fetchWithQuotaRetry(url: string, token: string): Promise<Response> {
+  let res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } })
+  if (res.status === 429) {
+    // One retry after backing off — covers transient per-minute spikes on approved projects
+    await new Promise(r => setTimeout(r, 20_000))
+    res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } })
+  }
+  return res
+}
+
 export async function discoverLocations(accountId: string): Promise<number> {
   const token = await getTokenForAccount(accountId)
 
-  const acctRes = await fetch('https://mybusinessaccountmanagement.googleapis.com/v1/accounts', {
-    headers: { Authorization: `Bearer ${token}` },
-  })
+  const acctRes = await fetchWithQuotaRetry('https://mybusinessaccountmanagement.googleapis.com/v1/accounts', token)
+  if (acctRes.status === 429) throw new Error(QUOTA_HELP)
   const acctData = await acctRes.json()
   if (!acctRes.ok || acctData.error) throw new Error(acctData.error?.message ?? `Account discovery failed (${acctRes.status})`)
   const gmbAccounts: Array<{ name: string }> = acctData.accounts ?? []
@@ -68,9 +90,8 @@ export async function discoverLocations(accountId: string): Promise<number> {
 
   let count = 0
   for (const acct of gmbAccounts.slice(0, 10)) {
-    const locRes = await fetch(`https://mybusinessbusinessinformation.googleapis.com/v1/${acct.name}/locations?readMask=name,title`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
+    const locRes = await fetchWithQuotaRetry(`https://mybusinessbusinessinformation.googleapis.com/v1/${acct.name}/locations?readMask=name,title`, token)
+    if (locRes.status === 429) throw new Error(QUOTA_HELP)
     const locData = await locRes.json()
     for (const loc of locData.locations ?? []) {
       // Get the integration refresh token to store against each location

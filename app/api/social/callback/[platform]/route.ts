@@ -71,8 +71,9 @@ export async function GET(req: NextRequest, { params }: P) {
 
     // ── Google Business Profile ───────────────────────────────────────────
     if (platform === 'google_business') {
-      const clientId = process.env.GOOGLE_CALENDAR_CLIENT_ID!
-      const clientSecret = process.env.GOOGLE_CALENDAR_CLIENT_SECRET!
+      // Must match the client used in the connect route (dedicated GBP project wins)
+      const clientId = (process.env.GOOGLE_GBP_CLIENT_ID || process.env.GOOGLE_CALENDAR_CLIENT_ID)!
+      const clientSecret = (process.env.GOOGLE_GBP_CLIENT_SECRET || process.env.GOOGLE_CALENDAR_CLIENT_SECRET)!
 
       const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
         method: 'POST',
