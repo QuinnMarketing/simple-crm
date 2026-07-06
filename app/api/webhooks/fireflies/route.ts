@@ -47,7 +47,7 @@ export async function POST(req: NextRequest) {
   const match = transcript.title.match(REF_PATTERN)
   if (!match) return NextResponse.json({ ok: true })
 
-  const appointment = await prisma.appointment.findUnique({
+  const appointment = await prisma.appointment.findFirst({
     where: { firefliesRef: match[1] },
     include: { assignedTo: { select: { name: true } } },
   })
