@@ -2,8 +2,12 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import { getAccountFilter } from '@/lib/account-scope'
-import { fetchReviews, discoverLocations, postReply } from '@/lib/google-reviews'
+import { fetchReviews, discoverLocations, migrateLegacyLocationIds, postReply } from '@/lib/google-reviews'
 import { generateReviewReply } from '@/lib/ai-review-reply'
+
+// Location migration + per-location review fetch + AI auto-replies can
+// comfortably exceed the 10s default
+export const maxDuration = 60
 
 export async function POST(req: NextRequest) {
   const session = await auth()
@@ -20,6 +24,15 @@ export async function POST(req: NextRequest) {
   })
   if (!integration?.enabled) {
     return NextResponse.json({ error: 'Google Business not connected. Go to Social → Connect Google Business first.' }, { status: 400 })
+  }
+
+  // Upgrade any legacy bare-format location IDs in place — they 404 against
+  // the v4 reviews API, so syncing them without this is guaranteed to fail
+  try {
+    await migrateLegacyLocationIds(accountId)
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e)
+    return NextResponse.json({ error: `Location migration failed: ${msg}` }, { status: 400 })
   }
 
   // Discover locations if none stored yet (first sync, or location fetch was skipped during OAuth)

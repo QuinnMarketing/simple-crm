@@ -140,6 +140,34 @@ export async function discoverLocations(accountId: string): Promise<number> {
   return connectLocations(accountId, locations)
 }
 
+/**
+ * Upgrades legacy rows stored with bare "locations/{lid}" platformIds to the
+ * full accounts/{aid}/locations/{lid} path the v4 reviews API requires.
+ * Rows that no longer match any accessible location are removed — their
+ * format can never work, so they'd 404 on every sync forever.
+ */
+export async function migrateLegacyLocationIds(accountId: string): Promise<void> {
+  const stale = await prisma.socialAccount.findMany({
+    where: { accountId, platform: 'google_business', platformId: { startsWith: 'locations/' } },
+  })
+  if (stale.length === 0) return
+
+  const available = await listAvailableLocations(accountId)
+  for (const row of stale) {
+    const match = available.find(l => l.id.endsWith(`/${row.platformId}`))
+    if (!match) {
+      await prisma.socialAccount.delete({ where: { id: row.id } })
+      continue
+    }
+    const dupe = await prisma.socialAccount.findFirst({
+      where: { accountId, platform: 'google_business', platformId: match.id, NOT: { id: row.id } },
+      select: { id: true },
+    })
+    if (dupe) await prisma.socialAccount.delete({ where: { id: row.id } })
+    else await prisma.socialAccount.update({ where: { id: row.id }, data: { platformId: match.id, name: match.title } })
+  }
+}
+
 export async function fetchReviews(socialAccountId: string): Promise<GBPReview[]> {
   const { token, locationName } = await getTokenForLocation(socialAccountId)
   const all: GBPReview[] = []
