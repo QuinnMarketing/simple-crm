@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useState, useCallback } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { Star, CheckCircle2, EyeOff, MessageSquare, Trash2, Loader2, ChevronUp, Send, RefreshCw } from 'lucide-react'
+import { Star, CheckCircle2, EyeOff, MessageSquare, Trash2, Loader2, ChevronUp, Send, RefreshCw, Sparkles } from 'lucide-react'
 
 type Review = {
   id: string
@@ -51,6 +51,7 @@ export default function ReviewsPage() {
   const [replyText, setReplyText] = useState('')
   const [sendEmail, setSendEmail] = useState(true)
   const [replying, setReplying] = useState(false)
+  const [drafting, setDrafting] = useState(false)
   const [actioning, setActioning] = useState<string | null>(null)
   const [syncing, setSyncing] = useState(false)
   const [syncMsg, setSyncMsg] = useState('')
@@ -119,6 +120,18 @@ export default function ReviewsPage() {
     await fetch(`/api/reviews/${id}`, { method: 'DELETE' })
     setReviews((prev) => prev.filter((rv) => rv.id !== id))
     setActioning(null)
+  }
+
+  async function draftAiReply(id: string) {
+    setDrafting(true)
+    try {
+      const r = await fetch(`/api/reviews/${id}/ai-reply`, { method: 'POST' })
+      const data = await r.json()
+      if (r.ok) setReplyText(data.reply)
+      else alert(data.error ?? 'AI draft failed')
+    } finally {
+      setDrafting(false)
+    }
   }
 
   async function submitReply(id: string, email: string | null) {
@@ -297,6 +310,14 @@ export default function ReviewsPage() {
                           >
                             {replying ? <Loader2 className="w-3 h-3 animate-spin" /> : <Send className="w-3 h-3" />}
                             Save reply
+                          </button>
+                          <button
+                            onClick={() => draftAiReply(review.id)}
+                            disabled={drafting}
+                            className="flex items-center gap-1.5 bg-white border border-indigo-200 text-indigo-600 px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-indigo-50 disabled:opacity-60 transition-colors"
+                          >
+                            {drafting ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
+                            AI draft
                           </button>
                           <button
                             onClick={() => { setReplyOpen(null); setReplyText('') }}

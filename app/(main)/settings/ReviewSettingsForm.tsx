@@ -193,7 +193,7 @@ export default function ReviewSettingsForm({ accountId, accountSlug, initial }: 
           />
           <div>
             <p className="text-sm text-slate-800">Auto-reply to Google reviews</p>
-            <p className="text-xs text-slate-500">When syncing, AI automatically writes and posts a personalised reply to new Google reviews that haven't been replied to yet</p>
+            <p className="text-xs text-slate-500">AI writes and posts a personalised reply to Google reviews that haven&apos;t been replied to yet — runs automatically once a day and on every manual sync</p>
           </div>
         </label>
       </div>
