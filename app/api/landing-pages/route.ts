@@ -50,7 +50,7 @@ export async function POST(req: NextRequest) {
   if (!brief?.service?.trim() || !brief?.location?.trim()) {
     return NextResponse.json({ error: 'Service and location are required' }, { status: 400 })
   }
-  const goal = brief.goal === 'call' ? 'call' : 'form'
+  const goal = ['call', 'both'].includes(brief.goal) ? brief.goal : 'form'
 
   let content
   try {

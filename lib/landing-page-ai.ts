@@ -8,7 +8,7 @@ export interface LandingPageBrief {
   service: string      // what's being promoted, e.g. "Blocked drain clearing"
   location: string     // suburb / service area
   offer?: string       // e.g. "$99 drain camera inspection"
-  goal: 'form' | 'call'
+  goal: 'form' | 'call' | 'both'
   notes?: string       // anything else the user wants emphasised
 }
 
@@ -150,7 +150,11 @@ export async function generateLandingPageContent(accountId: string, brief: Landi
     `\nService being promoted: ${brief.service}`,
     `Service area: ${brief.location}`,
     brief.offer ? `Offer: ${brief.offer}` : 'No specific offer — set offer.enabled to false.',
-    `Page goal: ${brief.goal === 'call' ? 'get phone calls (mobile paid-search traffic)' : 'capture lead form submissions'}`,
+    `Page goal: ${
+      brief.goal === 'call' ? 'get phone calls (mobile paid-search traffic)'
+      : brief.goal === 'both' ? 'get phone calls AND lead form submissions — write CTAs that work for both ("Call now or request a quote")'
+      : 'capture lead form submissions'
+    }`,
     brief.notes ? `Additional notes from the business: ${brief.notes}` : '',
     priceItems.length > 0
       ? `\nReal price list (use real prices where relevant, never invent prices):\n${priceItems.map(p => `- ${p.name}: $${p.price.toFixed(2)} per ${p.unit}${p.description ? ` — ${p.description}` : ''}`).join('\n')}`

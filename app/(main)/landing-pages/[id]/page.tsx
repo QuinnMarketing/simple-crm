@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft, Loader2, Save, Trash2, ExternalLink, Globe, Copy, Check, Plus, X, Eye, Users } from 'lucide-react'
+import { ArrowLeft, Loader2, Save, Trash2, ExternalLink, Globe, Copy, Check, Plus, X, Eye, Users, Phone, FileText, Rocket, AlertTriangle } from 'lucide-react'
 import { parseContent, type LandingPageContent } from '@/lib/landing-page-types'
 
 type PageData = {
@@ -14,6 +14,7 @@ type PageData = {
   content: string
   views: number
   leads: number
+  businessPhone: string | null
 }
 
 const inputCls = 'w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent'
@@ -37,6 +38,8 @@ export default function LandingPageEditor() {
 
   const [page, setPage] = useState<PageData | null>(null)
   const [name, setName] = useState('')
+  const [goal, setGoal] = useState('form')
+  const [slug, setSlug] = useState('')
   const [content, setContent] = useState<LandingPageContent | null>(null)
   const [dirty, setDirty] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -52,6 +55,8 @@ export default function LandingPageEditor() {
         if (data) {
           setPage(data)
           setName(data.name)
+          setGoal(data.goal)
+          setSlug(data.slug)
           setContent(parseContent(data.content))
         }
       })
@@ -69,11 +74,12 @@ export default function LandingPageEditor() {
     const res = await fetch(`/api/landing-pages/${id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, content, ...extra }),
+      body: JSON.stringify({ name, content, goal, slug, ...extra }),
     })
     if (res.ok) {
       const data = await res.json()
-      setPage(p => p ? { ...p, status: data.status, name: data.name } : p)
+      setPage(p => p ? { ...p, status: data.status, name: data.name, slug: data.slug, goal: data.goal } : p)
+      setSlug(data.slug)
       setDirty(false)
     } else {
       const data = await res.json().catch(() => ({}))
@@ -174,6 +180,52 @@ export default function LandingPageEditor() {
 
       <div className="grid lg:grid-cols-2 gap-5">
         <div className="space-y-5">
+          <Section title="Page settings" hint="Goal drives which calls to action are shown">
+            <div>
+              <label className={labelCls}>Page goal</label>
+              <div className="flex gap-2">
+                {([
+                  { value: 'form', label: 'Form leads', Icon: FileText },
+                  { value: 'call', label: 'Phone calls', Icon: Phone },
+                  { value: 'both', label: 'Both', Icon: Rocket },
+                ] as const).map(({ value, label, Icon }) => (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => { setGoal(value); setDirty(true) }}
+                    className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium border transition-colors ${
+                      goal === value ? 'bg-indigo-50 border-indigo-300 text-indigo-700' : 'border-slate-200 text-slate-600 hover:bg-slate-50'
+                    }`}
+                  >
+                    <Icon className="w-4 h-4" /> {label}
+                  </button>
+                ))}
+              </div>
+              {goal !== 'form' && !page.businessPhone && (
+                <p className="mt-2 flex items-start gap-1.5 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                  <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
+                  No business phone is set on this account, so call buttons won&apos;t appear — add one under Settings → Business details.
+                </p>
+              )}
+            </div>
+            <div>
+              <label className={labelCls}>Page URL</label>
+              <div className="flex items-center gap-1">
+                <span className="text-sm text-slate-400 flex-shrink-0">/lp/</span>
+                <input
+                  type="text"
+                  value={slug}
+                  onChange={e => { setSlug(e.target.value); setDirty(true) }}
+                  className={inputCls}
+                  placeholder="my-page-url"
+                />
+              </div>
+              {slug !== page.slug && (
+                <p className="mt-1.5 text-xs text-slate-400">Changing the URL breaks any ads or emails already pointing at /lp/{page.slug}</p>
+              )}
+            </div>
+          </Section>
+
           <Section title="Hero" hint="The first thing visitors see — headline sells the outcome">
             <div>
               <label className={labelCls}>Trust badge</label>

@@ -109,8 +109,9 @@ export default function LandingPagesPage() {
               <label className={labelCls}>Page goal</label>
               <div className="flex gap-2">
                 {([
-                  { value: 'form', label: 'Get form leads', Icon: FileText },
-                  { value: 'call', label: 'Get phone calls', Icon: Phone },
+                  { value: 'form', label: 'Form leads', Icon: FileText },
+                  { value: 'call', label: 'Phone calls', Icon: Phone },
+                  { value: 'both', label: 'Both', Icon: Rocket },
                 ] as const).map(({ value, label, Icon }) => (
                   <button
                     key={value}
@@ -157,7 +158,7 @@ export default function LandingPagesPage() {
                   </span>
                   <span className="text-xs text-slate-400 flex items-center gap-1">
                     {p.goal === 'call' ? <Phone className="w-3 h-3" /> : <FileText className="w-3 h-3" />}
-                    {p.goal === 'call' ? 'Calls' : 'Form leads'}
+                    {p.goal === 'call' ? 'Calls' : p.goal === 'both' ? 'Calls + form' : 'Form leads'}
                   </span>
                 </div>
                 <p className="text-xs text-slate-400 mt-1 truncate">/lp/{p.slug}</p>

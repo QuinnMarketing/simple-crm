@@ -59,19 +59,35 @@ export default async function LandingPage({ params }: Props) {
   const c = content
   const accent = c.theme.primaryColor || '#4f46e5'
   const phone = page.account.businessPhone
+  // Call CTAs only render when the account has a business phone set —
+  // a call-goal page without one falls back to form CTAs
+  const wantsCalls = (page.goal === 'call' || page.goal === 'both') && !!phone
   const isCallGoal = page.goal === 'call' && !!phone
+  const isBothGoal = page.goal === 'both' && !!phone
   const telHref = phone ? `tel:${phone.replace(/[^\d+]/g, '')}` : undefined
 
-  const heroCta = isCallGoal ? (
+  const callButton = (
     <a href={telHref} className="inline-flex items-center gap-2 px-8 py-4 rounded-xl text-white font-bold text-lg shadow-lg transition-opacity hover:opacity-90" style={{ backgroundColor: accent }}>
       <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" /></svg>
       {c.hero.ctaLabel}
     </a>
-  ) : (
-    <a href="#enquire" className="inline-block px-8 py-4 rounded-xl text-white font-bold text-lg shadow-lg transition-opacity hover:opacity-90" style={{ backgroundColor: accent }}>
-      {c.hero.ctaLabel}
+  )
+  const formButton = (variant: 'solid' | 'outline' = 'solid') => (
+    <a
+      href="#enquire"
+      className={`inline-block px-8 py-4 rounded-xl font-bold text-lg transition-opacity hover:opacity-90 ${variant === 'solid' ? 'text-white shadow-lg' : 'text-white border-2 border-white/40 hover:border-white/70'}`}
+      style={variant === 'solid' ? { backgroundColor: accent } : undefined}
+    >
+      {variant === 'solid' ? c.hero.ctaLabel : c.form.buttonLabel}
     </a>
   )
+
+  const heroCta = isBothGoal ? (
+    <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+      {callButton}
+      {formButton('outline')}
+    </div>
+  ) : isCallGoal ? callButton : formButton('solid')
 
   return (
     <div className="min-h-screen bg-white text-slate-900">
@@ -95,7 +111,7 @@ export default async function LandingPage({ params }: Props) {
           <h1 className="text-3xl sm:text-5xl font-extrabold leading-tight">{c.hero.headline}</h1>
           <p className="mt-5 text-lg sm:text-xl text-slate-300 max-w-2xl mx-auto">{c.hero.subheadline}</p>
           <div className="mt-8">{heroCta}</div>
-          {isCallGoal && phone && <p className="mt-3 text-slate-400 text-sm">Tap to call {phone}</p>}
+          {wantsCalls && phone && <p className="mt-3 text-slate-400 text-sm">Tap to call {phone}</p>}
         </div>
       </section>
 
@@ -174,7 +190,7 @@ export default async function LandingPage({ params }: Props) {
       >
         <div className="max-w-xl mx-auto text-center">
           <h2 className="text-2xl sm:text-4xl font-extrabold">{c.finalCta.headline}</h2>
-          {isCallGoal && (
+          {wantsCalls && (
             <div className="mt-6">
               <a href={telHref} className="inline-block px-8 py-4 rounded-xl text-white font-bold text-lg" style={{ backgroundColor: accent }}>
                 {c.finalCta.ctaLabel}
@@ -207,7 +223,7 @@ export default async function LandingPage({ params }: Props) {
       </footer>
 
       {/* Sticky mobile call bar */}
-      {isCallGoal && (
+      {wantsCalls && (
         <div className="fixed bottom-0 inset-x-0 sm:hidden p-3 bg-white/95 backdrop-blur border-t border-slate-200">
           <a href={telHref} className="flex items-center justify-center gap-2 w-full py-3.5 rounded-xl text-white font-bold" style={{ backgroundColor: accent }}>
             <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" /></svg>

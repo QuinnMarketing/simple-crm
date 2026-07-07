@@ -391,6 +391,9 @@ function AccountsPanel({ accounts, integrations, accountParam, onDisconnect, onL
   const [disconnecting, setDisconnecting] = useState<string | null>(null)
   const [discovering, setDiscovering] = useState(false)
   const [discoverError, setDiscoverError] = useState<string | null>(null)
+  const [pickerLocations, setPickerLocations] = useState<{ id: string; title: string; connected: boolean }[] | null>(null)
+  const [pickerChecked, setPickerChecked] = useState<Set<string>>(new Set())
+  const [pickerSaving, setPickerSaving] = useState(false)
 
   async function handleDisconnect(id: string) {
     if (!confirm('Disconnect this account?')) return
@@ -400,27 +403,53 @@ function AccountsPanel({ accounts, integrations, accountParam, onDisconnect, onL
     setDisconnecting(null)
   }
 
+  // Fetches all locations the Google account manages and opens a picker —
+  // agencies manage many clients' profiles under one login, so auto-adding
+  // everything to one CRM account is wrong
   async function handleDiscoverLocations() {
     setDiscovering(true)
     setDiscoverError(null)
     try {
-      const res = await fetch('/api/social/discover-locations', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ accountParam }),
-      })
+      const qs = accountParam ? `?account=${accountParam}` : ''
+      const res = await fetch(`/api/social/gbp-locations${qs}`)
       const data = await res.json()
       if (!res.ok) {
-        setDiscoverError(data.error ?? 'Failed to discover locations')
-      } else if (data.count === 0) {
+        setDiscoverError(data.error ?? 'Failed to list locations')
+      } else if (!data.locations?.length) {
         setDiscoverError('No Business Profile locations found — make sure your profile has a verified location.')
       } else {
-        onLocationsDiscovered()
+        setPickerLocations(data.locations)
+        setPickerChecked(new Set(data.locations.filter((l: { connected: boolean }) => l.connected).map((l: { id: string }) => l.id)))
       }
     } catch {
       setDiscoverError('Network error — please try again')
     } finally {
       setDiscovering(false)
+    }
+  }
+
+  async function savePickerSelection() {
+    if (!pickerLocations) return
+    setPickerSaving(true)
+    setDiscoverError(null)
+    try {
+      const selected = pickerLocations.filter(l => pickerChecked.has(l.id)).map(l => ({ id: l.id, title: l.title }))
+      const res = await fetch('/api/social/gbp-locations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ accountParam, locations: selected }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        setDiscoverError(data.error ?? 'Failed to save selection')
+      } else {
+        setPickerLocations(null)
+        onLocationsDiscovered()
+      }
+    } catch {
+      setDiscoverError('Network error — please try again')
+    } finally {
+      setPickerSaving(false)
     }
   }
 
@@ -469,20 +498,56 @@ function AccountsPanel({ accounts, integrations, accountParam, onDisconnect, onL
               </div>
 
               {/* google_business: show "Find Locations" whenever no locations are connected */}
-              {platform === 'google_business' && connected.length === 0 && !comingSoon && (
+              {platform === 'google_business' && !comingSoon && (
                 <div className="mt-3 pl-12">
-                  <p className="text-xs text-slate-500 mb-2">After connecting, click below to find your Business Profile locations.</p>
+                  {connected.length === 0 && (
+                    <p className="text-xs text-slate-500 mb-2">After connecting, choose which Business Profile locations belong to this account.</p>
+                  )}
                   {discoverError && (
                     <p className="text-xs text-red-600 mb-2">{discoverError}</p>
                   )}
-                  <button
-                    onClick={handleDiscoverLocations}
-                    disabled={discovering}
-                    className="flex items-center gap-1.5 text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 rounded-lg px-3 py-1.5 transition-colors disabled:opacity-60"
-                  >
-                    {discovering ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
-                    Find Locations
-                  </button>
+                  {pickerLocations ? (
+                    <div className="border border-slate-200 rounded-lg p-3 space-y-1 max-h-56 overflow-y-auto">
+                      {pickerLocations.map(loc => (
+                        <label key={loc.id} className="flex items-center gap-2.5 py-1 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={pickerChecked.has(loc.id)}
+                            onChange={() => setPickerChecked(prev => {
+                              const next = new Set(prev)
+                              if (next.has(loc.id)) next.delete(loc.id)
+                              else next.add(loc.id)
+                              return next
+                            })}
+                            className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                          />
+                          <span className="text-sm text-slate-700">{loc.title}</span>
+                        </label>
+                      ))}
+                      <div className="flex gap-2 pt-2">
+                        <button
+                          onClick={savePickerSelection}
+                          disabled={pickerSaving}
+                          className="flex items-center gap-1.5 text-xs font-medium bg-indigo-600 text-white rounded-lg px-3 py-1.5 hover:bg-indigo-700 transition-colors disabled:opacity-60"
+                        >
+                          {pickerSaving && <Loader2 className="w-3 h-3 animate-spin" />}
+                          Connect {pickerChecked.size} location{pickerChecked.size !== 1 ? 's' : ''}
+                        </button>
+                        <button onClick={() => setPickerLocations(null)} className="text-xs font-medium text-slate-500 hover:text-slate-700 px-2 py-1.5">
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={handleDiscoverLocations}
+                      disabled={discovering}
+                      className="flex items-center gap-1.5 text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 rounded-lg px-3 py-1.5 transition-colors disabled:opacity-60"
+                    >
+                      {discovering ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
+                      {connected.length > 0 ? 'Manage Locations' : 'Find Locations'}
+                    </button>
+                  )}
                 </div>
               )}
 

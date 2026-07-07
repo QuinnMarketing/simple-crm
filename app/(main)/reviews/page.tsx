@@ -103,7 +103,9 @@ export default function ReviewsPage() {
       } else {
         const parts = [`${data.created} new`, `${data.updated} updated`]
         if (data.autoReplied > 0) parts.push(`${data.autoReplied} auto-replied`)
-        setSyncMsg(`Synced: ${parts.join(', ')}${data.errors?.length ? ` (${data.errors.length} error${data.errors.length > 1 ? 's' : ''})` : ''}`)
+        // Surface the first actual error — a bare "(1 error)" is undiagnosable
+        const errDetail = data.errors?.length ? ` — ${data.errors[0]}${data.errors.length > 1 ? ` (+${data.errors.length - 1} more)` : ''}` : ''
+        setSyncMsg(`Synced: ${parts.join(', ')}${errDetail}`)
         fetchReviews()
       }
     } finally {

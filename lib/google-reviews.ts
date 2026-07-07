@@ -78,7 +78,16 @@ async function fetchWithQuotaRetry(url: string, token: string): Promise<Response
   return res
 }
 
-export async function discoverLocations(accountId: string): Promise<number> {
+export type GBPLocation = { id: string; title: string } // id = full path: accounts/{aid}/locations/{lid}
+
+/**
+ * Lists every location the connected Google account can manage, WITHOUT
+ * saving anything — the UI shows these as a picker. IDs are the full
+ * accounts/{aid}/locations/{lid} path: the v1 Business Information API
+ * returns bare "locations/{lid}" names, but the v4 reviews API requires
+ * the account prefix, so we join them here once and store only full paths.
+ */
+export async function listAvailableLocations(accountId: string): Promise<GBPLocation[]> {
   const token = await getTokenForAccount(accountId)
 
   const acctRes = await fetchWithQuotaRetry('https://mybusinessaccountmanagement.googleapis.com/v1/accounts', token)
@@ -88,26 +97,47 @@ export async function discoverLocations(accountId: string): Promise<number> {
   const gmbAccounts: Array<{ name: string }> = acctData.accounts ?? []
   if (gmbAccounts.length === 0) throw new Error('No Google Business accounts found')
 
-  let count = 0
+  const locations: GBPLocation[] = []
   for (const acct of gmbAccounts.slice(0, 10)) {
-    const locRes = await fetchWithQuotaRetry(`https://mybusinessbusinessinformation.googleapis.com/v1/${acct.name}/locations?readMask=name,title`, token)
+    const locRes = await fetchWithQuotaRetry(`https://mybusinessbusinessinformation.googleapis.com/v1/${acct.name}/locations?readMask=name,title&pageSize=100`, token)
     if (locRes.status === 429) throw new Error(QUOTA_HELP)
     const locData = await locRes.json()
     for (const loc of locData.locations ?? []) {
-      // Get the integration refresh token to store against each location
-      const integration = await prisma.accountIntegration.findUnique({
-        where: { accountId_platform: { accountId, platform: 'google_business' } },
-      })
-      const cfg = integration ? JSON.parse(integration.config) : {}
-      await prisma.socialAccount.upsert({
-        where: { accountId_platform_platformId: { accountId, platform: 'google_business', platformId: loc.name } },
-        create: { accountId, platform: 'google_business', platformId: loc.name, name: loc.title ?? loc.name, accessToken: token, refreshToken: cfg.refreshToken ?? null },
-        update: { name: loc.title ?? loc.name, accessToken: token, refreshToken: cfg.refreshToken ?? null },
-      })
-      count++
+      locations.push({ id: `${acct.name}/${loc.name}`, title: loc.title ?? loc.name })
     }
   }
-  return count
+  return locations
+}
+
+/** Replaces the account's connected GBP locations with the given selection. */
+export async function connectLocations(accountId: string, selected: GBPLocation[]): Promise<number> {
+  const integration = await prisma.accountIntegration.findUnique({
+    where: { accountId_platform: { accountId, platform: 'google_business' } },
+  })
+  const cfg = integration ? (() => { try { return JSON.parse(integration.config) } catch { return {} } })() : {}
+  const token = await getTokenForAccount(accountId)
+
+  // The selection is the full desired state — remove anything not in it.
+  // Also clears legacy rows stored with the bare "locations/{id}" format
+  // that broke review syncing.
+  await prisma.socialAccount.deleteMany({
+    where: { accountId, platform: 'google_business', platformId: { notIn: selected.map(l => l.id) } },
+  })
+
+  for (const loc of selected) {
+    await prisma.socialAccount.upsert({
+      where: { accountId_platform_platformId: { accountId, platform: 'google_business', platformId: loc.id } },
+      create: { accountId, platform: 'google_business', platformId: loc.id, name: loc.title, accessToken: token, refreshToken: cfg.refreshToken ?? null },
+      update: { name: loc.title, accessToken: token, refreshToken: cfg.refreshToken ?? null },
+    })
+  }
+  return selected.length
+}
+
+/** Auto-connects everything — used by review sync when nothing is connected yet. */
+export async function discoverLocations(accountId: string): Promise<number> {
+  const locations = await listAvailableLocations(accountId)
+  return connectLocations(accountId, locations)
 }
 
 export async function fetchReviews(socialAccountId: string): Promise<GBPReview[]> {
