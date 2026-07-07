@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { sendEmail } from '@/lib/email'
 import { getAccountSmtp } from '@/lib/email-from'
+import { rateLimit, getClientIp } from '@/lib/rate-limit'
 
 async function getSmtp(accountId: string) {
   const cfg = await getAccountSmtp(accountId)
@@ -19,6 +20,12 @@ export async function POST(
   { params }: { params: Promise<{ slug: string }> }
 ) {
   const { slug } = await params
+
+  // Public review submission — throttle to stop review spam / fake floods
+  const ip = getClientIp(req)
+  if (!rateLimit(`review:ip:${ip}`, 5, 10 * 60_000) || !rateLimit(`review:slug:${slug}`, 30, 10 * 60_000)) {
+    return NextResponse.json({ error: 'Too many requests' }, { status: 429 })
+  }
 
   const account = await prisma.account.findUnique({
     where: { slug },

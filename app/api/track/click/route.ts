@@ -1,13 +1,24 @@
 import { prisma } from '@/lib/prisma'
 import { getBaseUrl } from '@/lib/base-url'
+import { verifyTrackedUrl } from '@/lib/link-signing'
 import { NextRequest, NextResponse } from 'next/server'
 
 export async function GET(req: NextRequest) {
   const sendId = req.nextUrl.searchParams.get('s')
   const url = req.nextUrl.searchParams.get('u')
+  const sig = req.nextUrl.searchParams.get('sig')
 
-  // NextResponse.redirect requires an absolute URL
-  const destination = url ? decodeURIComponent(url) : getBaseUrl()
+  const home = getBaseUrl()
+
+  // Only redirect to a target we actually signed for this send. This is what
+  // stops the endpoint being an open redirect — an unsigned or tampered ?u=
+  // falls back to the home page instead of forwarding anywhere.
+  let destination = home
+  if (url && sendId && verifyTrackedUrl(sendId, url, sig)) {
+    const decoded = decodeURIComponent(url)
+    // Defence in depth: even a signed URL must be http(s) (never javascript:/data:)
+    if (/^https?:\/\//i.test(decoded)) destination = decoded
+  }
 
   if (sendId) {
     try {

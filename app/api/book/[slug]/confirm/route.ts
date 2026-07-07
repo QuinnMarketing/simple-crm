@@ -1,11 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { rateLimit, getClientIp } from '@/lib/rate-limit'
 
 export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ slug: string }> }
 ) {
   const { slug } = await params
+
+  // Public endpoint that creates a lead + appointment — throttle to stop spam
+  const ip = getClientIp(req)
+  if (!rateLimit(`book:ip:${ip}`, 10, 10 * 60_000) || !rateLimit(`book:slug:${slug}`, 40, 10 * 60_000)) {
+    return NextResponse.json({ error: 'Too many requests' }, { status: 429 })
+  }
 
   const account = await prisma.account.findUnique({
     where: { slug },
@@ -28,6 +35,10 @@ export async function POST(
   const [h, m] = time.split(':').map(Number)
   const startLocal = new Date(`${date}T${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:00`)
   const endLocal = new Date(startLocal.getTime() + settings.slotDuration * 60 * 1000)
+
+  if (isNaN(startLocal.getTime())) return NextResponse.json({ error: 'Invalid date or time' }, { status: 400 })
+  // Reject bookings in the past — stops junk appointments backfilling the calendar
+  if (startLocal.getTime() < Date.now()) return NextResponse.json({ error: 'That time has already passed' }, { status: 400 })
 
   const lead = await prisma.lead.create({
     data: {

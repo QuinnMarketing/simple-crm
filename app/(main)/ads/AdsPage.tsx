@@ -1085,7 +1085,9 @@ function AccountsTab({ adAccounts, pendingGoogleOAuth, accountParam, onConnect, 
 
   async function finalizeGoogleOAuth() {
     if (!customerId.trim()) { setConfigError('Customer ID is required'); return }
-    const dt = developerToken.trim() || process.env.NEXT_PUBLIC_GOOGLE_ADS_DEV_TOKEN || ''
+    // Leave blank to let the server fall back to its own GOOGLE_ADS_DEVELOPER_TOKEN.
+    // Never source this from a NEXT_PUBLIC_ var — that bundles the token into client JS.
+    const dt = developerToken.trim()
     setConfiguringGoogle(true)
     setConfigError(null)
     const qs = accountParam ? `?account=${accountParam}` : ''

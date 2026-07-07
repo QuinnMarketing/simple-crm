@@ -5,6 +5,7 @@ import { appendLeadToSheet } from '@/lib/google-sheets'
 import { prisma } from '@/lib/prisma'
 import { parseWebhookPayload } from '@/lib/webhook-parser'
 import { deriveLeadSource } from '@/lib/lead-source'
+import { rateLimit, getClientIp } from '@/lib/rate-limit'
 import { after } from 'next/server'
 import { NextRequest, NextResponse } from 'next/server'
 
@@ -35,6 +36,17 @@ export async function POST(req: NextRequest) {
   // Token-based auth: /api/webhooks/form?token=<webhookToken>
   const token = req.nextUrl.searchParams.get('token')
   let accountId: string | null = null
+
+  // The webhook token lives in public form HTML, so it's not a secret —
+  // throttle to stop a flood of junk leads. Per-IP catches a single abuser;
+  // the per-token ceiling catches distributed bot floods against one account.
+  const ip = getClientIp(req)
+  if (!rateLimit(`form:ip:${ip}`, 20, 5 * 60_000)) {
+    return NextResponse.json({ error: 'Too many requests' }, { status: 429 })
+  }
+  if (token && !rateLimit(`form:token:${token}`, 120, 5 * 60_000)) {
+    return NextResponse.json({ error: 'Too many requests' }, { status: 429 })
+  }
 
   if (token) {
     const account = await prisma.account.findUnique({

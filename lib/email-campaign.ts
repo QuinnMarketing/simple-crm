@@ -2,6 +2,7 @@ import { prisma } from './prisma'
 import nodemailer from 'nodemailer'
 import { getAccountSmtp } from './email-from'
 import { getBaseUrl } from './base-url'
+import { signTrackedUrl } from './link-signing'
 
 const BASE_URL = getBaseUrl()
 const SEND_DELAY_MS = 400 // ~2.5 emails/second to stay well under API limits
@@ -15,7 +16,10 @@ function interpolate(template: string, vars: Record<string, string>): string {
 function wrapLinksForTracking(html: string, sendId: string): string {
   return html.replace(
     /href="(https?:\/\/[^"]+)"/g,
-    (_, url) => `href="${BASE_URL}/api/track/click?s=${sendId}&u=${encodeURIComponent(url)}"`
+    (_, url) => {
+      const sig = signTrackedUrl(sendId, url)
+      return `href="${BASE_URL}/api/track/click?s=${sendId}&u=${encodeURIComponent(url)}&sig=${sig}"`
+    }
   )
 }
 

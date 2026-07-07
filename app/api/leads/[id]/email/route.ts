@@ -105,7 +105,7 @@ export async function POST(req: NextRequest, { params }: Params) {
       </td>
     </tr>
   </table>
-  <p style="font-size:12px;color:#94a3b8;margin:16px 0 0;">Clicking a button will instantly update your quote status.</p>
+  <p style="font-size:12px;color:#94a3b8;margin:16px 0 0;">You'll be asked to confirm your choice on the next screen.</p>
 </div>`
 
       try {
