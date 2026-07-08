@@ -17,7 +17,10 @@ export async function GET(req: NextRequest) {
   const types = await prisma.bookingType.findMany({
     where: filter,
     orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
-    include: { addons: { orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }] } },
+    include: {
+      addons: { orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }] },
+      variants: { orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }] },
+    },
   })
   return NextResponse.json(types)
 }

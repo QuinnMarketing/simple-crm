@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { Plus, Loader2, Pencil, Trash2, Clock, X } from 'lucide-react'
 
 type Addon = { id: string; name: string; price: number | null; durationMin: number; active: boolean }
+type Variant = { id: string; name: string; price: number | null; durationMin: number; active: boolean }
 
 type BookingType = {
   id: string
@@ -17,6 +18,7 @@ type BookingType = {
   onlineBookable: boolean
   active: boolean
   addons?: Addon[]
+  variants?: Variant[]
 }
 
 type Draft = {
@@ -49,6 +51,7 @@ export default function BookingTypesManager({ accountId }: { accountId: string |
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [addonDraft, setAddonDraft] = useState({ name: '', durationMin: 0, price: '' })
+  const [variantDraft, setVariantDraft] = useState({ name: '', durationMin: 60, price: '' })
 
   const editingType = editingId && editingId !== 'new' ? types.find((t) => t.id === editingId) : undefined
 
@@ -117,6 +120,24 @@ export default function BookingTypesManager({ accountId }: { accountId: string |
 
   async function deleteAddon(id: string) {
     const res = await fetch(`/api/booking-addons/${id}`, { method: 'DELETE' })
+    if (res.ok) await load()
+  }
+
+  async function addVariant(bookingTypeId: string) {
+    if (!variantDraft.name.trim()) return
+    const res = await fetch('/api/booking-variants', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ bookingTypeId, ...variantDraft }),
+    })
+    if (res.ok) {
+      setVariantDraft({ name: '', durationMin: 60, price: '' })
+      await load()
+    }
+  }
+
+  async function deleteVariant(id: string) {
+    const res = await fetch(`/api/booking-variants/${id}`, { method: 'DELETE' })
     if (res.ok) await load()
   }
 
@@ -213,6 +234,29 @@ export default function BookingTypesManager({ accountId }: { accountId: string |
               Active
             </label>
           </div>
+          {editingType && (
+            <div className="mt-4 pt-4 border-t border-indigo-100">
+              <p className="text-xs font-medium text-slate-600 mb-1">Variants <span className="font-normal text-slate-400">(duration/price options — customer picks one)</span></p>
+              {(editingType.variants ?? []).length > 0 && (
+                <div className="space-y-1.5 mb-2">
+                  {editingType.variants!.map((v) => (
+                    <div key={v.id} className="flex items-center gap-2 text-sm">
+                      <span className="flex-1 text-slate-700">{v.name}</span>
+                      <span className="text-xs text-slate-400">{v.durationMin}m {v.price != null ? `· $${v.price % 1 === 0 ? v.price : v.price.toFixed(2)}` : ''}</span>
+                      <button onClick={() => deleteVariant(v.id)} className="text-slate-300 hover:text-red-500"><X className="w-3.5 h-3.5" /></button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <div className="flex gap-2">
+                <input className={`${inputCls} flex-1`} placeholder="Variant name (e.g. 60 min)" value={variantDraft.name} onChange={(e) => setVariantDraft((d) => ({ ...d, name: e.target.value }))} />
+                <input type="number" min={5} step={5} className={`${inputCls} w-20`} placeholder="min" value={variantDraft.durationMin || ''} onChange={(e) => setVariantDraft((d) => ({ ...d, durationMin: Number(e.target.value) }))} />
+                <input type="number" min={0} step="0.01" className={`${inputCls} w-24`} placeholder="$" value={variantDraft.price} onChange={(e) => setVariantDraft((d) => ({ ...d, price: e.target.value }))} />
+                <button onClick={() => addVariant(editingType.id)} className="px-3 py-2 rounded-lg bg-slate-100 text-slate-600 text-sm font-medium hover:bg-slate-200 flex items-center gap-1"><Plus className="w-3.5 h-3.5" /></button>
+              </div>
+            </div>
+          )}
+
           {editingType && (
             <div className="mt-4 pt-4 border-t border-indigo-100">
               <p className="text-xs font-medium text-slate-600 mb-2">Optional add-ons</p>

@@ -30,7 +30,7 @@ export async function POST(
   }
 
   const body = await req.json()
-  const { date, time, name, email, phone, notes, bookingTypeId, staffId, addonIds } = body ?? {}
+  const { date, time, name, email, phone, notes, bookingTypeId, staffId, addonIds, variantId } = body ?? {}
 
   if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) return NextResponse.json({ error: 'Invalid date' }, { status: 400 })
   if (!time || !/^\d{2}:\d{2}$/.test(time)) return NextResponse.json({ error: 'Invalid time' }, { status: 400 })
@@ -47,10 +47,17 @@ export async function POST(
       include: {
         staff: { where: { bookable: true }, select: { userId: true } },
         addons: { where: { active: true } },
+        variants: { where: { active: true } },
       },
     })
     if (!bookingType) return NextResponse.json({ error: 'That service is no longer available' }, { status: 400 })
     assignedStaff = bookingType.staff.map((s) => s.userId)
+  }
+
+  // A chosen variant sets the base duration/price; add-ons extend it
+  const chosenVariant = variantId ? (bookingType?.variants ?? []).find((v) => v.id === variantId) ?? null : null
+  if (bookingType && bookingType.variants.length > 0 && !chosenVariant) {
+    return NextResponse.json({ error: 'Please choose an option for this service' }, { status: 400 })
   }
 
   // Validate chosen add-ons against the service and snapshot them
@@ -59,7 +66,12 @@ export async function POST(
   const addonMin = chosenAddons.reduce((s, a) => s + a.durationMin, 0)
   const addonPrice = chosenAddons.reduce((s, a) => s + (a.price ?? 0), 0)
 
-  const durationMin = (bookingType?.durationMin ?? settings.slotDuration) + addonMin
+  const baseDuration = chosenVariant?.durationMin ?? bookingType?.durationMin ?? settings.slotDuration
+  const durationMin = baseDuration + addonMin
+
+  const basePrice = chosenVariant ? (chosenVariant.price ?? 0) : (bookingType?.priceType === 'free' ? 0 : bookingType?.price ?? 0)
+  const totalPrice = (basePrice + addonPrice) || null
+  const serviceLabel = bookingType ? `${bookingType.name}${chosenVariant ? ` — ${chosenVariant.name}` : ''}` : null
   const bufferBefore = bookingType?.bufferBefore ?? 0
   const bufferAfter = bookingType?.bufferAfter ?? settings.bufferTime
 
@@ -101,7 +113,7 @@ export async function POST(
       email: email ? String(email).slice(0, 200) : null,
       phone: phone ? String(phone).slice(0, 40) : null,
       notes: notes ? String(notes).slice(0, 1000) : null,
-      service: bookingType?.name ?? null,
+      service: serviceLabel,
       source: 'booking',
       status: 'new',
       accountId: account.id,
@@ -111,14 +123,14 @@ export async function POST(
   const cancelToken = randomBytes(24).toString('hex')
   await prisma.appointment.create({
     data: {
-      title: bookingType ? `${bookingType.name}: ${lead.name}` : `Booking: ${lead.name}`,
+      title: serviceLabel ? `${serviceLabel}: ${lead.name}` : `Booking: ${lead.name}`,
       startTime,
       endTime,
       leadId: lead.id,
       accountId: account.id,
       userId: assignedUserId,
       bookingTypeId: bookingType?.id ?? null,
-      bookingPrice: bookingType?.priceType === 'free' ? addonPrice : (bookingType?.price ?? 0) + addonPrice || null,
+      bookingPrice: totalPrice,
       addonsJson: chosenAddons.length ? JSON.stringify(chosenAddons.map((a) => ({ name: a.name, price: a.price, durationMin: a.durationMin }))) : null,
       cancelToken,
     },
@@ -139,7 +151,7 @@ export async function POST(
         '',
         `Your booking with ${account.name} is confirmed:`,
         '',
-        `${bookingType ? bookingType.name + '\n' : ''}${whenStr}`,
+        `${serviceLabel ? serviceLabel + '\n' : ''}${whenStr}`,
         '',
         settings.cancellationHours > 0
           ? `Need to change or cancel? Manage your booking here:\n${manageUrl}`

@@ -392,10 +392,28 @@ model BookingType {
   appointments   Appointment[]
   staff          BookingStaffProfile[] @relation("BookingTypeStaff") // team members who perform this service
   addons         BookingAddon[]        // optional extras a customer can add to this service
+  variants       BookingVariant[]      // duration/price options under this service (e.g. 30/60/90 min)
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
 
   @@index([accountId])
+}
+
+// A duration/price option under a service. When a service has variants the
+// customer picks one, which sets the appointment's base length and price.
+model BookingVariant {
+  id            String      @id @default(cuid())
+  bookingTypeId String
+  bookingType   BookingType @relation(fields: [bookingTypeId], references: [id], onDelete: Cascade)
+  name          String
+  durationMin   Int         @default(60)
+  price         Float?
+  active        Boolean     @default(true)
+  sortOrder     Int         @default(0)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  @@index([bookingTypeId])
 }
 
 // An optional extra a customer can add to a service, adding its own time and

@@ -8,6 +8,7 @@ const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June',
 const SHORT_DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
 type Addon = { id: string; name: string; price: number | null; durationMin: number }
+type Variant = { id: string; name: string; price: number | null; durationMin: number }
 
 type Service = {
   id: string
@@ -19,6 +20,7 @@ type Service = {
   priceType: string
   hasStaff?: boolean
   addons?: Addon[]
+  variants?: Variant[]
 }
 
 type StaffOption = { id: string; name: string | null }
@@ -33,7 +35,7 @@ type BookingInfo = {
   staff: StaffOption[]
 }
 
-type Step = 'service' | 'addons' | 'staff' | 'date' | 'time' | 'form' | 'done'
+type Step = 'service' | 'variant' | 'addons' | 'staff' | 'date' | 'time' | 'form' | 'done'
 
 function formatTime12(time: string): string {
   const [h, m] = time.split(':').map(Number)
@@ -70,6 +72,7 @@ export default function BookingPage() {
   const [loadingDates, setLoadingDates] = useState(false)
 
   const [selectedType, setSelectedType] = useState<Service | null>(null)
+  const [selectedVariant, setSelectedVariant] = useState<Variant | null>(null)
   const [selectedAddons, setSelectedAddons] = useState<Addon[]>([])
   const [selectedStaff, setSelectedStaff] = useState<{ id: string; name: string | null } | null>(null)
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
@@ -85,8 +88,10 @@ export default function BookingPage() {
   const hasServices = (info?.types.length ?? 0) > 0
   const serviceHasStaff = (info?.staff.length ?? 0) > 0
   const serviceAddons = selectedType?.addons ?? []
+  const serviceVariants = selectedType?.variants ?? []
   const addonQuery = selectedAddons.length ? `&addons=${selectedAddons.map((a) => a.id).join(',')}` : ''
-  const typeQuery = `${selectedType ? `&type=${selectedType.id}` : ''}${selectedStaff && selectedStaff.id !== 'any' ? `&staff=${selectedStaff.id}` : ''}${addonQuery}`
+  const variantQuery = selectedVariant ? `&variant=${selectedVariant.id}` : ''
+  const typeQuery = `${selectedType ? `&type=${selectedType.id}` : ''}${variantQuery}${selectedStaff && selectedStaff.id !== 'any' ? `&staff=${selectedStaff.id}` : ''}${addonQuery}`
 
   // Initial info load — decides whether to open on the service picker
   useEffect(() => {
@@ -121,13 +126,20 @@ export default function BookingPage() {
     loadDates(viewYear, viewMonth)
   }, [viewYear, viewMonth, loadDates, step])
 
+  function nextAfterService(picked: Service, staffCount: number) {
+    if ((picked.variants?.length ?? 0) > 0) return setStep('variant')
+    if ((picked.addons?.length ?? 0) > 0) return setStep('addons')
+    setStep(staffCount > 0 ? 'staff' : 'date')
+  }
+
   async function selectService(s: Service) {
     setSelectedType(s)
+    setSelectedVariant(null)
     setSelectedAddons([])
     setSelectedStaff(null)
     setSelectedDate(null)
     setSelectedTime(null)
-    // Fetch staff/add-ons for this service to decide the next step
+    // Fetch staff/add-ons/variants for this service to decide the next step
     let staffCount = 0
     let picked = s
     try {
@@ -140,8 +152,15 @@ export default function BookingPage() {
         setSelectedType(picked)
       }
     } catch { /* fall through to date */ }
-    if ((picked.addons?.length ?? 0) > 0) setStep('addons')
-    else setStep(staffCount > 0 ? 'staff' : 'date')
+    nextAfterService(picked, staffCount)
+  }
+
+  function selectVariant(v: Variant) {
+    setSelectedVariant(v)
+    setSelectedDate(null)
+    setSelectedTime(null)
+    if (serviceAddons.length > 0) setStep('addons')
+    else setStep(serviceHasStaff ? 'staff' : 'date')
   }
 
   function afterAddons() {
@@ -177,7 +196,7 @@ export default function BookingPage() {
       const r = await fetch(`/api/book/${slug}/confirm`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ date: selectedDate, time: selectedTime, bookingTypeId: selectedType?.id ?? null, staffId: selectedStaff?.id ?? null, addonIds: selectedAddons.map((a) => a.id), ...form }),
+        body: JSON.stringify({ date: selectedDate, time: selectedTime, bookingTypeId: selectedType?.id ?? null, variantId: selectedVariant?.id ?? null, staffId: selectedStaff?.id ?? null, addonIds: selectedAddons.map((a) => a.id), ...form }),
       })
       if (r.ok) { setStep('done'); return }
       const data = await r.json().catch(() => ({}))
@@ -206,11 +225,12 @@ export default function BookingPage() {
 
   const stepList: Step[] = [
     ...(hasServices ? ['service' as Step] : []),
+    ...(selectedType && serviceVariants.length > 0 ? ['variant' as Step] : []),
     ...(selectedType && serviceAddons.length > 0 ? ['addons' as Step] : []),
     ...(selectedType && serviceHasStaff ? ['staff' as Step] : []),
     'date', 'time', 'form',
   ]
-  const stepLabels: Record<Step, string> = { service: 'Service', addons: 'Extras', staff: 'Team member', date: 'Date', time: 'Time', form: 'Details', done: '' }
+  const stepLabels: Record<Step, string> = { service: 'Service', variant: 'Option', addons: 'Extras', staff: 'Team member', date: 'Date', time: 'Time', form: 'Details', done: '' }
 
   if (notFound) {
     return (
@@ -233,7 +253,7 @@ export default function BookingPage() {
             <div className="flex items-center gap-4 mt-3">
               <span className="flex items-center gap-1.5 text-indigo-200 text-xs">
                 <Clock className="w-3.5 h-3.5" />
-                {(selectedType?.durationMin ?? info?.slotDuration)} min
+                {(selectedVariant?.durationMin ?? selectedType?.durationMin ?? info?.slotDuration)} min
                 {selectedType && formatPrice(selectedType) ? ` · ${formatPrice(selectedType)}` : ''}
               </span>
               <span className="flex items-center gap-1.5 text-indigo-200 text-xs">
@@ -276,14 +296,42 @@ export default function BookingPage() {
             </div>
           )}
 
-          {/* STEP: add-ons */}
-          {step === 'addons' && selectedType && (
+          {/* STEP: variant */}
+          {step === 'variant' && selectedType && (
             <div>
               <button
                 onClick={() => setStep('service')}
                 className="flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700 mb-4 transition-colors"
               >
                 <ChevronLeft className="w-4 h-4" /> {selectedType.name}
+              </button>
+              <p className="font-semibold text-slate-900 mb-3">Choose an option</p>
+              <div className="space-y-2">
+                {serviceVariants.map((v) => (
+                  <button
+                    key={v.id}
+                    onClick={() => selectVariant(v)}
+                    className="w-full text-left p-4 rounded-xl border border-slate-200 hover:border-indigo-500 hover:bg-indigo-50 transition-colors flex items-center justify-between gap-3"
+                  >
+                    <div className="min-w-0">
+                      <p className="font-medium text-slate-900 text-sm">{v.name}</p>
+                      <p className="text-xs text-slate-400 mt-0.5 flex items-center gap-1"><Clock className="w-3 h-3" /> {v.durationMin} min</p>
+                    </div>
+                    {v.price != null && <span className="text-sm font-semibold text-indigo-700 flex-shrink-0">${v.price % 1 === 0 ? v.price : v.price.toFixed(2)}</span>}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* STEP: add-ons */}
+          {step === 'addons' && selectedType && (
+            <div>
+              <button
+                onClick={() => setStep(serviceVariants.length > 0 ? 'variant' : 'service')}
+                className="flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700 mb-4 transition-colors"
+              >
+                <ChevronLeft className="w-4 h-4" /> {selectedVariant?.name ?? selectedType.name}
               </button>
               <p className="font-semibold text-slate-900 mb-3">Add any extras</p>
               <div className="space-y-2">
@@ -322,7 +370,7 @@ export default function BookingPage() {
           {step === 'staff' && info && (
             <div>
               <button
-                onClick={() => setStep(serviceAddons.length > 0 ? 'addons' : 'service')}
+                onClick={() => setStep(serviceAddons.length > 0 ? 'addons' : serviceVariants.length > 0 ? 'variant' : 'service')}
                 className="flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700 mb-4 transition-colors"
               >
                 <ChevronLeft className="w-4 h-4" /> {selectedType?.name ?? 'Change service'}
@@ -353,7 +401,7 @@ export default function BookingPage() {
             <div>
               {hasServices && (
                 <button
-                  onClick={() => setStep(serviceHasStaff ? 'staff' : serviceAddons.length > 0 ? 'addons' : 'service')}
+                  onClick={() => setStep(serviceHasStaff ? 'staff' : serviceAddons.length > 0 ? 'addons' : serviceVariants.length > 0 ? 'variant' : 'service')}
                   className="flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700 mb-4 transition-colors"
                 >
                   <ChevronLeft className="w-4 h-4" /> {selectedStaff ? (selectedStaff.name ?? 'Any available') : (selectedType?.name ?? 'Change service')}
@@ -457,7 +505,8 @@ export default function BookingPage() {
                 <ChevronLeft className="w-4 h-4" /> Back
               </button>
               <div className="mb-5 p-3 bg-indigo-50 rounded-lg text-sm text-indigo-800 font-medium">
-                {selectedType ? `${selectedType.name} · ` : ''}
+                {selectedType ? `${selectedType.name}${selectedVariant ? ` (${selectedVariant.name})` : ''} · ` : ''}
+                {selectedAddons.length > 0 ? `+${selectedAddons.length} extra${selectedAddons.length > 1 ? 's' : ''} · ` : ''}
                 {selectedStaff?.name ? `with ${selectedStaff.name} · ` : ''}
                 {formatDateLong(selectedDate)} at {formatTime12(selectedTime)}
               </div>
