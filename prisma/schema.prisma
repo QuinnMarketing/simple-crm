@@ -361,6 +361,7 @@ model Appointment {
   bookingPrice    Float?   // price snapshot at time of booking (the type's price can change later)
   status          String   @default("scheduled") // scheduled | completed | cancelled | no_show
   cancelToken     String?  // lets the customer view/cancel their booking without an account (48 random hex chars)
+  addonsJson      String?  // snapshot of chosen add-ons: [{name, price, durationMin}]
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
@@ -390,10 +391,28 @@ model BookingType {
   sortOrder      Int           @default(0)
   appointments   Appointment[]
   staff          BookingStaffProfile[] @relation("BookingTypeStaff") // team members who perform this service
+  addons         BookingAddon[]        // optional extras a customer can add to this service
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
 
   @@index([accountId])
+}
+
+// An optional extra a customer can add to a service, adding its own time and
+// price (e.g. "Hot stones +15 min +$20").
+model BookingAddon {
+  id            String      @id @default(cuid())
+  bookingTypeId String
+  bookingType   BookingType @relation(fields: [bookingTypeId], references: [id], onDelete: Cascade)
+  name          String
+  price         Float?
+  durationMin   Int         @default(0)
+  active        Boolean     @default(true)
+  sortOrder     Int         @default(0)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  @@index([bookingTypeId])
 }
 
 // Per-account booking configuration for a team member: whether they accept

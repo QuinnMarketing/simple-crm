@@ -30,7 +30,7 @@ export async function POST(
   }
 
   const body = await req.json()
-  const { date, time, name, email, phone, notes, bookingTypeId, staffId } = body ?? {}
+  const { date, time, name, email, phone, notes, bookingTypeId, staffId, addonIds } = body ?? {}
 
   if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) return NextResponse.json({ error: 'Invalid date' }, { status: 400 })
   if (!time || !/^\d{2}:\d{2}$/.test(time)) return NextResponse.json({ error: 'Invalid time' }, { status: 400 })
@@ -44,13 +44,22 @@ export async function POST(
   if (bookingTypeId) {
     bookingType = await prisma.bookingType.findFirst({
       where: { id: bookingTypeId, accountId: account.id, active: true, onlineBookable: true },
-      include: { staff: { where: { bookable: true }, select: { userId: true } } },
+      include: {
+        staff: { where: { bookable: true }, select: { userId: true } },
+        addons: { where: { active: true } },
+      },
     })
     if (!bookingType) return NextResponse.json({ error: 'That service is no longer available' }, { status: 400 })
     assignedStaff = bookingType.staff.map((s) => s.userId)
   }
 
-  const durationMin = bookingType?.durationMin ?? settings.slotDuration
+  // Validate chosen add-ons against the service and snapshot them
+  const wantAddonIds: string[] = Array.isArray(addonIds) ? addonIds : []
+  const chosenAddons = (bookingType?.addons ?? []).filter((a) => wantAddonIds.includes(a.id))
+  const addonMin = chosenAddons.reduce((s, a) => s + a.durationMin, 0)
+  const addonPrice = chosenAddons.reduce((s, a) => s + (a.price ?? 0), 0)
+
+  const durationMin = (bookingType?.durationMin ?? settings.slotDuration) + addonMin
   const bufferBefore = bookingType?.bufferBefore ?? 0
   const bufferAfter = bookingType?.bufferAfter ?? settings.bufferTime
 
@@ -109,7 +118,8 @@ export async function POST(
       accountId: account.id,
       userId: assignedUserId,
       bookingTypeId: bookingType?.id ?? null,
-      bookingPrice: bookingType?.priceType === 'free' ? 0 : bookingType?.price ?? null,
+      bookingPrice: bookingType?.priceType === 'free' ? addonPrice : (bookingType?.price ?? 0) + addonPrice || null,
+      addonsJson: chosenAddons.length ? JSON.stringify(chosenAddons.map((a) => ({ name: a.name, price: a.price, durationMin: a.durationMin }))) : null,
       cancelToken,
     },
   })

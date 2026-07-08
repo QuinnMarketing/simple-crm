@@ -2,6 +2,8 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Plus, Loader2, Pencil, Trash2, Clock, X } from 'lucide-react'
 
+type Addon = { id: string; name: string; price: number | null; durationMin: number; active: boolean }
+
 type BookingType = {
   id: string
   name: string
@@ -14,6 +16,7 @@ type BookingType = {
   bufferAfter: number
   onlineBookable: boolean
   active: boolean
+  addons?: Addon[]
 }
 
 type Draft = {
@@ -45,6 +48,9 @@ export default function BookingTypesManager({ accountId }: { accountId: string |
   const [draft, setDraft] = useState<Draft>(EMPTY)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [addonDraft, setAddonDraft] = useState({ name: '', durationMin: 0, price: '' })
+
+  const editingType = editingId && editingId !== 'new' ? types.find((t) => t.id === editingId) : undefined
 
   const load = useCallback(async () => {
     const r = await fetch(`/api/booking-types${qs}`)
@@ -94,6 +100,24 @@ export default function BookingTypesManager({ accountId }: { accountId: string |
     if (!confirm(`Delete "${t.name}"? Existing appointments keep their details.`)) return
     const res = await fetch(`/api/booking-types/${t.id}`, { method: 'DELETE' })
     if (res.ok) setTypes((prev) => prev.filter((x) => x.id !== t.id))
+  }
+
+  async function addAddon(bookingTypeId: string) {
+    if (!addonDraft.name.trim()) return
+    const res = await fetch('/api/booking-addons', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ bookingTypeId, ...addonDraft }),
+    })
+    if (res.ok) {
+      setAddonDraft({ name: '', durationMin: 0, price: '' })
+      await load()
+    }
+  }
+
+  async function deleteAddon(id: string) {
+    const res = await fetch(`/api/booking-addons/${id}`, { method: 'DELETE' })
+    if (res.ok) await load()
   }
 
   function priceLabel(t: BookingType): string {
@@ -189,6 +213,29 @@ export default function BookingTypesManager({ accountId }: { accountId: string |
               Active
             </label>
           </div>
+          {editingType && (
+            <div className="mt-4 pt-4 border-t border-indigo-100">
+              <p className="text-xs font-medium text-slate-600 mb-2">Optional add-ons</p>
+              {(editingType.addons ?? []).length > 0 && (
+                <div className="space-y-1.5 mb-2">
+                  {editingType.addons!.map((a) => (
+                    <div key={a.id} className="flex items-center gap-2 text-sm">
+                      <span className="flex-1 text-slate-700">{a.name}</span>
+                      <span className="text-xs text-slate-400">{a.durationMin > 0 ? `+${a.durationMin}m` : ''} {a.price != null ? `+$${a.price % 1 === 0 ? a.price : a.price.toFixed(2)}` : ''}</span>
+                      <button onClick={() => deleteAddon(a.id)} className="text-slate-300 hover:text-red-500"><X className="w-3.5 h-3.5" /></button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <div className="flex gap-2">
+                <input className={`${inputCls} flex-1`} placeholder="Add-on name" value={addonDraft.name} onChange={(e) => setAddonDraft((d) => ({ ...d, name: e.target.value }))} />
+                <input type="number" min={0} step={5} className={`${inputCls} w-20`} placeholder="min" value={addonDraft.durationMin || ''} onChange={(e) => setAddonDraft((d) => ({ ...d, durationMin: Number(e.target.value) }))} />
+                <input type="number" min={0} step="0.01" className={`${inputCls} w-24`} placeholder="$" value={addonDraft.price} onChange={(e) => setAddonDraft((d) => ({ ...d, price: e.target.value }))} />
+                <button onClick={() => addAddon(editingType.id)} className="px-3 py-2 rounded-lg bg-slate-100 text-slate-600 text-sm font-medium hover:bg-slate-200 flex items-center gap-1"><Plus className="w-3.5 h-3.5" /></button>
+              </div>
+            </div>
+          )}
+
           {error && <p className="text-sm text-red-600 mt-3">{error}</p>}
           <div className="flex gap-2 mt-4">
             <button onClick={save} disabled={saving} className="flex items-center gap-1.5 bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 disabled:opacity-60 transition-colors">

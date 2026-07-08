@@ -7,6 +7,8 @@ const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June',
   'July', 'August', 'September', 'October', 'November', 'December']
 const SHORT_DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
+type Addon = { id: string; name: string; price: number | null; durationMin: number }
+
 type Service = {
   id: string
   name: string
@@ -16,6 +18,7 @@ type Service = {
   price: number | null
   priceType: string
   hasStaff?: boolean
+  addons?: Addon[]
 }
 
 type StaffOption = { id: string; name: string | null }
@@ -30,7 +33,7 @@ type BookingInfo = {
   staff: StaffOption[]
 }
 
-type Step = 'service' | 'staff' | 'date' | 'time' | 'form' | 'done'
+type Step = 'service' | 'addons' | 'staff' | 'date' | 'time' | 'form' | 'done'
 
 function formatTime12(time: string): string {
   const [h, m] = time.split(':').map(Number)
@@ -67,6 +70,7 @@ export default function BookingPage() {
   const [loadingDates, setLoadingDates] = useState(false)
 
   const [selectedType, setSelectedType] = useState<Service | null>(null)
+  const [selectedAddons, setSelectedAddons] = useState<Addon[]>([])
   const [selectedStaff, setSelectedStaff] = useState<{ id: string; name: string | null } | null>(null)
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
   const [slots, setSlots] = useState<string[]>([])
@@ -80,7 +84,9 @@ export default function BookingPage() {
 
   const hasServices = (info?.types.length ?? 0) > 0
   const serviceHasStaff = (info?.staff.length ?? 0) > 0
-  const typeQuery = `${selectedType ? `&type=${selectedType.id}` : ''}${selectedStaff && selectedStaff.id !== 'any' ? `&staff=${selectedStaff.id}` : ''}`
+  const serviceAddons = selectedType?.addons ?? []
+  const addonQuery = selectedAddons.length ? `&addons=${selectedAddons.map((a) => a.id).join(',')}` : ''
+  const typeQuery = `${selectedType ? `&type=${selectedType.id}` : ''}${selectedStaff && selectedStaff.id !== 'any' ? `&staff=${selectedStaff.id}` : ''}${addonQuery}`
 
   // Initial info load — decides whether to open on the service picker
   useEffect(() => {
@@ -117,18 +123,29 @@ export default function BookingPage() {
 
   async function selectService(s: Service) {
     setSelectedType(s)
+    setSelectedAddons([])
     setSelectedStaff(null)
     setSelectedDate(null)
     setSelectedTime(null)
-    // Fetch the staff who offer this service; show the picker only if any exist
+    // Fetch staff/add-ons for this service to decide the next step
+    let staffCount = 0
+    let picked = s
     try {
       const r = await fetch(`/api/book/${slug}/availability?type=${s.id}`)
       const data = await r.json()
-      if (data.info) setInfo(data.info)
-      setStep((data.info?.staff?.length ?? 0) > 0 ? 'staff' : 'date')
-    } catch {
-      setStep('date')
-    }
+      if (data.info) {
+        setInfo(data.info)
+        staffCount = data.info.staff?.length ?? 0
+        picked = data.info.types.find((t: Service) => t.id === s.id) ?? s
+        setSelectedType(picked)
+      }
+    } catch { /* fall through to date */ }
+    if ((picked.addons?.length ?? 0) > 0) setStep('addons')
+    else setStep(staffCount > 0 ? 'staff' : 'date')
+  }
+
+  function afterAddons() {
+    setStep(serviceHasStaff ? 'staff' : 'date')
   }
 
   function selectStaff(opt: { id: string; name: string | null }) {
@@ -160,7 +177,7 @@ export default function BookingPage() {
       const r = await fetch(`/api/book/${slug}/confirm`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ date: selectedDate, time: selectedTime, bookingTypeId: selectedType?.id ?? null, staffId: selectedStaff?.id ?? null, ...form }),
+        body: JSON.stringify({ date: selectedDate, time: selectedTime, bookingTypeId: selectedType?.id ?? null, staffId: selectedStaff?.id ?? null, addonIds: selectedAddons.map((a) => a.id), ...form }),
       })
       if (r.ok) { setStep('done'); return }
       const data = await r.json().catch(() => ({}))
@@ -189,10 +206,11 @@ export default function BookingPage() {
 
   const stepList: Step[] = [
     ...(hasServices ? ['service' as Step] : []),
+    ...(selectedType && serviceAddons.length > 0 ? ['addons' as Step] : []),
     ...(selectedType && serviceHasStaff ? ['staff' as Step] : []),
     'date', 'time', 'form',
   ]
-  const stepLabels: Record<Step, string> = { service: 'Service', staff: 'Team member', date: 'Date', time: 'Time', form: 'Details', done: '' }
+  const stepLabels: Record<Step, string> = { service: 'Service', addons: 'Extras', staff: 'Team member', date: 'Date', time: 'Time', form: 'Details', done: '' }
 
   if (notFound) {
     return (
@@ -258,11 +276,53 @@ export default function BookingPage() {
             </div>
           )}
 
+          {/* STEP: add-ons */}
+          {step === 'addons' && selectedType && (
+            <div>
+              <button
+                onClick={() => setStep('service')}
+                className="flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700 mb-4 transition-colors"
+              >
+                <ChevronLeft className="w-4 h-4" /> {selectedType.name}
+              </button>
+              <p className="font-semibold text-slate-900 mb-3">Add any extras</p>
+              <div className="space-y-2">
+                {serviceAddons.map((a) => {
+                  const on = selectedAddons.some((x) => x.id === a.id)
+                  return (
+                    <button
+                      key={a.id}
+                      onClick={() => setSelectedAddons((prev) => on ? prev.filter((x) => x.id !== a.id) : [...prev, a])}
+                      className={`w-full text-left p-3 rounded-xl border flex items-center justify-between gap-3 transition-colors ${on ? 'border-indigo-500 bg-indigo-50' : 'border-slate-200 hover:bg-slate-50'}`}
+                    >
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className={`w-4 h-4 rounded border flex-shrink-0 flex items-center justify-center ${on ? 'bg-indigo-600 border-indigo-600' : 'border-slate-300'}`}>
+                          {on && <CheckCircle2 className="w-3 h-3 text-white" />}
+                        </span>
+                        <div className="min-w-0">
+                          <p className="font-medium text-slate-900 text-sm">{a.name}</p>
+                          {a.durationMin > 0 && <p className="text-xs text-slate-400">+{a.durationMin} min</p>}
+                        </div>
+                      </div>
+                      {a.price != null && <span className="text-sm font-semibold text-indigo-700 flex-shrink-0">+${a.price % 1 === 0 ? a.price : a.price.toFixed(2)}</span>}
+                    </button>
+                  )
+                })}
+              </div>
+              <button
+                onClick={afterAddons}
+                className="w-full mt-4 bg-indigo-600 text-white py-2.5 rounded-lg font-semibold text-sm hover:bg-indigo-700 transition-colors"
+              >
+                Continue{selectedAddons.length > 0 ? ` (${selectedAddons.length} added)` : ''}
+              </button>
+            </div>
+          )}
+
           {/* STEP: staff */}
           {step === 'staff' && info && (
             <div>
               <button
-                onClick={() => setStep('service')}
+                onClick={() => setStep(serviceAddons.length > 0 ? 'addons' : 'service')}
                 className="flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700 mb-4 transition-colors"
               >
                 <ChevronLeft className="w-4 h-4" /> {selectedType?.name ?? 'Change service'}
@@ -293,7 +353,7 @@ export default function BookingPage() {
             <div>
               {hasServices && (
                 <button
-                  onClick={() => setStep(serviceHasStaff ? 'staff' : 'service')}
+                  onClick={() => setStep(serviceHasStaff ? 'staff' : serviceAddons.length > 0 ? 'addons' : 'service')}
                   className="flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700 mb-4 transition-colors"
                 >
                   <ChevronLeft className="w-4 h-4" /> {selectedStaff ? (selectedStaff.name ?? 'Any available') : (selectedType?.name ?? 'Change service')}

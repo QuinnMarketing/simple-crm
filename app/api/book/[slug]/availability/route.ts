@@ -121,6 +121,7 @@ export async function GET(
             where: { bookable: true },
             include: { user: { select: { id: true, name: true } } },
           },
+          addons: { where: { active: true }, orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }] },
         },
       },
     },
@@ -135,8 +136,13 @@ export async function GET(
   const types = account.bookingTypes
 
   const chosenType = typeParam ? types.find((t) => t.id === typeParam) ?? null : null
+  // Selected add-ons extend the appointment's length
+  const addonIds = new Set((searchParams.get('addons') ?? '').split(',').filter(Boolean))
+  const addonExtraMin = chosenType
+    ? chosenType.addons.filter((a) => addonIds.has(a.id)).reduce((sum, a) => sum + a.durationMin, 0)
+    : 0
   const shape: SlotShape = chosenType
-    ? { durationMin: chosenType.durationMin, bufferBefore: chosenType.bufferBefore, bufferAfter: chosenType.bufferAfter }
+    ? { durationMin: chosenType.durationMin + addonExtraMin, bufferBefore: chosenType.bufferBefore, bufferAfter: chosenType.bufferAfter }
     : { durationMin: settings.slotDuration, bufferBefore: 0, bufferAfter: settings.bufferTime }
 
   // Staff assigned to the chosen service (bookable). Empty → shared calendar mode.
@@ -157,6 +163,7 @@ export async function GET(
       id: t.id, name: t.name, category: t.category, description: t.description,
       durationMin: t.durationMin, price: t.price, priceType: t.priceType,
       hasStaff: t.staff.length > 0,
+      addons: t.addons.map((a) => ({ id: a.id, name: a.name, price: a.price, durationMin: a.durationMin })),
     })),
     staff: staffMode ? typeStaff.map((p) => ({ id: p.userId, name: p.user.name })) : [],
   }
