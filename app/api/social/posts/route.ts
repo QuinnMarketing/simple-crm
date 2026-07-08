@@ -1,4 +1,5 @@
 import { auth } from '@/auth'
+import { requireModule } from '@/lib/account-modules'
 import { prisma } from '@/lib/prisma'
 import { getAccountFilter } from '@/lib/account-scope'
 import { publishPost } from '@/lib/social-publish'
@@ -8,6 +9,7 @@ export async function GET(req: NextRequest) {
   const session = await auth()
   if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
+  const gate = await requireModule(session.user, 'social'); if (gate) return gate
   const { searchParams } = req.nextUrl
   const accountParam = searchParams.get('account') ?? undefined
   const status = searchParams.get('status') ?? undefined
@@ -29,6 +31,7 @@ export async function POST(req: NextRequest) {
   const session = await auth()
   if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
+  const gate = await requireModule(session.user, 'social'); if (gate) return gate
   const { searchParams } = req.nextUrl
   const accountParam = searchParams.get('account') ?? undefined
   const accountFilter = getAccountFilter(session.user, accountParam)

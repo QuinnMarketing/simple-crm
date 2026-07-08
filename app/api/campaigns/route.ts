@@ -1,4 +1,5 @@
 import { auth } from '@/auth'
+import { requireModule } from '@/lib/account-modules'
 import { prisma } from '@/lib/prisma'
 import { getAccountFilter } from '@/lib/account-scope'
 import { NextRequest, NextResponse } from 'next/server'
@@ -7,6 +8,7 @@ export async function GET(_req: NextRequest) {
   const session = await auth()
   if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
+  const gate = await requireModule(session.user, 'campaigns'); if (gate) return gate
   const filter = getAccountFilter(session.user)
   const campaigns = await prisma.emailCampaign.findMany({
     where: filter,
@@ -20,6 +22,7 @@ export async function POST(req: NextRequest) {
   const session = await auth()
   if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
+  const gate = await requireModule(session.user, 'campaigns'); if (gate) return gate
   const body = await req.json()
 
   let accountId: string | null

@@ -1,4 +1,5 @@
 import { auth } from '@/auth'
+import { requireModule } from '@/lib/account-modules'
 import { prisma } from '@/lib/prisma'
 import { NextRequest, NextResponse } from 'next/server'
 import { getAccountFilter } from '@/lib/account-scope'
@@ -9,6 +10,7 @@ export async function GET(req: NextRequest) {
   const session = await auth()
   if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
+  const gate = await requireModule(session.user, 'ads'); if (gate) return gate
   const { searchParams } = req.nextUrl
   const accountId = searchParams.get('account')
   const platform = searchParams.get('platform')
@@ -32,6 +34,7 @@ export async function POST(req: NextRequest) {
   const session = await auth()
   if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
+  const gate = await requireModule(session.user, 'ads'); if (gate) return gate
   const body = await req.json()
   const { adPlatformAccountId, name, objective, budgetType, budgetAmount, startDate, endDate, headline, primaryText, destinationUrl, callToAction, imageUrl } = body as {
     adPlatformAccountId: string

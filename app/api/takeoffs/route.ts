@@ -1,4 +1,5 @@
 import { auth } from '@/auth'
+import { requireModule } from '@/lib/account-modules'
 import { prisma } from '@/lib/prisma'
 import { getAccountFilter } from '@/lib/account-scope'
 import { NextRequest, NextResponse } from 'next/server'
@@ -15,6 +16,7 @@ export async function GET(req: NextRequest) {
   const session = await auth()
   if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
+  const gate = await requireModule(session.user, 'takeoffs'); if (gate) return gate
   const accountId = req.nextUrl.searchParams.get('account')
   const filter = getAccountFilter(session.user, accountId)
 
@@ -33,6 +35,7 @@ export async function POST(req: NextRequest) {
   const session = await auth()
   if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
+  const gate = await requireModule(session.user, 'takeoffs'); if (gate) return gate
   const body = await req.json()
   const { name, description, projectId, leadId } = body
 

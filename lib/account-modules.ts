@@ -1,3 +1,4 @@
+import { NextResponse } from 'next/server'
 import { prisma } from './prisma'
 import { MODULES, DEFAULT_ON_KEYS, type ModuleKey } from './modules'
 
@@ -48,4 +49,16 @@ export async function getEnabledModulesForAccount(accountId: string): Promise<Se
 export async function isModuleEnabled(user: ScopedUser, accountId: string | null, key: ModuleKey): Promise<boolean> {
   const enabled = await getEnabledModules(user, accountId)
   return enabled.has(key)
+}
+
+/**
+ * Route guard: returns a 404 NextResponse when the given module is disabled for
+ * the caller's account, or null to proceed. Call at the top of a module's API
+ * handlers after the auth() check. Uses the user's primary account for the
+ * check (module state is per-account; a user only reaches their own data).
+ * 404 (not 403) so a turned-off feature simply looks absent.
+ */
+export async function requireModule(user: ScopedUser, key: ModuleKey): Promise<NextResponse | null> {
+  if (await isModuleEnabled(user, user.accountId ?? null, key)) return null
+  return NextResponse.json({ error: 'This feature is not enabled for your account' }, { status: 404 })
 }
