@@ -360,13 +360,14 @@ model Appointment {
   bookingType     BookingType? @relation(fields: [bookingTypeId], references: [id], onDelete: SetNull)
   bookingPrice    Float?   // price snapshot at time of booking (the type's price can change later)
   status          String   @default("scheduled") // scheduled | completed | cancelled | no_show
-  cancelToken     String?  @unique // lets the customer view/cancel their booking without an account
+  cancelToken     String?  // lets the customer view/cancel their booking without an account (48 random hex chars)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
   @@index([accountId, startTime])
   @@index([firefliesRef])
   @@index([leadId])
+  @@index([cancelToken])
 }
 
 // A bookable service/appointment type (Fresha-style service menu). Each has its

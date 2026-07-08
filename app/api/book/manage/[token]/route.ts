@@ -5,7 +5,7 @@ type Params = { params: Promise<{ token: string }> }
 
 async function load(token: string) {
   if (!token) return null
-  return prisma.appointment.findUnique({
+  return prisma.appointment.findFirst({
     where: { cancelToken: token },
     include: {
       account: { select: { name: true, bookingSettings: { select: { timezone: true, cancellationHours: true, policyText: true } } } },
