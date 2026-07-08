@@ -48,6 +48,8 @@ type Props = {
     availableHours: string
     maxDaysAhead: number
     minNoticeHours: number
+    cancellationHours: number
+    policyText: string
   } | null
 }
 
@@ -68,6 +70,8 @@ export default function BookingSettingsForm({ accountId, accountSlug, initial }:
   const [timezone, setTimezone] = useState(initial?.timezone ?? 'Australia/Sydney')
   const [maxDaysAhead, setMaxDaysAhead] = useState(String(initial?.maxDaysAhead ?? 60))
   const [minNoticeHours, setMinNoticeHours] = useState(String(initial?.minNoticeHours ?? 24))
+  const [cancellationHours, setCancellationHours] = useState(String(initial?.cancellationHours ?? 24))
+  const [policyText, setPolicyText] = useState(initial?.policyText ?? '')
   const [hours, setHours] = useState<Record<string, DayConfig>>(parseHours(initial?.availableHours ?? '{}'))
 
   const [saving, setSaving] = useState(false)
@@ -106,6 +110,8 @@ export default function BookingSettingsForm({ accountId, accountSlug, initial }:
           availableHours: JSON.stringify(hours),
           maxDaysAhead: parseInt(maxDaysAhead) || 60,
           minNoticeHours: parseInt(minNoticeHours) || 24,
+          cancellationHours: parseInt(cancellationHours) || 0,
+          policyText,
         }),
       })
       setSaved(true)
@@ -206,6 +212,25 @@ export default function BookingSettingsForm({ accountId, accountSlug, initial }:
             {[1, 2, 4, 8, 24, 48].map((v) => <option key={v} value={v}>{v}h</option>)}
           </select>
         </div>
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-1">Cancel window</label>
+          <select value={cancellationHours} onChange={(e) => setCancellationHours(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+            <option value={0}>No online cancel</option>
+            {[1, 2, 4, 12, 24, 48, 72].map((v) => <option key={v} value={v}>{v}h before</option>)}
+          </select>
+        </div>
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-slate-700 mb-1">Cancellation policy <span className="text-slate-400 font-normal">(optional)</span></label>
+        <textarea
+          value={policyText}
+          onChange={(e) => setPolicyText(e.target.value)}
+          rows={2}
+          placeholder="e.g. Cancellations within 24 hours may incur a fee."
+          className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none"
+        />
+        <p className="text-xs text-slate-400 mt-1">Shown on the booking page, the confirmation email, and the manage-booking page.</p>
       </div>
 
       {/* Working hours */}

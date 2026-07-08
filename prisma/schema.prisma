@@ -359,6 +359,8 @@ model Appointment {
   bookingTypeId   String?  // set when created via the public booking flow for a specific service
   bookingType     BookingType? @relation(fields: [bookingTypeId], references: [id], onDelete: SetNull)
   bookingPrice    Float?   // price snapshot at time of booking (the type's price can change later)
+  status          String   @default("scheduled") // scheduled | completed | cancelled | no_show
+  cancelToken     String?  @unique // lets the customer view/cancel their booking without an account
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
@@ -856,6 +858,8 @@ model BookingSettings {
   availableHours String   @default("{}")
   maxDaysAhead   Int      @default(60)
   minNoticeHours Int      @default(24)
+  cancellationHours Int   @default(24)  // notice required to cancel/reschedule online (0 = no self-service cancel)
+  policyText     String?                // cancellation policy shown on the booking page and confirmation
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 }

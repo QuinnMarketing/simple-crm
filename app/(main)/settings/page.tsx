@@ -264,6 +264,8 @@ export default async function SettingsPage({
               availableHours: account.bookingSettings.availableHours,
               maxDaysAhead: account.bookingSettings.maxDaysAhead,
               minNoticeHours: account.bookingSettings.minNoticeHours,
+              cancellationHours: account.bookingSettings.cancellationHours,
+              policyText: account.bookingSettings.policyText ?? '',
             } : null}
           />
         </CollapsibleSection>

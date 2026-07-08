@@ -152,6 +152,7 @@ export async function GET(
     description: settings.description,
     slotDuration: shape.durationMin,
     timezone: settings.timezone,
+    policyText: settings.policyText,
     types: types.map((t) => ({
       id: t.id, name: t.name, category: t.category, description: t.description,
       durationMin: t.durationMin, price: t.price, priceType: t.priceType,
@@ -169,6 +170,7 @@ export async function GET(
     const appts = await prisma.appointment.findMany({
       where: {
         accountId: account.id,
+        status: { not: 'cancelled' },
         startTime: { lt: new Date(dayStart + 28 * 3600_000) },
         endTime: { gt: new Date(dayStart - 4 * 3600_000) },
       },

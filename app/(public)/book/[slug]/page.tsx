@@ -25,6 +25,7 @@ type BookingInfo = {
   description: string | null
   slotDuration: number
   timezone: string
+  policyText: string | null
   types: Service[]
   staff: StaffOption[]
 }
@@ -442,6 +443,9 @@ export default function BookingPage() {
                     placeholder="Anything you'd like us to know…"
                   />
                 </div>
+                {info?.policyText && (
+                  <p className="text-xs text-slate-500 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2">{info.policyText}</p>
+                )}
                 {submitError && <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{submitError}</p>}
                 <button
                   onClick={submit}

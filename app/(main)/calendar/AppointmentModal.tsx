@@ -19,6 +19,7 @@ export type Appointment = {
   assignedTo: { id: string; name: string | null } | null
   googleEventId: string | null
   firefliesStatus?: string | null
+  status?: string | null
 }
 
 export function fmtTime(iso: string) {
@@ -79,6 +80,7 @@ export default function AppointmentModal({ initial, defaultDate, defaultEndTime,
     : defaultDate ? (allDay ? dayToDateInput(defaultDate) : defaultTimeStr(defaultDate, 1)) : ''
   )
   const [location, setLocation] = useState(initial?.location ?? '')
+  const [status, setStatus] = useState(initial?.status ?? 'scheduled')
   const [firefliesStatus, setFirefliesStatus] = useState(initial?.firefliesStatus ?? null)
   const [firefliesLoading, setFirefliesLoading] = useState(false)
   const [firefliesError, setFirefliesError] = useState('')
@@ -114,6 +116,7 @@ export default function AppointmentModal({ initial, defaultDate, defaultEndTime,
         endTime: allDay ? `${endTime}T23:59:59.000Z` : new Date(endTime).toISOString(),
         leadId: leadId || null,
         userId: userId || null,
+        ...(isEdit ? { status } : {}),
       }
       const res = await fetch(
         isEdit ? `/api/appointments/${initial!.id}` : '/api/appointments',
@@ -240,6 +243,37 @@ export default function AppointmentModal({ initial, defaultDate, defaultEndTime,
               className={inputCls}
             />
           </div>
+
+          {isEdit && (
+            <div>
+              <label className={labelCls}>Status</label>
+              <div className="flex gap-1.5 flex-wrap">
+                {([
+                  { value: 'scheduled', label: 'Scheduled' },
+                  { value: 'completed', label: 'Completed' },
+                  { value: 'no_show', label: 'No-show' },
+                  { value: 'cancelled', label: 'Cancelled' },
+                ] as const).map(({ value, label }) => (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => setStatus(value)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
+                      status === value
+                        ? value === 'cancelled' || value === 'no_show'
+                          ? 'bg-red-50 border-red-300 text-red-700'
+                          : value === 'completed'
+                            ? 'bg-emerald-50 border-emerald-300 text-emerald-700'
+                            : 'bg-indigo-50 border-indigo-300 text-indigo-700'
+                        : 'border-slate-200 text-slate-500 hover:bg-slate-50'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
           {isEdit && isMeetingLink && (
             <div>

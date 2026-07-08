@@ -48,6 +48,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       ...('location' in body ? { location: body.location || null } : {}),
       ...('leadId' in body ? { leadId: body.leadId || null } : {}),
       ...('userId' in body ? { userId: body.userId || null } : {}),
+      ...('status' in body && ['scheduled', 'completed', 'cancelled', 'no_show'].includes(body.status) ? { status: body.status } : {}),
     },
     include: {
       lead: { select: { id: true, name: true } },

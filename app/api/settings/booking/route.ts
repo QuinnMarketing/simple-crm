@@ -8,7 +8,7 @@ export async function POST(req: NextRequest) {
 
   const body = await req.json()
   const { accountId, enabled, title, description, slotDuration, bufferTime, timezone,
-    availableHours, maxDaysAhead, minNoticeHours } = body
+    availableHours, maxDaysAhead, minNoticeHours, cancellationHours, policyText } = body
 
   if (!accountId) return NextResponse.json({ error: 'Missing accountId' }, { status: 400 })
 
@@ -29,6 +29,8 @@ export async function POST(req: NextRequest) {
     availableHours: String(availableHours ?? '{}'),
     maxDaysAhead: Math.max(1, Math.min(365, parseInt(maxDaysAhead) || 60)),
     minNoticeHours: Math.max(0, Math.min(168, parseInt(minNoticeHours) || 24)),
+    cancellationHours: Math.max(0, Math.min(336, parseInt(cancellationHours) ?? 24)),
+    policyText: policyText ? String(policyText).slice(0, 1000) : null,
   }
 
   await prisma.bookingSettings.upsert({
