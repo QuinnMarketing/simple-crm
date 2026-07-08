@@ -1,8 +1,9 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { Plus, Trash2, Loader2, X, Settings2, ToggleLeft, ToggleRight, Users, Pencil, Check } from 'lucide-react'
+import { Plus, Trash2, Loader2, X, Settings2, ToggleLeft, ToggleRight, Users, Pencil, Check, SlidersHorizontal } from 'lucide-react'
 import Link from 'next/link'
+import AccountModulesModal from '@/components/AccountModulesModal'
 
 type Account = {
   id: string
@@ -41,6 +42,7 @@ export default function AccountsPage() {
   const [editPlan, setEditPlan] = useState('starter')
   const [editSaving, setEditSaving] = useState(false)
   const [editError, setEditError] = useState('')
+  const [modulesFor, setModulesFor] = useState<Account | null>(null)
 
   const fetchAccounts = useCallback(async () => {
     const res = await fetch('/api/accounts')
@@ -118,17 +120,6 @@ export default function AccountsPage() {
     setTogglingId(null)
   }
 
-  async function toggleTakeoffs(account: Account) {
-    const res = await fetch(`/api/accounts/${account.id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ featTakeoffs: !account.featTakeoffs }),
-    })
-    if (res.ok) {
-      const updated = await res.json()
-      setAccounts((a) => a.map((acc) => acc.id === account.id ? { ...acc, ...updated } : acc))
-    }
-  }
 
   async function deleteAccount(account: Account) {
     if (!confirm(
@@ -342,22 +333,15 @@ export default function AccountsPage() {
                     </div>
                   </div>
 
-                  {/* Features row */}
+                  {/* Modules row */}
                   <div className="flex items-center gap-2 pl-6 pt-1 border-t border-slate-100">
-                    <span className="text-xs font-medium text-slate-400 uppercase tracking-wide mr-1">Features</span>
+                    <span className="text-xs font-medium text-slate-400 uppercase tracking-wide mr-1">Modules</span>
                     <button
-                      onClick={() => toggleTakeoffs(account)}
-                      className={`flex items-center gap-1.5 text-xs px-3 py-1 rounded-full font-medium border transition-colors ${
-                        account.featTakeoffs
-                          ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'
-                          : 'bg-white text-slate-500 border-slate-300 hover:bg-slate-50'
-                      }`}
+                      onClick={() => setModulesFor(account)}
+                      className="flex items-center gap-1.5 text-xs px-3 py-1 rounded-full font-medium border bg-white text-slate-600 border-slate-300 hover:bg-slate-50 transition-colors"
                     >
-                      {account.featTakeoffs
-                        ? <ToggleRight className="w-4 h-4" />
-                        : <ToggleLeft className="w-4 h-4" />
-                      }
-                      Takeoffs & Estimating
+                      <SlidersHorizontal className="w-3.5 h-3.5" />
+                      Manage modules
                     </button>
                   </div>
                 </div>
@@ -366,6 +350,18 @@ export default function AccountsPage() {
           )
         })}
       </div>
+
+      {modulesFor && (
+        <AccountModulesModal
+          accountId={modulesFor.id}
+          accountName={modulesFor.name}
+          onClose={() => setModulesFor(null)}
+          onChanged={(keys) => {
+            // Keep the local featTakeoffs badge/state roughly in sync
+            setAccounts((a) => a.map((acc) => acc.id === modulesFor.id ? { ...acc, featTakeoffs: keys.includes('takeoffs') } : acc))
+          }}
+        />
+      )}
     </div>
   )
 }
