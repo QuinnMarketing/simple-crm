@@ -5,6 +5,7 @@ import { useState } from 'react'
 import { LayoutDashboard, Users, Settings, LogOut, Zap, Building2, ChevronDown, Layers, CalendarDays, FileText, Bot, Clock, Mail, MailOpen, TrendingUp, BarChart2, Share2, GanttChartSquare, CheckSquare, Star, BookOpen, Receipt, FolderOpen, Ruler, Inbox, Target, Rocket, MessagesSquare, ClipboardList } from 'lucide-react'
 import { signOut } from 'next-auth/react'
 import PushToggle from './PushToggle'
+import { moduleForNavHref } from '@/lib/modules'
 
 type SidebarUser = {
   name?: string | null
@@ -26,13 +27,13 @@ export default function Sidebar({
   user,
   accountName,
   accounts: accountsProp = [],
-  featTakeoffs = false,
+  enabledModules = [],
   onClose,
 }: {
   user: SidebarUser
   accountName?: string | null
   accounts?: SidebarAccount[]
-  featTakeoffs?: boolean
+  enabledModules?: string[]
   onClose?: () => void
 }) {
   const pathname = usePathname()
@@ -64,12 +65,12 @@ export default function Sidebar({
     return qs ? `${base}?${qs}` : base
   }
 
-  const baseNav: NavItem[] = [
+  const fullNav: NavItem[] = [
     { href: '/', icon: LayoutDashboard, label: 'Dashboard' },
     { href: '/calendar', icon: CalendarDays, label: 'Calendar' },
     { href: '/leads', icon: Users, label: 'Leads', match: '/leads' },
     { href: '/quotes', icon: FileText, label: 'Quotes & Invoices' },
-    ...(featTakeoffs ? [{ href: '/takeoffs', icon: Ruler, label: 'Takeoffs & Estimating' }] : []),
+    { href: '/takeoffs', icon: Ruler, label: 'Takeoffs & Estimating' },
     { href: '/price-book', icon: BookOpen, label: 'Price Book' },
     { href: '/gantt', icon: GanttChartSquare, label: 'Gantt Charts' },
     { href: '/companies', icon: Building2, label: 'Companies' },
@@ -91,6 +92,13 @@ export default function Sidebar({
     { href: '/time', icon: Clock, label: 'Time Tracking' },
     { href: '/settings', icon: Settings, label: 'Settings' },
   ]
+
+  // Gate each nav item by its owning module — core items (no module) always show
+  const moduleSet = new Set(enabledModules)
+  const baseNav = fullNav.filter((item) => {
+    const mod = moduleForNavHref(item.href)
+    return mod === null || moduleSet.has(mod)
+  })
   const allNav: NavItem[] = isMasterAdmin ? [...MASTER_NAV, ...baseNav] : baseNav
 
   return (

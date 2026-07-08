@@ -58,6 +58,23 @@ model Account {
   landingPages           LandingPage[]
   chatConversations      ChatConversation[]
   sops                   Sop[]
+  moduleStates           AccountModule[]
+}
+
+// Per-account module on/off overrides. Absence of a row = the module's
+// default state (see lib/modules.ts). Master-admin toggles these; the
+// resolver in lib/account-modules.ts merges defaults + these overrides.
+model AccountModule {
+  id        String   @id @default(cuid())
+  accountId String
+  account   Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  moduleKey String
+  enabled   Boolean
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([accountId, moduleKey])
+  @@index([accountId])
 }
 
 model ChatConversation {
