@@ -59,6 +59,7 @@ model Account {
   chatConversations      ChatConversation[]
   sops                   Sop[]
   moduleStates           AccountModule[]
+  bookingTypes           BookingType[]
 }
 
 // Per-account module on/off overrides. Absence of a row = the module's
@@ -353,12 +354,40 @@ model Appointment {
   googleEventId   String?
   firefliesRef    String?  // short token embedded in the Fireflies meeting title to match the transcribed webhook back to this appointment
   firefliesStatus String?  // 'requested' | 'recorded' | 'failed'
+  bookingTypeId   String?  // set when created via the public booking flow for a specific service
+  bookingType     BookingType? @relation(fields: [bookingTypeId], references: [id], onDelete: SetNull)
+  bookingPrice    Float?   // price snapshot at time of booking (the type's price can change later)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
   @@index([accountId, startTime])
   @@index([firefliesRef])
   @@index([leadId])
+}
+
+// A bookable service/appointment type (Fresha-style service menu). Each has its
+// own duration, price and buffers; the public booking flow starts by choosing one.
+model BookingType {
+  id             String        @id @default(cuid())
+  accountId      String
+  account        Account       @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  name           String
+  category       String?       // groups types in the picker, e.g. "Hair", "Massage"
+  description    String?
+  durationMin    Int           @default(60)
+  price          Float?
+  priceType      String        @default("fixed") // 'fixed' | 'from' | 'free'
+  bufferBefore   Int           @default(0)        // minutes blocked before the appointment
+  bufferAfter    Int           @default(0)        // minutes blocked after (cleanup/processing)
+  color          String?       // calendar/label colour
+  onlineBookable Boolean       @default(true)     // shown on the public booking page
+  active         Boolean       @default(true)
+  sortOrder      Int           @default(0)
+  appointments   Appointment[]
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  @@index([accountId])
 }
 
 model Automation {

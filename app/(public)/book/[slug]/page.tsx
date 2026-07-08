@@ -7,14 +7,25 @@ const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June',
   'July', 'August', 'September', 'October', 'November', 'December']
 const SHORT_DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
+type Service = {
+  id: string
+  name: string
+  category: string | null
+  description: string | null
+  durationMin: number
+  price: number | null
+  priceType: string
+}
+
 type BookingInfo = {
   title: string
   description: string | null
   slotDuration: number
   timezone: string
+  types: Service[]
 }
 
-type Step = 'date' | 'time' | 'form' | 'done'
+type Step = 'service' | 'date' | 'time' | 'form' | 'done'
 
 function formatTime12(time: string): string {
   const [h, m] = time.split(':').map(Number)
@@ -29,6 +40,13 @@ function formatDateLong(dateStr: string): string {
   return date.toLocaleDateString('en-AU', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
 }
 
+function formatPrice(s: Service): string {
+  if (s.priceType === 'free') return 'Free'
+  if (s.price == null) return ''
+  const amount = `$${s.price % 1 === 0 ? s.price : s.price.toFixed(2)}`
+  return s.priceType === 'from' ? `from ${amount}` : amount
+}
+
 export default function BookingPage() {
   const params = useParams<{ slug: string }>()
   const slug = params.slug
@@ -36,32 +54,37 @@ export default function BookingPage() {
   const [info, setInfo] = useState<BookingInfo | null>(null)
   const [notFound, setNotFound] = useState(false)
 
-  // Calendar state
   const today = new Date()
   const [viewYear, setViewYear] = useState(today.getFullYear())
-  const [viewMonth, setViewMonth] = useState(today.getMonth()) // 0-indexed
+  const [viewMonth, setViewMonth] = useState(today.getMonth())
 
   const [availableDates, setAvailableDates] = useState<Set<string>>(new Set())
   const [loadingDates, setLoadingDates] = useState(false)
 
-  // Selection state
+  const [selectedType, setSelectedType] = useState<Service | null>(null)
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
   const [slots, setSlots] = useState<string[]>([])
   const [loadingSlots, setLoadingSlots] = useState(false)
   const [selectedTime, setSelectedTime] = useState<string | null>(null)
 
-  // Form state
   const [form, setForm] = useState({ name: '', email: '', phone: '', notes: '' })
   const [submitting, setSubmitting] = useState(false)
+  const [submitError, setSubmitError] = useState('')
   const [step, setStep] = useState<Step>('date')
 
-  // Initial info load
+  const hasServices = (info?.types.length ?? 0) > 0
+  const typeQuery = selectedType ? `&type=${selectedType.id}` : ''
+
+  // Initial info load — decides whether to open on the service picker
   useEffect(() => {
     fetch(`/api/book/${slug}/availability`)
       .then(async (r) => {
         if (r.status === 404) { setNotFound(true); return }
         const data = await r.json()
-        if (data.info) setInfo(data.info)
+        if (data.info) {
+          setInfo(data.info)
+          if (data.info.types?.length > 0) setStep('service')
+        }
       })
       .catch(() => setNotFound(true))
   }, [slug]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -69,7 +92,7 @@ export default function BookingPage() {
   const loadDates = useCallback(async (year: number, month: number) => {
     setLoadingDates(true)
     try {
-      const r = await fetch(`/api/book/${slug}/availability?month=${year}-${String(month + 1).padStart(2, '0')}`)
+      const r = await fetch(`/api/book/${slug}/availability?month=${year}-${String(month + 1).padStart(2, '0')}${typeQuery}`)
       if (!r.ok) { setNotFound(true); return }
       const data = await r.json()
       if (data.info) setInfo(data.info)
@@ -77,9 +100,20 @@ export default function BookingPage() {
     } finally {
       setLoadingDates(false)
     }
-  }, [slug])
+  }, [slug, typeQuery])
 
-  useEffect(() => { loadDates(viewYear, viewMonth) }, [viewYear, viewMonth, loadDates])
+  // Only load the calendar once we're past the service step
+  useEffect(() => {
+    if (step === 'service') return
+    loadDates(viewYear, viewMonth)
+  }, [viewYear, viewMonth, loadDates, step])
+
+  function selectService(s: Service) {
+    setSelectedType(s)
+    setSelectedDate(null)
+    setSelectedTime(null)
+    setStep('date')
+  }
 
   async function selectDate(dateStr: string) {
     setSelectedDate(dateStr)
@@ -87,7 +121,7 @@ export default function BookingPage() {
     setLoadingSlots(true)
     setStep('time')
     try {
-      const r = await fetch(`/api/book/${slug}/availability?date=${dateStr}`)
+      const r = await fetch(`/api/book/${slug}/availability?date=${dateStr}${typeQuery}`)
       const data = await r.json()
       setSlots(data.slots ?? [])
     } finally {
@@ -98,19 +132,23 @@ export default function BookingPage() {
   async function submit() {
     if (!selectedDate || !selectedTime || !form.name.trim()) return
     setSubmitting(true)
+    setSubmitError('')
     try {
       const r = await fetch(`/api/book/${slug}/confirm`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ date: selectedDate, time: selectedTime, ...form }),
+        body: JSON.stringify({ date: selectedDate, time: selectedTime, bookingTypeId: selectedType?.id ?? null, ...form }),
       })
-      if (r.ok) setStep('done')
+      if (r.ok) { setStep('done'); return }
+      const data = await r.json().catch(() => ({}))
+      setSubmitError(data.error ?? 'Something went wrong — please try again.')
+      // If the slot was taken, send them back to pick another time
+      if (r.status === 409) { setStep('time'); setSelectedTime(null) }
     } finally {
       setSubmitting(false)
     }
   }
 
-  // Calendar grid
   const firstDayOfMonth = new Date(viewYear, viewMonth, 1).getDay()
   const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate()
   const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
@@ -125,6 +163,9 @@ export default function BookingPage() {
   }
 
   const canPrevMonth = !(viewYear === today.getFullYear() && viewMonth === today.getMonth())
+
+  const stepList: Step[] = hasServices ? ['service', 'date', 'time', 'form'] : ['date', 'time', 'form']
+  const stepLabels: Record<Step, string> = { service: 'Service', date: 'Pick a date', time: 'Pick a time', form: 'Your details', done: '' }
 
   if (notFound) {
     return (
@@ -143,15 +184,16 @@ export default function BookingPage() {
         <div className="bg-indigo-600 px-6 py-5">
           <h1 className="text-white font-bold text-xl">{info?.title ?? 'Book an Appointment'}</h1>
           {info?.description && <p className="text-indigo-200 text-sm mt-1">{info.description}</p>}
-          {info && (
+          {(selectedType || info) && (
             <div className="flex items-center gap-4 mt-3">
               <span className="flex items-center gap-1.5 text-indigo-200 text-xs">
                 <Clock className="w-3.5 h-3.5" />
-                {info.slotDuration} min
+                {(selectedType?.durationMin ?? info?.slotDuration)} min
+                {selectedType && formatPrice(selectedType) ? ` · ${formatPrice(selectedType)}` : ''}
               </span>
               <span className="flex items-center gap-1.5 text-indigo-200 text-xs">
                 <CalendarDays className="w-3.5 h-3.5" />
-                {info.timezone}
+                {info?.timezone}
               </span>
             </div>
           )}
@@ -160,18 +202,46 @@ export default function BookingPage() {
         {/* Step indicator */}
         {step !== 'done' && (
           <div className="flex border-b border-slate-100">
-            {(['date', 'time', 'form'] as const).map((s, i) => (
+            {stepList.map((s, i) => (
               <div key={s} className={`flex-1 py-2.5 text-center text-xs font-medium transition-colors ${step === s ? 'text-indigo-600 border-b-2 border-indigo-600' : 'text-slate-400'}`}>
-                {i + 1}. {s === 'date' ? 'Pick a date' : s === 'time' ? 'Pick a time' : 'Your details'}
+                {i + 1}. {stepLabels[s]}
               </div>
             ))}
           </div>
         )}
 
         <div className="p-6">
+          {/* STEP: service */}
+          {step === 'service' && info && (
+            <div className="space-y-2">
+              {info.types.map((s) => (
+                <button
+                  key={s.id}
+                  onClick={() => selectService(s)}
+                  className="w-full text-left p-4 rounded-xl border border-slate-200 hover:border-indigo-500 hover:bg-indigo-50 transition-colors flex items-center justify-between gap-3"
+                >
+                  <div className="min-w-0">
+                    <p className="font-semibold text-slate-900">{s.name}</p>
+                    {s.description && <p className="text-sm text-slate-500 mt-0.5">{s.description}</p>}
+                    <p className="text-xs text-slate-400 mt-1 flex items-center gap-1"><Clock className="w-3 h-3" /> {s.durationMin} min</p>
+                  </div>
+                  {formatPrice(s) && <span className="text-sm font-semibold text-indigo-700 flex-shrink-0">{formatPrice(s)}</span>}
+                </button>
+              ))}
+            </div>
+          )}
+
           {/* STEP: date */}
           {step === 'date' && (
             <div>
+              {hasServices && (
+                <button
+                  onClick={() => setStep('service')}
+                  className="flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700 mb-4 transition-colors"
+                >
+                  <ChevronLeft className="w-4 h-4" /> {selectedType?.name ?? 'Change service'}
+                </button>
+              )}
               <div className="flex items-center justify-between mb-4">
                 <button
                   onClick={prevMonth}
@@ -264,13 +334,13 @@ export default function BookingPage() {
           {step === 'form' && selectedDate && selectedTime && (
             <div>
               <button
-                onClick={() => { setStep('time'); setSelectedTime(null) }}
+                onClick={() => { setStep('time'); setSelectedTime(null); setSubmitError('') }}
                 className="flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700 mb-4 transition-colors"
               >
                 <ChevronLeft className="w-4 h-4" /> Back
               </button>
               <div className="mb-5 p-3 bg-indigo-50 rounded-lg text-sm text-indigo-800 font-medium">
-                {formatDateLong(selectedDate)} at {formatTime12(selectedTime)}
+                {selectedType ? `${selectedType.name} · ` : ''}{formatDateLong(selectedDate)} at {formatTime12(selectedTime)}
               </div>
               <div className="space-y-4">
                 <div>
@@ -314,6 +384,7 @@ export default function BookingPage() {
                     placeholder="Anything you'd like us to know…"
                   />
                 </div>
+                {submitError && <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{submitError}</p>}
                 <button
                   onClick={submit}
                   disabled={submitting || !form.name.trim()}
@@ -333,7 +404,7 @@ export default function BookingPage() {
               <h2 className="text-xl font-bold text-slate-900 mb-2">Booking Confirmed!</h2>
               {selectedDate && selectedTime && (
                 <p className="text-slate-600 text-sm">
-                  {formatDateLong(selectedDate)} at {formatTime12(selectedTime)}
+                  {selectedType ? `${selectedType.name} · ` : ''}{formatDateLong(selectedDate)} at {formatTime12(selectedTime)}
                 </p>
               )}
               <p className="text-slate-500 text-sm mt-3">

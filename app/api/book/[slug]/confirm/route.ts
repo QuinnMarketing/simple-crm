@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { rateLimit, getClientIp } from '@/lib/rate-limit'
+import { localToUTCDate } from '@/lib/booking-time'
 
 export async function POST(
   req: NextRequest,
@@ -24,7 +25,7 @@ export async function POST(
   }
 
   const body = await req.json()
-  const { date, time, name, email, phone, notes } = body ?? {}
+  const { date, time, name, email, phone, notes, bookingTypeId } = body ?? {}
 
   if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) return NextResponse.json({ error: 'Invalid date' }, { status: 400 })
   if (!time || !/^\d{2}:\d{2}$/.test(time)) return NextResponse.json({ error: 'Invalid time' }, { status: 400 })
@@ -32,13 +33,38 @@ export async function POST(
 
   const settings = account.bookingSettings
 
-  const [h, m] = time.split(':').map(Number)
-  const startLocal = new Date(`${date}T${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:00`)
-  const endLocal = new Date(startLocal.getTime() + settings.slotDuration * 60 * 1000)
+  // Resolve the chosen service (if any) — must belong to this account and be bookable
+  let bookingType = null
+  if (bookingTypeId) {
+    bookingType = await prisma.bookingType.findFirst({
+      where: { id: bookingTypeId, accountId: account.id, active: true, onlineBookable: true },
+    })
+    if (!bookingType) return NextResponse.json({ error: 'That service is no longer available' }, { status: 400 })
+  }
 
-  if (isNaN(startLocal.getTime())) return NextResponse.json({ error: 'Invalid date or time' }, { status: 400 })
-  // Reject bookings in the past — stops junk appointments backfilling the calendar
-  if (startLocal.getTime() < Date.now()) return NextResponse.json({ error: 'That time has already passed' }, { status: 400 })
+  const durationMin = bookingType?.durationMin ?? settings.slotDuration
+  const bufferBefore = bookingType?.bufferBefore ?? 0
+  const bufferAfter = bookingType?.bufferAfter ?? settings.bufferTime
+
+  // Convert in the account's timezone so stored times line up with the shown slots
+  const startTime = localToUTCDate(date, time, settings.timezone)
+  const endTime = new Date(startTime.getTime() + durationMin * 60_000)
+
+  if (isNaN(startTime.getTime())) return NextResponse.json({ error: 'Invalid date or time' }, { status: 400 })
+  if (startTime.getTime() < Date.now()) return NextResponse.json({ error: 'That time has already passed' }, { status: 400 })
+
+  // Re-check for a clash at commit time (the slot may have been taken since it was shown)
+  const occStart = new Date(startTime.getTime() - bufferBefore * 60_000)
+  const occEnd = new Date(endTime.getTime() + bufferAfter * 60_000)
+  const clash = await prisma.appointment.findFirst({
+    where: {
+      accountId: account.id,
+      startTime: { lt: occEnd },
+      endTime: { gt: occStart },
+    },
+    select: { id: true },
+  })
+  if (clash) return NextResponse.json({ error: 'Sorry, that time was just booked. Please choose another.' }, { status: 409 })
 
   const lead = await prisma.lead.create({
     data: {
@@ -46,6 +72,7 @@ export async function POST(
       email: email ? String(email).slice(0, 200) : null,
       phone: phone ? String(phone).slice(0, 40) : null,
       notes: notes ? String(notes).slice(0, 1000) : null,
+      service: bookingType?.name ?? null,
       source: 'booking',
       status: 'new',
       accountId: account.id,
@@ -54,11 +81,13 @@ export async function POST(
 
   await prisma.appointment.create({
     data: {
-      title: `Booking: ${lead.name}`,
-      startTime: startLocal,
-      endTime: endLocal,
+      title: bookingType ? `${bookingType.name}: ${lead.name}` : `Booking: ${lead.name}`,
+      startTime,
+      endTime,
       leadId: lead.id,
       accountId: account.id,
+      bookingTypeId: bookingType?.id ?? null,
+      bookingPrice: bookingType?.priceType === 'free' ? 0 : bookingType?.price ?? null,
     },
   })
 

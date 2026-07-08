@@ -7,6 +7,7 @@ import DocumentTemplatesSection from './DocumentTemplatesSection'
 import BusinessInfoForm from './BusinessInfoForm'
 import CustomFieldsSection from './CustomFieldsSection'
 import BookingSettingsForm from './BookingSettingsForm'
+import BookingTypesManager from './BookingTypesManager'
 import ReviewSettingsForm from './ReviewSettingsForm'
 import DocumentNumberingForm from './DocumentNumberingForm'
 import OutboundIntegrationsForm from './OutboundIntegrationsForm'
@@ -264,6 +265,14 @@ export default async function SettingsPage({
               minNoticeHours: account.bookingSettings.minNoticeHours,
             } : null}
           />
+        </CollapsibleSection>
+
+        {/* 6b. Booking Services */}
+        <CollapsibleSection
+          title="Booking Services"
+          description="Define the services clients can choose when booking — each with its own duration and price"
+        >
+          <BookingTypesManager accountId={accountId} />
         </CollapsibleSection>
 
         {/* 7. Review Widget */}
