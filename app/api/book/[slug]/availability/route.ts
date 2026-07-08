@@ -4,103 +4,98 @@ import { localToUTCms as localToUTC } from '@/lib/booking-time'
 
 type DayConfig = { enabled: boolean; start: string; end: string }
 type AvailableHours = Record<string, DayConfig>
+type Interval = { start: number; end: number }
+type SlotShape = { durationMin: number; bufferBefore: number; bufferAfter: number }
 
 const DAY_KEYS = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat']
 
 function todayInTZ(tz: string): string {
   return new Intl.DateTimeFormat('sv-SE', { timeZone: tz }).format(Date.now())
 }
-
 function getDayOfWeek(dateStr: string): number {
   const [y, m, d] = dateStr.split('-').map(Number)
   return new Date(y, m - 1, d).getDay()
 }
-
 function parseHours(raw: string): AvailableHours {
   try { return JSON.parse(raw) } catch { return {} }
 }
+// A staff member's own hours, or the business hours when they haven't set any
+function resolveHours(raw: string, business: AvailableHours): AvailableHours {
+  const h = parseHours(raw)
+  return Object.keys(h).length > 0 ? h : business
+}
 
-// The service parameters that drive slot length — either from a chosen
-// BookingType or, as a fallback for accounts without types, the global settings.
-type SlotShape = { durationMin: number; bufferBefore: number; bufferAfter: number }
+// A "resource" is a bookable calendar (a staff member, or the shared business
+// calendar when no staff are assigned): its working hours and its busy times.
+type Resource = { hours: AvailableHours; busy: Interval[] }
 
+// A date is offered if at least one resource works that weekday with room for
+// the service. Lightweight — no per-slot busy check (that happens at slot level).
 function getAvailableDates(
-  settings: { availableHours: string; maxDaysAhead: number; minNoticeHours: number; timezone: string },
+  settings: { maxDaysAhead: number; minNoticeHours: number; timezone: string },
+  resourceHours: AvailableHours[],
   shape: SlotShape,
   year: number,
-  month: number // 0-indexed
+  month: number
 ): string[] {
-  const hours = parseHours(settings.availableHours)
   const tz = settings.timezone
   const cutoffMs = Date.now() + settings.minNoticeHours * 3600_000
   const todayStr = todayInTZ(tz)
-
   const daysInMonth = new Date(year, month + 1, 0).getDate()
   const available: string[] = []
 
   for (let day = 1; day <= daysInMonth; day++) {
     const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
     if (dateStr < todayStr) continue
-
-    const todayDate = new Date(todayStr + 'T00:00:00Z')
-    const thisDate = new Date(dateStr + 'T00:00:00Z')
-    const diffDays = (thisDate.getTime() - todayDate.getTime()) / 86_400_000
+    const diffDays = (new Date(dateStr + 'T00:00:00Z').getTime() - new Date(todayStr + 'T00:00:00Z').getTime()) / 86_400_000
     if (diffDays > settings.maxDaysAhead) continue
 
     const dayKey = DAY_KEYS[getDayOfWeek(dateStr)]
-    const dayConfig: DayConfig | undefined = hours[dayKey]
-    if (!dayConfig?.enabled) continue
-
-    // At least one appointment of this length must fit before close and after cutoff
-    const [startH, startM] = dayConfig.start.split(':').map(Number)
-    const firstSlotUTC = localToUTC(dateStr, `${String(startH).padStart(2, '0')}:${String(startM).padStart(2, '0')}`, tz)
-    const dayEndUTC = localToUTC(dateStr, dayConfig.end, tz)
-    if (dayEndUTC - firstSlotUTC < shape.durationMin * 60_000) continue
-    if (dayEndUTC <= cutoffMs) continue
-
-    available.push(dateStr)
+    const fits = resourceHours.some((hours) => {
+      const dc = hours[dayKey]
+      if (!dc?.enabled) return false
+      const firstUTC = localToUTC(dateStr, dc.start, tz)
+      const endUTC = localToUTC(dateStr, dc.end, tz)
+      return endUTC - firstUTC >= shape.durationMin * 60_000 && endUTC > cutoffMs
+    })
+    if (fits) available.push(dateStr)
   }
-
   return available
 }
 
+// Union of each resource's free slot grid — a time is offered if any resource
+// works then and is free. This is what makes "any available staff" work.
 function getSlotsForDate(
-  settings: { availableHours: string; minNoticeHours: number; timezone: string },
+  settings: { minNoticeHours: number; timezone: string },
+  resources: Resource[],
   shape: SlotShape,
-  dateStr: string,
-  busy: Array<{ start: number; end: number }>
+  dateStr: string
 ): string[] {
-  const hours = parseHours(settings.availableHours)
   const dayKey = DAY_KEYS[getDayOfWeek(dateStr)]
-  const dayConfig: DayConfig | undefined = hours[dayKey]
-  if (!dayConfig?.enabled) return []
-
-  const [startH, startM] = dayConfig.start.split(':').map(Number)
-  const [endH, endM] = dayConfig.end.split(':').map(Number)
-  const startMin = startH * 60 + startM
-  const endMin = endH * 60 + endM
-  // Space slots by the full footprint so consecutive bookings never collide
-  const step = shape.durationMin + shape.bufferBefore + shape.bufferAfter
   const cutoffMs = Date.now() + settings.minNoticeHours * 3600_000
-  const slots: string[] = []
+  const step = shape.durationMin + shape.bufferBefore + shape.bufferAfter
+  const offered = new Set<string>()
 
-  for (let min = startMin; min + shape.durationMin <= endMin; min += step) {
-    const h = Math.floor(min / 60)
-    const m = min % 60
-    const timeStr = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`
-    const slotUTC = localToUTC(dateStr, timeStr, settings.timezone)
-    if (slotUTC < cutoffMs) continue
+  for (const res of resources) {
+    const dc = res.hours[dayKey]
+    if (!dc?.enabled) continue
+    const [sh, sm] = dc.start.split(':').map(Number)
+    const [eh, em] = dc.end.split(':').map(Number)
+    const startMin = sh * 60 + sm
+    const endMin = eh * 60 + em
 
-    // Skip slots whose occupied window overlaps an existing appointment
-    const occStart = slotUTC - shape.bufferBefore * 60_000
-    const occEnd = slotUTC + (shape.durationMin + shape.bufferAfter) * 60_000
-    const clash = busy.some((b) => occStart < b.end && b.start < occEnd)
-    if (clash) continue
-
-    slots.push(timeStr)
+    for (let min = startMin; min + shape.durationMin <= endMin; min += step) {
+      const timeStr = `${String(Math.floor(min / 60)).padStart(2, '0')}:${String(min % 60).padStart(2, '0')}`
+      if (offered.has(timeStr)) continue
+      const slotUTC = localToUTC(dateStr, timeStr, settings.timezone)
+      if (slotUTC < cutoffMs) continue
+      const occStart = slotUTC - shape.bufferBefore * 60_000
+      const occEnd = slotUTC + (shape.durationMin + shape.bufferAfter) * 60_000
+      if (res.busy.some((b) => occStart < b.end && b.start < occEnd)) continue
+      offered.add(timeStr)
+    }
   }
-
-  return slots
+  return [...offered].sort()
 }
 
 export async function GET(
@@ -109,9 +104,10 @@ export async function GET(
 ) {
   const { slug } = await params
   const { searchParams } = req.nextUrl
-  const monthParam = searchParams.get('month') // YYYY-MM
-  const dateParam = searchParams.get('date')   // YYYY-MM-DD
-  const typeParam = searchParams.get('type')   // BookingType id
+  const monthParam = searchParams.get('month')
+  const dateParam = searchParams.get('date')
+  const typeParam = searchParams.get('type')
+  const staffParam = searchParams.get('staff') // userId or 'any'/absent
 
   const account = await prisma.account.findUnique({
     where: { slug },
@@ -120,6 +116,12 @@ export async function GET(
       bookingTypes: {
         where: { active: true, onlineBookable: true },
         orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
+        include: {
+          staff: {
+            where: { bookable: true },
+            include: { user: { select: { id: true, name: true } } },
+          },
+        },
       },
     },
   })
@@ -129,13 +131,21 @@ export async function GET(
   }
 
   const settings = account.bookingSettings
+  const businessHours = parseHours(settings.availableHours)
   const types = account.bookingTypes
 
-  // Resolve the slot shape from the chosen type, or fall back to global settings
   const chosenType = typeParam ? types.find((t) => t.id === typeParam) ?? null : null
   const shape: SlotShape = chosenType
     ? { durationMin: chosenType.durationMin, bufferBefore: chosenType.bufferBefore, bufferAfter: chosenType.bufferAfter }
     : { durationMin: settings.slotDuration, bufferBefore: 0, bufferAfter: settings.bufferTime }
+
+  // Staff assigned to the chosen service (bookable). Empty → shared calendar mode.
+  const typeStaff = chosenType?.staff ?? []
+  const staffMode = typeStaff.length > 0
+  // Which staff to consider: a specific one if requested & valid, else all
+  const candidates = staffMode
+    ? (staffParam && staffParam !== 'any' ? typeStaff.filter((p) => p.userId === staffParam) : typeStaff)
+    : []
 
   const bookingInfo = {
     title: settings.title,
@@ -143,36 +153,44 @@ export async function GET(
     slotDuration: shape.durationMin,
     timezone: settings.timezone,
     types: types.map((t) => ({
-      id: t.id,
-      name: t.name,
-      category: t.category,
-      description: t.description,
-      durationMin: t.durationMin,
-      price: t.price,
-      priceType: t.priceType,
+      id: t.id, name: t.name, category: t.category, description: t.description,
+      durationMin: t.durationMin, price: t.price, priceType: t.priceType,
+      hasStaff: t.staff.length > 0,
     })),
+    staff: staffMode ? typeStaff.map((p) => ({ id: p.userId, name: p.user.name })) : [],
   }
 
+  const resourceHours: AvailableHours[] = staffMode
+    ? candidates.map((p) => resolveHours(p.availableHours, businessHours))
+    : [businessHours]
+
   if (dateParam) {
-    // Pull existing appointments overlapping this day for double-booking exclusion
     const dayStart = localToUTC(dateParam, '00:00', settings.timezone)
-    const dayEnd = dayStart + 24 * 3600_000
     const appts = await prisma.appointment.findMany({
       where: {
         accountId: account.id,
-        startTime: { lt: new Date(dayEnd + 4 * 3600_000) },
+        startTime: { lt: new Date(dayStart + 28 * 3600_000) },
         endTime: { gt: new Date(dayStart - 4 * 3600_000) },
       },
-      select: { startTime: true, endTime: true },
+      select: { startTime: true, endTime: true, userId: true },
     })
-    const busy = appts.map((a) => ({ start: a.startTime.getTime(), end: a.endTime.getTime() }))
-    const slots = getSlotsForDate(settings, shape, dateParam, busy)
+    const toInterval = (a: { startTime: Date; endTime: Date }): Interval => ({ start: a.startTime.getTime(), end: a.endTime.getTime() })
+
+    const resources: Resource[] = staffMode
+      ? candidates.map((p) => ({
+          hours: resolveHours(p.availableHours, businessHours),
+          // A staff member is only blocked by appointments assigned to them
+          busy: appts.filter((a) => a.userId === p.userId).map(toInterval),
+        }))
+      : [{ hours: businessHours, busy: appts.map(toInterval) }]
+
+    const slots = getSlotsForDate(settings, resources, shape, dateParam)
     return NextResponse.json({ slots, info: bookingInfo })
   }
 
   if (monthParam) {
     const [y, m] = monthParam.split('-').map(Number)
-    const dates = getAvailableDates(settings, shape, y, m - 1)
+    const dates = getAvailableDates(settings, resourceHours, shape, y, m - 1)
     return NextResponse.json({ dates, info: bookingInfo })
   }
 

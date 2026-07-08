@@ -25,7 +25,7 @@ export async function POST(
   }
 
   const body = await req.json()
-  const { date, time, name, email, phone, notes, bookingTypeId } = body ?? {}
+  const { date, time, name, email, phone, notes, bookingTypeId, staffId } = body ?? {}
 
   if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) return NextResponse.json({ error: 'Invalid date' }, { status: 400 })
   if (!time || !/^\d{2}:\d{2}$/.test(time)) return NextResponse.json({ error: 'Invalid time' }, { status: 400 })
@@ -35,11 +35,14 @@ export async function POST(
 
   // Resolve the chosen service (if any) — must belong to this account and be bookable
   let bookingType = null
+  let assignedStaff: string[] = []
   if (bookingTypeId) {
     bookingType = await prisma.bookingType.findFirst({
       where: { id: bookingTypeId, accountId: account.id, active: true, onlineBookable: true },
+      include: { staff: { where: { bookable: true }, select: { userId: true } } },
     })
     if (!bookingType) return NextResponse.json({ error: 'That service is no longer available' }, { status: 400 })
+    assignedStaff = bookingType.staff.map((s) => s.userId)
   }
 
   const durationMin = bookingType?.durationMin ?? settings.slotDuration
@@ -53,18 +56,30 @@ export async function POST(
   if (isNaN(startTime.getTime())) return NextResponse.json({ error: 'Invalid date or time' }, { status: 400 })
   if (startTime.getTime() < Date.now()) return NextResponse.json({ error: 'That time has already passed' }, { status: 400 })
 
-  // Re-check for a clash at commit time (the slot may have been taken since it was shown)
   const occStart = new Date(startTime.getTime() - bufferBefore * 60_000)
   const occEnd = new Date(endTime.getTime() + bufferAfter * 60_000)
-  const clash = await prisma.appointment.findFirst({
-    where: {
-      accountId: account.id,
-      startTime: { lt: occEnd },
-      endTime: { gt: occStart },
-    },
-    select: { id: true },
-  })
-  if (clash) return NextResponse.json({ error: 'Sorry, that time was just booked. Please choose another.' }, { status: 409 })
+
+  // Allocate a staff member when the service has a team; otherwise use the
+  // shared calendar (one booking per slot for the whole business).
+  let assignedUserId: string | null = null
+  if (assignedStaff.length > 0) {
+    const wanted = staffId && staffId !== 'any' ? assignedStaff.filter((u) => u === staffId) : assignedStaff
+    if (wanted.length === 0) return NextResponse.json({ error: 'That team member is not available for this service' }, { status: 400 })
+    for (const uid of wanted) {
+      const clash = await prisma.appointment.findFirst({
+        where: { accountId: account.id, userId: uid, startTime: { lt: occEnd }, endTime: { gt: occStart } },
+        select: { id: true },
+      })
+      if (!clash) { assignedUserId = uid; break }
+    }
+    if (!assignedUserId) return NextResponse.json({ error: 'Sorry, that time was just booked. Please choose another.' }, { status: 409 })
+  } else {
+    const clash = await prisma.appointment.findFirst({
+      where: { accountId: account.id, startTime: { lt: occEnd }, endTime: { gt: occStart } },
+      select: { id: true },
+    })
+    if (clash) return NextResponse.json({ error: 'Sorry, that time was just booked. Please choose another.' }, { status: 409 })
+  }
 
   const lead = await prisma.lead.create({
     data: {
@@ -86,6 +101,7 @@ export async function POST(
       endTime,
       leadId: lead.id,
       accountId: account.id,
+      userId: assignedUserId,
       bookingTypeId: bookingType?.id ?? null,
       bookingPrice: bookingType?.priceType === 'free' ? 0 : bookingType?.price ?? null,
     },

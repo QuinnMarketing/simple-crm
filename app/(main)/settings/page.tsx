@@ -8,6 +8,7 @@ import BusinessInfoForm from './BusinessInfoForm'
 import CustomFieldsSection from './CustomFieldsSection'
 import BookingSettingsForm from './BookingSettingsForm'
 import BookingTypesManager from './BookingTypesManager'
+import BookingStaffManager from './BookingStaffManager'
 import ReviewSettingsForm from './ReviewSettingsForm'
 import DocumentNumberingForm from './DocumentNumberingForm'
 import OutboundIntegrationsForm from './OutboundIntegrationsForm'
@@ -273,6 +274,14 @@ export default async function SettingsPage({
           description="Define the services clients can choose when booking — each with its own duration and price"
         >
           <BookingTypesManager accountId={accountId} />
+        </CollapsibleSection>
+
+        {/* 6c. Booking Staff */}
+        <CollapsibleSection
+          title="Booking Staff"
+          description="Assign team members to services with their own hours, or keep one shared calendar"
+        >
+          <BookingStaffManager accountId={accountId} />
         </CollapsibleSection>
 
         {/* 7. Review Widget */}

@@ -60,6 +60,7 @@ model Account {
   sops                   Sop[]
   moduleStates           AccountModule[]
   bookingTypes           BookingType[]
+  bookingStaff           BookingStaffProfile[]
 }
 
 // Per-account module on/off overrides. Absence of a row = the module's
@@ -170,6 +171,7 @@ model User {
   passwordResetTokens  PasswordResetToken[]
   magicLinkTokens      MagicLinkToken[]
   appointments         Appointment[]
+  bookingStaffProfiles BookingStaffProfile[]
 }
 
 model PasswordResetToken {
@@ -384,9 +386,28 @@ model BookingType {
   active         Boolean       @default(true)
   sortOrder      Int           @default(0)
   appointments   Appointment[]
+  staff          BookingStaffProfile[] @relation("BookingTypeStaff") // team members who perform this service
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
 
+  @@index([accountId])
+}
+
+// Per-account booking configuration for a team member: whether they accept
+// online bookings, their working hours, and which services they perform.
+model BookingStaffProfile {
+  id             String        @id @default(cuid())
+  accountId      String
+  account        Account       @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  bookable       Boolean       @default(true)
+  availableHours String        @default("{}") // per-day shift; empty {} = inherit business hours
+  services       BookingType[] @relation("BookingTypeStaff")
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  @@unique([accountId, userId])
   @@index([accountId])
 }
 

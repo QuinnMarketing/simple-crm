@@ -15,7 +15,10 @@ type Service = {
   durationMin: number
   price: number | null
   priceType: string
+  hasStaff?: boolean
 }
+
+type StaffOption = { id: string; name: string | null }
 
 type BookingInfo = {
   title: string
@@ -23,9 +26,10 @@ type BookingInfo = {
   slotDuration: number
   timezone: string
   types: Service[]
+  staff: StaffOption[]
 }
 
-type Step = 'service' | 'date' | 'time' | 'form' | 'done'
+type Step = 'service' | 'staff' | 'date' | 'time' | 'form' | 'done'
 
 function formatTime12(time: string): string {
   const [h, m] = time.split(':').map(Number)
@@ -62,6 +66,7 @@ export default function BookingPage() {
   const [loadingDates, setLoadingDates] = useState(false)
 
   const [selectedType, setSelectedType] = useState<Service | null>(null)
+  const [selectedStaff, setSelectedStaff] = useState<{ id: string; name: string | null } | null>(null)
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
   const [slots, setSlots] = useState<string[]>([])
   const [loadingSlots, setLoadingSlots] = useState(false)
@@ -73,7 +78,8 @@ export default function BookingPage() {
   const [step, setStep] = useState<Step>('date')
 
   const hasServices = (info?.types.length ?? 0) > 0
-  const typeQuery = selectedType ? `&type=${selectedType.id}` : ''
+  const serviceHasStaff = (info?.staff.length ?? 0) > 0
+  const typeQuery = `${selectedType ? `&type=${selectedType.id}` : ''}${selectedStaff && selectedStaff.id !== 'any' ? `&staff=${selectedStaff.id}` : ''}`
 
   // Initial info load — decides whether to open on the service picker
   useEffect(() => {
@@ -108,8 +114,24 @@ export default function BookingPage() {
     loadDates(viewYear, viewMonth)
   }, [viewYear, viewMonth, loadDates, step])
 
-  function selectService(s: Service) {
+  async function selectService(s: Service) {
     setSelectedType(s)
+    setSelectedStaff(null)
+    setSelectedDate(null)
+    setSelectedTime(null)
+    // Fetch the staff who offer this service; show the picker only if any exist
+    try {
+      const r = await fetch(`/api/book/${slug}/availability?type=${s.id}`)
+      const data = await r.json()
+      if (data.info) setInfo(data.info)
+      setStep((data.info?.staff?.length ?? 0) > 0 ? 'staff' : 'date')
+    } catch {
+      setStep('date')
+    }
+  }
+
+  function selectStaff(opt: { id: string; name: string | null }) {
+    setSelectedStaff(opt)
     setSelectedDate(null)
     setSelectedTime(null)
     setStep('date')
@@ -137,7 +159,7 @@ export default function BookingPage() {
       const r = await fetch(`/api/book/${slug}/confirm`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ date: selectedDate, time: selectedTime, bookingTypeId: selectedType?.id ?? null, ...form }),
+        body: JSON.stringify({ date: selectedDate, time: selectedTime, bookingTypeId: selectedType?.id ?? null, staffId: selectedStaff?.id ?? null, ...form }),
       })
       if (r.ok) { setStep('done'); return }
       const data = await r.json().catch(() => ({}))
@@ -164,8 +186,12 @@ export default function BookingPage() {
 
   const canPrevMonth = !(viewYear === today.getFullYear() && viewMonth === today.getMonth())
 
-  const stepList: Step[] = hasServices ? ['service', 'date', 'time', 'form'] : ['date', 'time', 'form']
-  const stepLabels: Record<Step, string> = { service: 'Service', date: 'Pick a date', time: 'Pick a time', form: 'Your details', done: '' }
+  const stepList: Step[] = [
+    ...(hasServices ? ['service' as Step] : []),
+    ...(selectedType && serviceHasStaff ? ['staff' as Step] : []),
+    'date', 'time', 'form',
+  ]
+  const stepLabels: Record<Step, string> = { service: 'Service', staff: 'Team member', date: 'Date', time: 'Time', form: 'Details', done: '' }
 
   if (notFound) {
     return (
@@ -231,15 +257,45 @@ export default function BookingPage() {
             </div>
           )}
 
+          {/* STEP: staff */}
+          {step === 'staff' && info && (
+            <div>
+              <button
+                onClick={() => setStep('service')}
+                className="flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700 mb-4 transition-colors"
+              >
+                <ChevronLeft className="w-4 h-4" /> {selectedType?.name ?? 'Change service'}
+              </button>
+              <p className="font-semibold text-slate-900 mb-3">Choose a team member</p>
+              <div className="space-y-2">
+                <button
+                  onClick={() => selectStaff({ id: 'any', name: null })}
+                  className="w-full text-left p-4 rounded-xl border border-slate-200 hover:border-indigo-500 hover:bg-indigo-50 transition-colors font-medium text-slate-900"
+                >
+                  Any available
+                </button>
+                {info.staff.map((m) => (
+                  <button
+                    key={m.id}
+                    onClick={() => selectStaff({ id: m.id, name: m.name })}
+                    className="w-full text-left p-4 rounded-xl border border-slate-200 hover:border-indigo-500 hover:bg-indigo-50 transition-colors font-medium text-slate-900"
+                  >
+                    {m.name ?? 'Team member'}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* STEP: date */}
           {step === 'date' && (
             <div>
               {hasServices && (
                 <button
-                  onClick={() => setStep('service')}
+                  onClick={() => setStep(serviceHasStaff ? 'staff' : 'service')}
                   className="flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700 mb-4 transition-colors"
                 >
-                  <ChevronLeft className="w-4 h-4" /> {selectedType?.name ?? 'Change service'}
+                  <ChevronLeft className="w-4 h-4" /> {selectedStaff ? (selectedStaff.name ?? 'Any available') : (selectedType?.name ?? 'Change service')}
                 </button>
               )}
               <div className="flex items-center justify-between mb-4">
@@ -340,7 +396,9 @@ export default function BookingPage() {
                 <ChevronLeft className="w-4 h-4" /> Back
               </button>
               <div className="mb-5 p-3 bg-indigo-50 rounded-lg text-sm text-indigo-800 font-medium">
-                {selectedType ? `${selectedType.name} · ` : ''}{formatDateLong(selectedDate)} at {formatTime12(selectedTime)}
+                {selectedType ? `${selectedType.name} · ` : ''}
+                {selectedStaff?.name ? `with ${selectedStaff.name} · ` : ''}
+                {formatDateLong(selectedDate)} at {formatTime12(selectedTime)}
               </div>
               <div className="space-y-4">
                 <div>
