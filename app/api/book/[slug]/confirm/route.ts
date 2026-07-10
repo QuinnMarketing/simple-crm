@@ -5,6 +5,7 @@ import { localToUTCDate } from '@/lib/booking-time'
 import { getAccountSmtp } from '@/lib/email-from'
 import { sendEmail } from '@/lib/email'
 import { getBaseUrl } from '@/lib/base-url'
+import { getCalendarConfig, getBusyIntervals, createCalendarEvent } from '@/lib/google-calendar'
 import { randomBytes } from 'crypto'
 import { after } from 'next/server'
 
@@ -107,6 +108,20 @@ export async function POST(
     if (clash) return NextResponse.json({ error: 'Sorry, that time was just booked. Please choose another.' }, { status: 409 })
   }
 
+  // Live Google Calendar check — a booking made externally minutes ago (e.g.
+  // in Fresha, synced to the account's calendar) must block this slot even
+  // before the next calendar import runs. Google being unreachable falls back
+  // to the CRM appointment check above rather than blocking the booking.
+  const calendarConfig = await getCalendarConfig(account.id)
+  if (calendarConfig) {
+    try {
+      const busy = await getBusyIntervals(calendarConfig, occStart.toISOString(), occEnd.toISOString())
+      if (busy.some((b) => occStart.getTime() < b.end && b.start < occEnd.getTime())) {
+        return NextResponse.json({ error: 'Sorry, that time was just booked. Please choose another.' }, { status: 409 })
+      }
+    } catch { /* best-effort — CRM clash check above still applies */ }
+  }
+
   const lead = await prisma.lead.create({
     data: {
       name: String(name).trim().slice(0, 120),
@@ -121,7 +136,7 @@ export async function POST(
   })
 
   const cancelToken = randomBytes(24).toString('hex')
-  await prisma.appointment.create({
+  const appointment = await prisma.appointment.create({
     data: {
       title: serviceLabel ? `${serviceLabel}: ${lead.name}` : `Booking: ${lead.name}`,
       startTime,
@@ -135,6 +150,22 @@ export async function POST(
       cancelToken,
     },
   })
+
+  // Push to Google right away so the busy block is visible to external
+  // calendars (e.g. Fresha's sync) immediately, not at the next periodic sync.
+  if (calendarConfig) {
+    after(async () => {
+      try {
+        const googleEventId = await createCalendarEvent(calendarConfig, {
+          summary: `[CRM] ${appointment.title}`,
+          allDay: false,
+          startIso: startTime.toISOString(),
+          endIso: endTime.toISOString(),
+        })
+        await prisma.appointment.update({ where: { id: appointment.id }, data: { googleEventId } })
+      } catch { /* the next calendar sync will push it */ }
+    })
+  }
 
   // Confirmation email with a self-service manage link (best-effort, off the response path)
   if (lead.email) {

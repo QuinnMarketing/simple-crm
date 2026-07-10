@@ -150,6 +150,29 @@ export interface GCalEvent {
   updated?: string // RFC3339 last-modified timestamp
 }
 
+// Live free/busy union for the primary calendar — includes blocks written by
+// external tools (e.g. Fresha's calendar sync), so callers can prevent
+// double-bookings that haven't been imported by the periodic sync yet.
+export async function getBusyIntervals(
+  config: CalendarConfig,
+  fromIso: string,
+  toIso: string
+): Promise<{ start: number; end: number }[]> {
+  const token = await getAccessToken(config.refreshToken)
+  const res = await fetch(`${API_BASE}/freeBusy`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ timeMin: fromIso, timeMax: toIso, items: [{ id: 'primary' }] }),
+  })
+  if (!res.ok) throw new Error(`GCal freeBusy failed: ${await res.text()}`)
+  const data = await res.json()
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return (data.calendars?.primary?.busy ?? []).map((b: any) => ({
+    start: new Date(b.start).getTime(),
+    end: new Date(b.end).getTime(),
+  }))
+}
+
 export async function listCalendarEvents(config: CalendarConfig, from: string, to: string): Promise<GCalEvent[]> {
   const token = await getAccessToken(config.refreshToken)
   const params = new URLSearchParams({

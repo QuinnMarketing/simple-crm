@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { localToUTCms as localToUTC } from '@/lib/booking-time'
+import { getCalendarConfig, getBusyIntervals } from '@/lib/google-calendar'
 
 type DayConfig = { enabled: boolean; start: string; end: string }
 type AvailableHours = Record<string, DayConfig>
@@ -190,13 +191,29 @@ export async function GET(
     })
     const toInterval = (a: { startTime: Date; endTime: Date }): Interval => ({ start: a.startTime.getTime(), end: a.endTime.getTime() })
 
+    // Live Google Calendar busy times block every resource — this is what keeps
+    // externally-made bookings (e.g. Fresha via its calendar sync) from being
+    // offered before the periodic import has run. Best-effort: if Google is
+    // unreachable we still serve slots from CRM appointments alone.
+    let gcalBusy: Interval[] = []
+    try {
+      const calendarConfig = await getCalendarConfig(account.id)
+      if (calendarConfig) {
+        gcalBusy = await getBusyIntervals(
+          calendarConfig,
+          new Date(dayStart - 4 * 3600_000).toISOString(),
+          new Date(dayStart + 28 * 3600_000).toISOString()
+        )
+      }
+    } catch { /* fall back to CRM-only busy times */ }
+
     const resources: Resource[] = staffMode
       ? candidates.map((p) => ({
           hours: resolveHours(p.availableHours, businessHours),
           // A staff member is only blocked by appointments assigned to them
-          busy: appts.filter((a) => a.userId === p.userId).map(toInterval),
+          busy: [...gcalBusy, ...appts.filter((a) => a.userId === p.userId).map(toInterval)],
         }))
-      : [{ hours: businessHours, busy: appts.map(toInterval) }]
+      : [{ hours: businessHours, busy: [...gcalBusy, ...appts.map(toInterval)] }]
 
     const slots = getSlotsForDate(settings, resources, shape, dateParam)
     return NextResponse.json({ slots, info: bookingInfo })
