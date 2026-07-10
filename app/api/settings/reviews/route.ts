@@ -7,7 +7,7 @@ export async function POST(req: NextRequest) {
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const body = await req.json()
-  const { accountId, enabled, title, description, autoApprove, autoReply, replyTemplates } = body
+  const { accountId, enabled, title, description, autoApprove, autoReply, replyTemplates, googlePlaceId } = body
 
   if (!accountId) return NextResponse.json({ error: 'Missing accountId' }, { status: 400 })
 
@@ -24,6 +24,7 @@ export async function POST(req: NextRequest) {
     autoApprove: Boolean(autoApprove),
     autoReply: Boolean(autoReply),
     replyTemplates: String(replyTemplates ?? '{}'),
+    googlePlaceId: googlePlaceId ? String(googlePlaceId).trim().slice(0, 200) : null,
   }
 
   await prisma.reviewSettings.upsert({

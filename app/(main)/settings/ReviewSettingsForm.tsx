@@ -1,6 +1,6 @@
 'use client'
 import { useState } from 'react'
-import { Copy, Check, ExternalLink } from 'lucide-react'
+import { Copy, Check, ExternalLink, RefreshCw } from 'lucide-react'
 
 type Templates = { positive: string; neutral: string; negative: string }
 
@@ -14,6 +14,7 @@ type Props = {
     autoApprove: boolean
     autoReply: boolean
     replyTemplates: string
+    googlePlaceId: string
   } | null
 }
 
@@ -47,10 +48,13 @@ export default function ReviewSettingsForm({ accountId, accountSlug, initial }: 
   const [autoReply, setAutoReply] = useState(initial?.autoReply ?? false)
   const [templates, setTemplates] = useState<Templates>(parseTemplates(initial?.replyTemplates ?? '{}'))
   const [widgetMinRating, setWidgetMinRating] = useState(parseMinRating(initial?.replyTemplates ?? '{}'))
+  const [googlePlaceId, setGooglePlaceId] = useState(initial?.googlePlaceId ?? '')
 
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [copied, setCopied] = useState<string | null>(null)
+  const [syncing, setSyncing] = useState(false)
+  const [syncResult, setSyncResult] = useState<string | null>(null)
 
   function copyText(text: string, key: string) {
     navigator.clipboard.writeText(text).then(() => {
@@ -73,12 +77,31 @@ export default function ReviewSettingsForm({ accountId, accountSlug, initial }: 
           autoApprove,
           autoReply,
           replyTemplates: JSON.stringify({ ...templates, widgetMinRating }),
+          googlePlaceId,
         }),
       })
       setSaved(true)
       setTimeout(() => setSaved(false), 3000)
     } finally {
       setSaving(false)
+    }
+  }
+
+  async function syncPlaces() {
+    setSyncing(true)
+    setSyncResult(null)
+    try {
+      const r = await fetch('/api/reviews/sync-places', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ accountParam: accountId }),
+      })
+      const data = await r.json()
+      setSyncResult(r.ok ? `Imported ${data.created} new review(s) as pending — approve them below.` : (data.error ?? 'Sync failed'))
+    } catch {
+      setSyncResult('Sync failed')
+    } finally {
+      setSyncing(false)
     }
   }
 
@@ -142,6 +165,36 @@ export default function ReviewSettingsForm({ accountId, accountSlug, initial }: 
             className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none"
           />
         </div>
+      </div>
+
+      {/* Google Places sync (no OAuth needed) */}
+      <div className="space-y-3 border-t border-slate-100 pt-5">
+        <p className="text-sm font-medium text-slate-700">Google Reviews (no Business Profile login needed)</p>
+        <p className="text-xs text-slate-500">
+          Paste the Google Place ID to pull in up to 5 real reviews via the Places API — no
+          Google Business Profile connection required. New reviews land as <strong>pending</strong>{' '}
+          so you can pick which ones to approve below before they show on the public widget.
+          Runs automatically once a day once a Place ID is set.
+        </p>
+        <div className="flex gap-2">
+          <input
+            type="text"
+            value={googlePlaceId}
+            onChange={(e) => setGooglePlaceId(e.target.value)}
+            placeholder="e.g. ChIJw0eHtVhNFmsR487KBHBjRHo"
+            className="flex-1 px-3 py-2 border border-slate-300 rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+          />
+          <button
+            type="button"
+            onClick={syncPlaces}
+            disabled={syncing || !googlePlaceId.trim()}
+            className="inline-flex items-center gap-1.5 px-4 py-2 border border-slate-300 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50 whitespace-nowrap"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${syncing ? 'animate-spin' : ''}`} />
+            {syncing ? 'Syncing…' : 'Sync Now'}
+          </button>
+        </div>
+        {syncResult && <p className="text-xs text-slate-600">{syncResult}</p>}
       </div>
 
       {/* Widget display */}

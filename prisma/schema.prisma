@@ -61,6 +61,8 @@ model Account {
   moduleStates           AccountModule[]
   bookingTypes           BookingType[]
   bookingStaff           BookingStaffProfile[]
+  galleryImages          GalleryImage[]
+  featuredItems          FeaturedItem[]
 }
 
 // Per-account module on/off overrides. Absence of a row = the module's
@@ -832,8 +834,49 @@ model ReviewSettings {
   autoApprove    Boolean  @default(false)
   autoReply      Boolean  @default(false)
   replyTemplates String   @default("{}") // JSON: { positive, neutral, negative, widgetMinRating }
+  googlePlaceId  String?  // Google Places (New) place ID — powers reviews sync without needing a GBP OAuth connection
   createdAt      DateTime @default(now())
   updatedAt       DateTime @updatedAt
+}
+
+// A photo for the account's public website gallery. Uploaded to Vercel Blob;
+// this row just stores the resulting URL.
+model GalleryImage {
+  id        String   @id @default(cuid())
+  accountId String
+  account   Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  url       String
+  caption   String?
+  sortOrder Int      @default(0)
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([accountId])
+}
+
+// A promotional card for the account's public website — either a retail
+// product they stock ('product') or a spotlighted service/package
+// ('package'). Deliberately one model: both are the same shape (image, name,
+// price label, blurb, CTA) and only differ in which website section they
+// render under.
+model FeaturedItem {
+  id          String   @id @default(cuid())
+  accountId   String
+  account     Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  kind        String   @default("product") // 'product' | 'package'
+  name        String
+  description String?
+  priceLabel  String?  // free text, e.g. "$45", "From $120" — no checkout/cart
+  imageUrl    String?
+  ctaLabel    String?  // defaults applied client-side when blank
+  ctaHref     String?  // defaults to /book when blank
+  sortOrder   Int      @default(0)
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([accountId])
 }
 
 model PriceItem {

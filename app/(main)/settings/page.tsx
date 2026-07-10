@@ -302,6 +302,7 @@ export default async function SettingsPage({
               autoApprove: account.reviewSettings.autoApprove,
               autoReply: account.reviewSettings.autoReply,
               replyTemplates: account.reviewSettings.replyTemplates,
+              googlePlaceId: account.reviewSettings.googlePlaceId ?? '',
             } : null}
           />
         </CollapsibleSection>
