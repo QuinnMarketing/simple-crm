@@ -24,6 +24,7 @@ export const authConfig = {
       if (path === '/magic-link') return true
       if (path.startsWith('/api/book')) return true
       if (path.startsWith('/api/review')) return true
+      if (path.startsWith('/api/site')) return true // public read-only content: gallery, featured products/packages
       if (path === '/forgot-password') return true
       if (path.startsWith('/reset-password')) return true
       if (path.startsWith('/book')) return true
