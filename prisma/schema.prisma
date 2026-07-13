@@ -67,8 +67,41 @@ model Account {
   moduleStates           AccountModule[]
   bookingTypes           BookingType[]
   bookingStaff           BookingStaffProfile[]
+  customerAvatars        CustomerAvatar[]
   galleryImages          GalleryImage[]
   featuredItems          FeaturedItem[]
+}
+
+// The business's ideal-customer persona ("who you should be targeting") — the
+// flagship differentiator shown front-and-centre on login. AI-generates from
+// the account's own services/location/wins, with a real portrait for a visual
+// reminder. Supports multiple personas; one is flagged primary for the hero.
+model CustomerAvatar {
+  id           String   @id @default(cuid())
+  accountId    String
+  account      Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  name         String                       // persona name, e.g. "Renovator Rachel"
+  tagline      String?                       // one-line summary of who they are
+  imageUrl     String?                       // chosen portrait
+  imageOptions String   @default("[]")       // JSON array of alternative portrait URLs to cycle
+  ageRange     String?
+  gender       String?
+  occupation   String?
+  location     String?
+  income       String?                       // budget / income band
+  goals        String?                       // what they want — newline-separated bullets
+  painPoints   String?                       // problems you solve — newline-separated
+  objections   String?                       // why they hesitate — newline-separated
+  channels     String?                       // where to reach them — newline-separated
+  services     String?                       // which of your services they need
+  notes        String?
+  isPrimary    Boolean  @default(false)
+  sortOrder    Int      @default(0)
+  source       String   @default("ai")       // ai | manual
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([accountId])
 }
 
 // Per-account module on/off overrides. Absence of a row = the module's

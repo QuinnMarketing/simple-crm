@@ -4,6 +4,7 @@
 // (client) and route guards (server) can import it.
 
 export type ModuleKey =
+  | 'target_customer'
   | 'calendar'
   | 'quotes'
   | 'takeoffs'
@@ -36,6 +37,7 @@ export type ModuleDef = {
 }
 
 export const MODULES: ModuleDef[] = [
+  { key: 'target_customer', label: 'Target Customer', description: 'The ideal-customer avatar shown on login — who the business should be targeting', defaultOn: true, navHrefs: ['/target-customer'], routePrefixes: ['/api/target-customer'] },
   { key: 'calendar', label: 'Calendar & Booking', description: 'Appointment calendar and public online booking', defaultOn: true, navHrefs: ['/calendar'], routePrefixes: ['/api/appointments', '/api/calendar', '/api/book', '/api/settings/booking'] },
   { key: 'quotes', label: 'Quotes & Invoices', description: 'Quotes, invoices, payments and the price book', defaultOn: true, navHrefs: ['/quotes', '/price-book'], routePrefixes: ['/api/quotes', '/api/price-book'] },
   { key: 'takeoffs', label: 'Takeoffs & Estimating', description: 'Plan takeoffs and measured estimating', defaultOn: false, navHrefs: ['/takeoffs'], routePrefixes: ['/api/takeoffs'] },

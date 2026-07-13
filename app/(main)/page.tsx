@@ -7,6 +7,8 @@ import StatusBadge from '@/components/StatusBadge'
 import { Users, TrendingUp, CalendarDays } from 'lucide-react'
 import DashboardCharts, { type DailyPoint, type StageValue } from './DashboardCharts'
 import DashboardDateFilter from './DashboardDateFilter'
+import TargetCustomerHero, { TargetCustomerPrompt } from '@/components/TargetCustomerHero'
+import { getEnabledModules } from '@/lib/account-modules'
 
 const STATUS_COLORS: Record<string, string> = {
   new: '#3b82f6',
@@ -74,6 +76,23 @@ export default async function DashboardPage({
 
   const now = new Date()
   const accountId = session!.user.role === 'master_admin' ? (account ?? null) : (session!.user.accountId ?? null)
+
+  // Flagship: the ideal-customer avatar shown at the top of the dashboard — the
+  // first thing every owner sees on login. Only for a resolved account with the
+  // module enabled.
+  let targetAvatar: Awaited<ReturnType<typeof prisma.customerAvatar.findFirst>> = null
+  let targetModuleOn = false
+  if (accountId) {
+    const enabledMods = await getEnabledModules(session!.user, accountId)
+    targetModuleOn = enabledMods.has('target_customer')
+    if (targetModuleOn) {
+      targetAvatar =
+        (await prisma.customerAvatar.findFirst({ where: { accountId, isPrimary: true } })) ??
+        (await prisma.customerAvatar.findFirst({ where: { accountId }, orderBy: { createdAt: 'asc' } }))
+    }
+  }
+  const targetHref = `/target-customer${account ? `?account=${account}` : ''}`
+
   const apptFilter = { ...accountFilter, startTime: { gte: now } }
   const quoteDateFilter = fromDate || toDate
     ? { createdAt: { ...(fromDate ? { gte: fromDate } : {}), ...(toDate ? { lte: toDate } : {}) } }
@@ -350,6 +369,14 @@ export default async function DashboardPage({
           <span className="hidden sm:inline">Add Lead</span>
         </Link>
       </div>
+
+      {targetModuleOn && accountId && (
+        <div className="mb-6">
+          {targetAvatar
+            ? <TargetCustomerHero avatar={targetAvatar} href={targetHref} />
+            : <TargetCustomerPrompt href={targetHref} />}
+        </div>
+      )}
 
       <div className="bg-white rounded-xl border border-slate-200 p-4 mb-6">
         <Suspense fallback={null}>

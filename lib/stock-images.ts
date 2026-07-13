@@ -28,3 +28,31 @@ export async function searchStockImages(query: string, count = 8): Promise<strin
     return []
   }
 }
+
+/**
+ * Portrait photos of people — used for the ideal-customer avatar's face.
+ * Returns [] when no key is configured, so the feature degrades to an
+ * illustrated fallback rather than breaking.
+ */
+export async function searchPortraitImages(query: string, count = 8): Promise<string[]> {
+  const apiKey = process.env.PEXELS_API_KEY
+  if (!apiKey || !query.trim()) return []
+
+  try {
+    const params = new URLSearchParams({
+      query: query.trim(),
+      orientation: 'portrait',
+      per_page: String(count),
+    })
+    const res = await fetch(`https://api.pexels.com/v1/search?${params}`, {
+      headers: { Authorization: apiKey },
+    })
+    if (!res.ok) return []
+    const data = await res.json() as { photos?: { src?: { portrait?: string; large?: string } }[] }
+    return (data.photos ?? [])
+      .map(p => p.src?.portrait ?? p.src?.large)
+      .filter((u): u is string => !!u)
+  } catch {
+    return []
+  }
+}

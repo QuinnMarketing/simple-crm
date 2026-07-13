@@ -2,7 +2,7 @@
 import Link from 'next/link'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { useState } from 'react'
-import { LayoutDashboard, Users, Settings, LogOut, Zap, Building2, ChevronDown, Layers, CalendarDays, FileText, Bot, Clock, Mail, MailOpen, TrendingUp, BarChart2, Share2, GanttChartSquare, CheckSquare, Star, BookOpen, Receipt, FolderOpen, Ruler, Inbox, Target, Rocket, MessagesSquare, ClipboardList, Image as ImageIcon, ShoppingBag } from 'lucide-react'
+import { LayoutDashboard, Users, Settings, LogOut, Zap, Building2, ChevronDown, Layers, CalendarDays, FileText, Bot, Clock, Mail, MailOpen, TrendingUp, BarChart2, Share2, GanttChartSquare, CheckSquare, Star, BookOpen, Receipt, FolderOpen, Ruler, Inbox, Target, Rocket, MessagesSquare, ClipboardList, Image as ImageIcon, ShoppingBag, Crosshair } from 'lucide-react'
 import { signOut } from 'next-auth/react'
 import PushToggle from './PushToggle'
 import { moduleForNavHref } from '@/lib/modules'
@@ -67,6 +67,7 @@ export default function Sidebar({
 
   const fullNav: NavItem[] = [
     { href: '/', icon: LayoutDashboard, label: 'Dashboard' },
+    { href: '/target-customer', icon: Crosshair, label: 'Target Customer' },
     { href: '/calendar', icon: CalendarDays, label: 'Calendar' },
     { href: '/leads', icon: Users, label: 'Leads', match: '/leads' },
     { href: '/quotes', icon: FileText, label: 'Quotes & Invoices' },
