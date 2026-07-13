@@ -835,6 +835,8 @@ model ReviewSettings {
   autoReply      Boolean  @default(false)
   replyTemplates String   @default("{}") // JSON: { positive, neutral, negative, widgetMinRating }
   googlePlaceId  String?  // Google Places (New) place ID — powers reviews sync without needing a GBP OAuth connection
+  googleRating       Float?   // true aggregate rating from Google (all reviews, not just synced/approved ones)
+  googleReviewCount  Int?     // true total review count from Google — refreshed on every Places sync
   createdAt      DateTime @default(now())
   updatedAt       DateTime @updatedAt
 }

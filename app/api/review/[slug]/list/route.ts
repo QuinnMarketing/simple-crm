@@ -10,7 +10,7 @@ export async function GET(
   const account = await prisma.account.findUnique({
     where: { slug },
     include: {
-      reviewSettings: { select: { enabled: true, title: true, description: true, replyTemplates: true } },
+      reviewSettings: { select: { enabled: true, title: true, description: true, replyTemplates: true, googleRating: true, googleReviewCount: true } },
     },
   })
 
@@ -54,6 +54,12 @@ export async function GET(
     description: settings?.description ?? null,
     averageRating: avg,
     totalReviews: reviews.length,
+    // True Google-wide aggregate (all reviews on Google, refreshed on every
+    // Places sync) — distinct from averageRating/totalReviews above, which
+    // only reflect the reviews curated into this widget. Null until a
+    // Places sync has run at least once.
+    googleRating: settings?.googleRating ?? null,
+    googleReviewCount: settings?.googleReviewCount ?? null,
     reviews,
   })
 }

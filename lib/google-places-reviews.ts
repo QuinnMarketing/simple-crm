@@ -42,8 +42,18 @@ export async function syncAccountReviewsFromPlaces(accountId: string): Promise<P
     },
   })
   if (!res.ok) throw new Error(`Places API request failed: ${await res.text()}`)
-  const data = await res.json() as { reviews?: PlacesReview[] }
+  const data = await res.json() as { rating?: number; userRatingCount?: number; reviews?: PlacesReview[] }
   const reviews = data.reviews ?? []
+
+  // Always refresh the true aggregate (all reviews on Google, not just the
+  // handful synced/approved here) — this is what the public widget should
+  // headline, independent of how many individual reviews are curated in.
+  if (data.rating != null && data.userRatingCount != null) {
+    await prisma.reviewSettings.update({
+      where: { accountId },
+      data: { googleRating: data.rating, googleReviewCount: data.userRatingCount },
+    })
+  }
 
   let created = 0
   let skipped = 0
