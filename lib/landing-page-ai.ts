@@ -1,5 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk'
 import { prisma } from './prisma'
+import { getPrimaryAvatar, personaContextBlock } from './customer-avatar-ai'
 import type { LandingPageContent } from './landing-page-types'
 import { EMPTY_CONTENT, parseContent } from './landing-page-types'
 import { searchStockImages } from './stock-images'
@@ -124,7 +125,7 @@ export async function generateLandingPageContent(accountId: string, brief: Landi
     throw new Error('AI not configured — ANTHROPIC_API_KEY missing')
   }
 
-  const [account, priceItems, reviews] = await Promise.all([
+  const [account, priceItems, reviews, persona] = await Promise.all([
     prisma.account.findUnique({
       where: { id: accountId },
       select: { name: true, businessPhone: true, businessAddress: true, businessWebsite: true, abn: true },
@@ -141,6 +142,7 @@ export async function generateLandingPageContent(accountId: string, brief: Landi
       orderBy: { rating: 'desc' },
       take: 6,
     }),
+    getPrimaryAvatar(accountId),
   ])
 
   const context = [
@@ -162,6 +164,7 @@ export async function generateLandingPageContent(accountId: string, brief: Landi
     reviews.length > 0
       ? `\nReal customer reviews (these will be shown on the page automatically — write copy that complements them):\n${reviews.map(r => `- ${r.reviewerName} (${r.rating}★): "${r.body!.slice(0, 200)}"`).join('\n')}`
       : '',
+    personaContextBlock(persona),
   ].filter(Boolean).join('\n')
 
   const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })

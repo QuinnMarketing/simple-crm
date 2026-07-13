@@ -44,7 +44,17 @@ const AVATAR_TOOL = {
   },
 }
 
-export async function generateCustomerAvatar(accountId: string): Promise<GeneratedAvatar> {
+// Owner-supplied answers from onboarding (or the page) — free text, optional.
+// Essential for brand-new accounts that have no price book or won deals yet.
+export interface AvatarHints {
+  bestCustomer?: string   // "describe your best customer"
+  topServices?: string    // "which services make you the most money"
+  serviceArea?: string    // "what areas do you serve"
+  idealJobValue?: string  // "what's a great job worth"
+  avoid?: string          // "who do you NOT want as a customer"
+}
+
+export async function generateCustomerAvatar(accountId: string, hints?: AvatarHints): Promise<GeneratedAvatar> {
   if (!process.env.ANTHROPIC_API_KEY) {
     throw new Error('AI not configured — ANTHROPIC_API_KEY missing')
   }
@@ -78,6 +88,9 @@ export async function generateCustomerAvatar(accountId: string): Promise<Generat
     wonLeads.length > 0
       ? `\nReal won customers (patterns to learn from — services bought, area, deal size):\n${wonLeads.map(l => `- ${l.service ?? 'service'}${l.address ? `, ${l.address}` : ''}${l.value ? `, $${l.value.toFixed(0)}` : ''}${l.source ? `, via ${l.source}` : ''}`).join('\n')}`
       : '\nNo won deals recorded yet — infer the ideal customer from the services and location.',
+    hints && Object.values(hints).some(Boolean)
+      ? `\nThe owner's own words (weight these heavily — they know their market):${hints.bestCustomer ? `\n- Their best customer: "${hints.bestCustomer}"` : ''}${hints.topServices ? `\n- Most profitable services: "${hints.topServices}"` : ''}${hints.serviceArea ? `\n- Service area: "${hints.serviceArea}"` : ''}${hints.idealJobValue ? `\n- A great job is worth: "${hints.idealJobValue}"` : ''}${hints.avoid ? `\n- Customers they DON'T want: "${hints.avoid}"` : ''}`
+      : '',
   ].filter(Boolean).join('\n')
 
   const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
@@ -122,4 +135,46 @@ Rules:
     imageUrl: images[0] ?? '',
     imageOptions: images,
   }
+}
+
+// ---------------------------------------------------------------------------
+// Shared: feed the primary persona into other AI features (landing pages,
+// campaign copy, lead scoring) so everything the CRM writes targets the same
+// ideal customer.
+
+export type PersonaRecord = {
+  name: string
+  tagline: string | null
+  ageRange: string | null
+  gender: string | null
+  occupation: string | null
+  location: string | null
+  income: string | null
+  goals: string | null
+  painPoints: string | null
+  objections: string | null
+  channels: string | null
+  services: string | null
+}
+
+export async function getPrimaryAvatar(accountId: string): Promise<PersonaRecord | null> {
+  return (
+    (await prisma.customerAvatar.findFirst({ where: { accountId, isPrimary: true } })) ??
+    (await prisma.customerAvatar.findFirst({ where: { accountId }, orderBy: { createdAt: 'asc' } }))
+  )
+}
+
+/** A compact prompt block describing the persona, or '' when none exists. */
+export function personaContextBlock(p: PersonaRecord | null): string {
+  if (!p) return ''
+  const field = (label: string, v: string | null) => (v ? `- ${label}: ${v.replace(/\n/g, '; ')}` : '')
+  return [
+    `\nTARGET CUSTOMER (write for this specific person — their language, their worries):`,
+    `- Persona: ${p.name}${p.tagline ? ` — ${p.tagline}` : ''}`,
+    field('Profile', [p.ageRange, p.gender, p.occupation, p.location, p.income].filter(Boolean).join(', ') || null),
+    field('They want', p.goals),
+    field('Their pains', p.painPoints),
+    field('Their objections (pre-empt these)', p.objections),
+    field('Services they need', p.services),
+  ].filter(Boolean).join('\n')
 }

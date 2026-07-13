@@ -2,7 +2,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { Loader2, Building2, CalendarClock, Plug, LayoutDashboard, ArrowRight, CheckCircle2, Rocket } from 'lucide-react'
+import { Loader2, Building2, CalendarClock, Plug, LayoutDashboard, ArrowRight, CheckCircle2, Rocket, Crosshair, Sparkles, RefreshCw } from 'lucide-react'
 
 type Props = {
   accountId: string
@@ -13,11 +13,16 @@ type Props = {
 export default function OnboardingWizard({ accountId, businessName, initial }: Props) {
   const router = useRouter()
   const [step, setStep] = useState(1)
-  const totalSteps = 2
+  const totalSteps = 3
 
   const [businessPhone, setBusinessPhone] = useState(initial.businessPhone)
   const [businessAddress, setBusinessAddress] = useState(initial.businessAddress)
   const [abn, setAbn] = useState(initial.abn)
+
+  // Ideal-customer questions — the owner's own words drive the AI persona
+  const [hints, setHints] = useState({ bestCustomer: '', topServices: '', serviceArea: '', idealJobValue: '', avoid: '' })
+  const [generating, setGenerating] = useState(false)
+  const [avatar, setAvatar] = useState<{ id: string; name: string; tagline: string | null; imageUrl: string | null } | null>(null)
 
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -49,6 +54,23 @@ export default function OnboardingWizard({ accountId, businessName, initial }: P
       return
     }
     setStep(2)
+  }
+
+  async function generateAvatar() {
+    setGenerating(true)
+    setError('')
+    const res = await fetch('/api/target-customer/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      // Regenerate onto the same persona if the owner retries
+      body: JSON.stringify({ hints, ...(avatar ? { id: avatar.id } : {}) }),
+    })
+    if (res.ok) {
+      setAvatar(await res.json())
+    } else {
+      setError((await res.json().catch(() => ({}))).error ?? 'Could not build your target customer — you can add it later from the Target Customer page.')
+    }
+    setGenerating(false)
   }
 
   async function handleFinish() {
@@ -160,6 +182,97 @@ export default function OnboardingWizard({ accountId, businessName, initial }: P
         {step === 2 && (
           <div className="space-y-5">
             <div className="flex items-center gap-2 text-slate-900">
+              <Crosshair className="w-5 h-5 text-indigo-600" />
+              <h2 className="text-lg font-semibold">Who&apos;s your ideal customer?</h2>
+            </div>
+            <p className="text-sm text-slate-500 -mt-3">
+              This is what sets Simple CRM apart: a visual reminder of exactly who you should be targeting, on every login. Answer in your own words — a sentence each is plenty.
+            </p>
+
+            {!avatar ? (
+              <>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1.5">Describe your best customer</label>
+                  <textarea rows={2} value={hints.bestCustomer} onChange={(e) => setHints(h => ({ ...h, bestCustomer: e.target.value }))} className={`${inputCls} resize-none`} placeholder="e.g. Homeowners in their 40s renovating, who value quality over the cheapest quote" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1.5">Which services make you the most money?</label>
+                  <input type="text" value={hints.topServices} onChange={(e) => setHints(h => ({ ...h, topServices: e.target.value }))} className={inputCls} placeholder="e.g. Full bathroom renovations, switchboard upgrades" />
+                </div>
+                <div className="grid sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1.5">Areas you serve</label>
+                    <input type="text" value={hints.serviceArea} onChange={(e) => setHints(h => ({ ...h, serviceArea: e.target.value }))} className={inputCls} placeholder={businessAddress ? businessAddress.split(',').slice(-2).join(',').trim() : 'e.g. Hills District, Sydney'} />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1.5">A great job is worth…</label>
+                    <input type="text" value={hints.idealJobValue} onChange={(e) => setHints(h => ({ ...h, idealJobValue: e.target.value }))} className={inputCls} placeholder="e.g. $5k+" />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1.5">Who do you NOT want? <span className="text-slate-400 font-normal">(optional)</span></label>
+                  <input type="text" value={hints.avoid} onChange={(e) => setHints(h => ({ ...h, avoid: e.target.value }))} className={inputCls} placeholder="e.g. Bargain hunters, jobs over an hour away" />
+                </div>
+              </>
+            ) : (
+              <div className="rounded-xl border border-indigo-100 overflow-hidden">
+                <div className="flex items-center gap-4 p-4 bg-indigo-50/50">
+                  <div className="w-20 h-20 rounded-xl overflow-hidden bg-slate-200 flex-shrink-0">
+                    {avatar.imageUrl
+                      ? /* eslint-disable-next-line @next/next/no-img-element */ <img src={avatar.imageUrl} alt={avatar.name} className="w-full h-full object-cover" />
+                      : <div className="w-full h-full bg-gradient-to-br from-indigo-500 to-violet-600" />}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-xs font-semibold text-indigo-600 uppercase tracking-wide">Your target customer</p>
+                    <p className="font-bold text-slate-900 text-lg">{avatar.name}</p>
+                    {avatar.tagline && <p className="text-sm text-slate-600 line-clamp-2">{avatar.tagline}</p>}
+                  </div>
+                </div>
+                <p className="px-4 py-2.5 text-xs text-slate-500 bg-white border-t border-indigo-100">
+                  They&apos;ll greet you on every login. Refine the full profile any time on the Target Customer page.
+                </p>
+              </div>
+            )}
+
+            {error && (
+              <p className="text-red-600 text-sm bg-red-50 border border-red-200 rounded-lg px-3 py-2">{error}</p>
+            )}
+
+            <div className="flex items-center justify-between pt-1">
+              <button type="button" onClick={() => setStep(3)} className="text-sm text-slate-500 hover:text-slate-700">
+                Skip for now
+              </button>
+              <div className="flex items-center gap-2">
+                {avatar && (
+                  <button
+                    type="button"
+                    onClick={generateAvatar}
+                    disabled={generating}
+                    className="flex items-center gap-1.5 text-sm px-4 py-2.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-60 transition-colors"
+                  >
+                    {generating ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />} Try again
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={avatar ? () => setStep(3) : generateAvatar}
+                  disabled={generating}
+                  className="bg-indigo-600 text-white py-2.5 px-5 rounded-lg text-sm font-medium hover:bg-indigo-700 disabled:opacity-60 transition-colors flex items-center gap-2"
+                >
+                  {generating
+                    ? <><Loader2 className="w-4 h-4 animate-spin" /> Building… (~20s)</>
+                    : avatar
+                      ? <>Looks right <ArrowRight className="w-4 h-4" /></>
+                      : <><Sparkles className="w-4 h-4" /> Build my target customer</>}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {step === 3 && (
+          <div className="space-y-5">
+            <div className="flex items-center gap-2 text-slate-900">
               <CheckCircle2 className="w-5 h-5 text-green-500" />
               <h2 className="text-lg font-semibold">You&apos;re all set</h2>
             </div>
@@ -195,7 +308,7 @@ export default function OnboardingWizard({ accountId, businessName, initial }: P
             <div className="flex items-center justify-between pt-1">
               <button
                 type="button"
-                onClick={() => setStep(1)}
+                onClick={() => setStep(2)}
                 className="text-sm text-slate-500 hover:text-slate-700"
               >
                 Back

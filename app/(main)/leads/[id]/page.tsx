@@ -14,6 +14,7 @@ import WhatsAppSection from './WhatsAppSection'
 import LeadTimeline from './LeadTimeline'
 import NextStepsCard from './NextStepsCard'
 import ProfileEnrichmentCard from './ProfileEnrichmentCard'
+import TargetMatchCard from './TargetMatchCard'
 import TimeInStageCard from './TimeInStageCard'
 import CustomFieldsCard from './CustomFieldsCard'
 import TasksSection from './TasksSection'
@@ -31,6 +32,7 @@ type Lead = {
   bestTimeToContact: string | null; firstRespondedAt: string | null
   nextStep: string | null; nextStepDue: string | null; lostReason: string | null
   profileData: string | null; profileEnrichedAt: string | null
+  targetMatchScore: number | null; targetMatchSummary: string | null; targetMatchAt: string | null
   companyId: string | null; company: Company | null
   account: { slaHours: number | null } | null
   createdAt: string; updatedAt: string
@@ -576,6 +578,12 @@ export default function LeadDetailPage() {
 
         {/* Right: Custom Fields + Next Steps + Appointments + Platform Push */}
         <div className="space-y-5">
+          <TargetMatchCard
+            leadId={id}
+            initialScore={lead.targetMatchScore}
+            initialSummary={lead.targetMatchSummary}
+            initialScoredAt={lead.targetMatchAt}
+          />
           <ProfileEnrichmentCard
             leadId={id}
             hasEmail={!!lead.email}

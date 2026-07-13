@@ -190,6 +190,29 @@ export default function CampaignEditor({ campaignId, accountId, initial }: Props
     setTimeout(() => { if (editorRef.current) editorRef.current.innerHTML = t.bodyHtml }, 0)
   }
 
+  // AI draft aimed at the account's target-customer persona
+  const [aiGoal, setAiGoal] = useState('')
+  const [drafting, setDrafting] = useState(false)
+  const [draftMsg, setDraftMsg] = useState('')
+
+  async function aiDraft() {
+    setDrafting(true)
+    setDraftMsg('')
+    const res = await fetch('/api/campaigns/ai-draft', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ goal: aiGoal, ...(accountId ? { accountId } : {}) }),
+    })
+    const data = await res.json().catch(() => ({}))
+    if (res.ok) {
+      applyTemplate({ id: 'ai-draft', description: '', emoji: '✨', category: 'AI', name: name || 'AI Draft', subject: data.subject, bodyHtml: data.bodyHtml, bodyText: data.bodyText })
+      setDraftMsg(data.targeted ? `Written for your target customer: ${data.personaName}` : 'Drafted — define a Target Customer to sharpen future drafts')
+    } else {
+      setDraftMsg(data.error ?? 'Draft failed')
+    }
+    setDrafting(false)
+  }
+
   // Load leads
   useEffect(() => {
     const qs = accountId ? `?account=${accountId}` : ''
@@ -390,6 +413,18 @@ export default function CampaignEditor({ campaignId, accountId, initial }: Props
           <label className="block text-xs font-medium text-slate-500 mb-1.5 uppercase tracking-wide">Subject Line</label>
           <input value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="e.g. Special offer just for you 🎄"
             className="w-full px-3 py-2.5 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent" />
+        </div>
+        <div className="sm:col-span-2">
+          <label className="block text-xs font-medium text-indigo-600 mb-1.5 uppercase tracking-wide">✨ Write it for your target customer</label>
+          <div className="flex gap-2">
+            <input value={aiGoal} onChange={(e) => setAiGoal(e.target.value)} placeholder="What's this campaign for? e.g. Winter switchboard-check offer for past customers"
+              className="flex-1 px-3 py-2.5 border border-indigo-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent" />
+            <button type="button" onClick={aiDraft} disabled={drafting}
+              className="px-4 py-2.5 rounded-lg bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700 disabled:opacity-60 transition-colors whitespace-nowrap">
+              {drafting ? 'Writing…' : 'AI draft'}
+            </button>
+          </div>
+          {draftMsg && <p className="text-xs text-slate-500 mt-1.5">{draftMsg}</p>}
         </div>
       </div>
 

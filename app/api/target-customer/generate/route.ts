@@ -17,9 +17,12 @@ export async function POST(req: NextRequest) {
     session.user.role === 'master_admin' ? (body.accountId ?? null) : (session.user.accountId ?? null)
   if (!accountId) return NextResponse.json({ error: 'No account selected' }, { status: 400 })
 
+  // Optional owner-provided answers (from onboarding questions or the page)
+  const hints = typeof body.hints === 'object' && body.hints !== null ? body.hints : undefined
+
   let generated
   try {
-    generated = await generateCustomerAvatar(accountId)
+    generated = await generateCustomerAvatar(accountId, hints)
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : 'Generation failed' }, { status: 502 })
   }

@@ -274,6 +274,10 @@ model Lead {
   status      String   @default("new")
   service     String?
   notes       String?
+  // How well this lead matches the account's target-customer persona (on-demand AI score)
+  targetMatchScore   Int?      // 0-100
+  targetMatchSummary String?   // one-line reason
+  targetMatchAt      DateTime?
   address     String?
   value       Float?
   formData    String?
