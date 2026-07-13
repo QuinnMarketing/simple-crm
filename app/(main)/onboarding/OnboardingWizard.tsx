@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Loader2, Building2, CalendarClock, Plug, LayoutDashboard, ArrowRight, CheckCircle2, Rocket, Crosshair, Sparkles, RefreshCw } from 'lucide-react'
+import HoloAvatar from '@/components/HoloAvatar'
 
 type Props = {
   accountId: string
@@ -217,10 +218,8 @@ export default function OnboardingWizard({ accountId, businessName, initial }: P
             ) : (
               <div className="rounded-xl border border-indigo-100 overflow-hidden">
                 <div className="flex items-center gap-4 p-4 bg-indigo-50/50">
-                  <div className="w-20 h-20 rounded-xl overflow-hidden bg-slate-200 flex-shrink-0">
-                    {avatar.imageUrl
-                      ? /* eslint-disable-next-line @next/next/no-img-element */ <img src={avatar.imageUrl} alt={avatar.name} className="w-full h-full object-cover" />
-                      : <div className="w-full h-full bg-gradient-to-br from-indigo-500 to-violet-600" />}
+                  <div className="w-20 h-20 rounded-xl overflow-hidden flex-shrink-0">
+                    <HoloAvatar name={avatar.name} compact />
                   </div>
                   <div className="min-w-0">
                     <p className="text-xs font-semibold text-indigo-600 uppercase tracking-wide">Your target customer</p>

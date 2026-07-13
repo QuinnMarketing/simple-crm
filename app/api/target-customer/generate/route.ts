@@ -34,11 +34,7 @@ export async function POST(req: NextRequest) {
     if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 })
     const updated = await prisma.customerAvatar.update({
       where: { id: targetId },
-      data: {
-        ...generated,
-        imageOptions: JSON.stringify(generated.imageOptions),
-        source: 'ai',
-      },
+      data: { ...generated, source: 'ai' },
     })
     return NextResponse.json(updated)
   }
@@ -48,7 +44,6 @@ export async function POST(req: NextRequest) {
     data: {
       accountId,
       ...generated,
-      imageOptions: JSON.stringify(generated.imageOptions),
       source: 'ai',
       isPrimary: count === 0,
       sortOrder: count,

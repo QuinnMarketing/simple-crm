@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { Crosshair, Target, Heart, Megaphone, Sparkles } from 'lucide-react'
+import HoloAvatar, { type HoloFact } from './HoloAvatar'
 
 export type AvatarView = {
   name: string
@@ -19,21 +20,20 @@ function lines(v?: string | null): string[] {
   return (v ?? '').split('\n').map(s => s.replace(/^[-•]\s*/, '').trim()).filter(Boolean)
 }
 
-function Initials({ name }: { name: string }) {
-  const initials = name.split(/\s+/).slice(0, 2).map(w => w[0]?.toUpperCase() ?? '').join('')
-  return (
-    <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-indigo-500 to-violet-600 text-white">
-      <span className="text-5xl font-bold tracking-tight">{initials || '?'}</span>
-    </div>
-  )
-}
-
 /**
  * The visual ideal-customer card. Presentational (server-safe) so it can render
  * as the dashboard hero and on the Target Customer page. `href` adds a manage link.
  */
 export default function TargetCustomerHero({ avatar, href }: { avatar: AvatarView; href?: string }) {
   const meta = [avatar.ageRange, avatar.gender, avatar.occupation, avatar.location, avatar.income].filter(Boolean) as string[]
+  const holoFacts: HoloFact[] = [
+    ...(avatar.ageRange ? [{ label: 'Age', value: avatar.ageRange }] : []),
+    ...(avatar.location ? [{ label: 'Location', value: avatar.location }] : []),
+    ...(avatar.income ? [{ label: 'Budget', value: avatar.income }] : []),
+    ...lines(avatar.painPoints).slice(0, 2).map(v => ({ label: 'Key pain', value: v })),
+    ...lines(avatar.channels).slice(0, 2).map(v => ({ label: 'Reach via', value: v })),
+    ...(avatar.occupation ? [{ label: 'Profile', value: avatar.occupation }] : []),
+  ]
   const goals = lines(avatar.goals).slice(0, 4)
   const pains = lines(avatar.painPoints).slice(0, 4)
   const channels = lines(avatar.channels).slice(0, 4)
@@ -51,15 +51,10 @@ export default function TargetCustomerHero({ avatar, href }: { avatar: AvatarVie
         )}
       </div>
 
-      <div className="grid md:grid-cols-[220px_1fr] gap-0">
-        {/* Portrait */}
-        <div className="relative aspect-[4/5] md:aspect-auto md:min-h-[280px] bg-slate-100">
-          {avatar.imageUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={avatar.imageUrl} alt={avatar.name} className="absolute inset-0 w-full h-full object-cover" />
-          ) : (
-            <Initials name={avatar.name} />
-          )}
+      <div className="grid md:grid-cols-[260px_1fr] gap-0">
+        {/* Next-gen holographic profile */}
+        <div className="relative aspect-[4/5] md:aspect-auto md:min-h-[300px]">
+          <HoloAvatar name={avatar.name} facts={holoFacts} />
         </div>
 
         {/* Details */}

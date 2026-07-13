@@ -1,6 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk'
 import { prisma } from './prisma'
-import { searchPortraitImages } from './stock-images'
 
 // The shape returned to callers — string fields ready to persist on CustomerAvatar
 export interface GeneratedAvatar {
@@ -16,8 +15,6 @@ export interface GeneratedAvatar {
   objections: string  // newline-separated
   channels: string    // newline-separated
   services: string    // newline-separated
-  imageUrl: string
-  imageOptions: string[]
 }
 
 const AVATAR_TOOL = {
@@ -38,9 +35,8 @@ const AVATAR_TOOL = {
       objections: { type: 'array', items: { type: 'string' }, description: '2-3 reasons they hesitate before buying (price, trust, timing).' },
       channels: { type: 'array', items: { type: 'string' }, description: '3-4 concrete places/ways to reach them (e.g. "Facebook local community groups", "Google search for emergency + suburb").' },
       services: { type: 'array', items: { type: 'string' }, description: 'Which of the business\'s services this customer most needs.' },
-      imageQuery: { type: 'string', description: 'A 2-5 word Pexels search for a realistic portrait photo of this person, e.g. "smiling homeowner 40s" or "professional woman office". Describe a person, not a scene.' },
     },
-    required: ['name', 'tagline', 'ageRange', 'gender', 'occupation', 'location', 'income', 'goals', 'painPoints', 'objections', 'channels', 'services', 'imageQuery'],
+    required: ['name', 'tagline', 'ageRange', 'gender', 'occupation', 'location', 'income', 'goals', 'painPoints', 'objections', 'channels', 'services'],
   },
 }
 
@@ -116,9 +112,6 @@ Rules:
   const p = toolUse.input as Record<string, unknown>
   const arr = (v: unknown): string => Array.isArray(v) ? v.filter(Boolean).join('\n') : String(v ?? '')
 
-  const imageQuery = String(p.imageQuery || 'friendly person portrait')
-  const images = await searchPortraitImages(imageQuery)
-
   return {
     name: String(p.name || 'Your Ideal Customer'),
     tagline: String(p.tagline || ''),
@@ -132,8 +125,6 @@ Rules:
     objections: arr(p.objections),
     channels: arr(p.channels),
     services: arr(p.services),
-    imageUrl: images[0] ?? '',
-    imageOptions: images,
   }
 }
 

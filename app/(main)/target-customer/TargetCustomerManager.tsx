@@ -1,6 +1,7 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
-import { Sparkles, Loader2, Pencil, Trash2, RefreshCw, ImageIcon, Star, Plus, X, Check } from 'lucide-react'
+import { Sparkles, Loader2, Pencil, Trash2, RefreshCw, Star, Plus, X, Check } from 'lucide-react'
+import HoloAvatar from '@/components/HoloAvatar'
 import TargetCustomerHero, { TargetCustomerPrompt } from '@/components/TargetCustomerHero'
 
 type Avatar = {
@@ -27,10 +28,6 @@ type Avatar = {
 const inputCls = 'w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent'
 const labelCls = 'block text-xs font-medium text-slate-500 mb-1'
 
-function parseOptions(raw: string): string[] {
-  try { const a = JSON.parse(raw); return Array.isArray(a) ? a : [] } catch { return [] }
-}
-
 export default function TargetCustomerManager({ accountId }: { accountId: string | null }) {
   const qs = accountId ? `?account=${accountId}` : ''
   const [avatars, setAvatars] = useState<Avatar[]>([])
@@ -38,7 +35,6 @@ export default function TargetCustomerManager({ accountId }: { accountId: string
   const [generating, setGenerating] = useState(false)
   const [busyId, setBusyId] = useState<string | null>(null)
   const [editing, setEditing] = useState<Avatar | null>(null)
-  const [photoFor, setPhotoFor] = useState<Avatar | null>(null)
   const [error, setError] = useState('')
 
   const load = useCallback(async () => {
@@ -134,7 +130,6 @@ export default function TargetCustomerManager({ accountId }: { accountId: string
               <div className="flex items-center gap-2 mt-3 flex-wrap">
                 <button onClick={() => setEditing(primary)} className="flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50"><Pencil className="w-3.5 h-3.5" /> Edit</button>
                 <button onClick={() => generate(primary.id)} disabled={generating} className="flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-60">{generating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />} Regenerate</button>
-                <button onClick={() => setPhotoFor(primary)} className="flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50"><ImageIcon className="w-3.5 h-3.5" /> Change photo</button>
                 <button onClick={() => del(primary)} disabled={busyId === primary.id} className="flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg border border-slate-200 text-red-500 hover:bg-red-50"><Trash2 className="w-3.5 h-3.5" /> Delete</button>
               </div>
             </div>
@@ -147,8 +142,8 @@ export default function TargetCustomerManager({ accountId }: { accountId: string
               <div className="grid sm:grid-cols-2 gap-3">
                 {others.map(a => (
                   <div key={a.id} className="flex items-center gap-3 p-3 rounded-xl border border-slate-200 bg-white">
-                    <div className="w-12 h-12 rounded-lg overflow-hidden bg-slate-100 flex-shrink-0">
-                      {a.imageUrl ? /* eslint-disable-next-line @next/next/no-img-element */ <img src={a.imageUrl} alt={a.name} className="w-full h-full object-cover" /> : <div className="w-full h-full bg-gradient-to-br from-indigo-500 to-violet-600" />}
+                    <div className="w-12 h-12 rounded-lg overflow-hidden flex-shrink-0">
+                      <HoloAvatar name={a.name} compact />
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="font-medium text-slate-900 text-sm truncate">{a.name}</p>
@@ -195,36 +190,6 @@ export default function TargetCustomerManager({ accountId }: { accountId: string
         </div>
       )}
 
-      {/* Photo picker */}
-      {photoFor && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setPhotoFor(null)}>
-          <div className="bg-white rounded-2xl shadow-xl max-w-lg w-full" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between p-5 border-b border-slate-100">
-              <h2 className="font-semibold text-slate-900">Change photo</h2>
-              <button onClick={() => setPhotoFor(null)} className="text-slate-400 hover:text-slate-600"><X className="w-5 h-5" /></button>
-            </div>
-            <div className="p-5">
-              {parseOptions(photoFor.imageOptions).length > 0 ? (
-                <div className="grid grid-cols-4 gap-2 mb-4">
-                  {parseOptions(photoFor.imageOptions).map((url, i) => (
-                    <button key={i} onClick={async () => { await patch(photoFor.id, { imageUrl: url }); setPhotoFor(null) }}
-                      className={`aspect-[4/5] rounded-lg overflow-hidden border-2 ${photoFor.imageUrl === url ? 'border-indigo-500' : 'border-transparent hover:border-slate-300'}`}>
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={url} alt="" className="w-full h-full object-cover" />
-                    </button>
-                  ))}
-                </div>
-              ) : <p className="text-sm text-slate-500 mb-4">No AI photo options — paste an image URL below.</p>}
-              <label className={labelCls}>Or paste an image URL</label>
-              <div className="flex gap-2">
-                <input className={inputCls} placeholder="https://…" defaultValue={photoFor.imageUrl ?? ''} id="avatar-url-input" />
-                <button onClick={async () => { const el = document.getElementById('avatar-url-input') as HTMLInputElement; await patch(photoFor.id, { imageUrl: el.value.trim() }); setPhotoFor(null) }}
-                  className="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700">Use</button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   )
 }
