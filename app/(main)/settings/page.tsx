@@ -9,6 +9,7 @@ import CustomFieldsSection from './CustomFieldsSection'
 import BookingSettingsForm from './BookingSettingsForm'
 import BookingTypesManager from './BookingTypesManager'
 import BookingStaffManager from './BookingStaffManager'
+import StripeSettingsForm from './StripeSettingsForm'
 import ReviewSettingsForm from './ReviewSettingsForm'
 import DocumentNumberingForm from './DocumentNumberingForm'
 import OutboundIntegrationsForm from './OutboundIntegrationsForm'
@@ -284,6 +285,16 @@ export default async function SettingsPage({
           description="Assign team members to services with their own hours, or keep one shared calendar"
         >
           <BookingStaffManager accountId={accountId} />
+        </CollapsibleSection>
+
+        {/* 6d. Payments (Stripe) */}
+        <CollapsibleSection
+          title="Payments (Stripe)"
+          description="Collect card payments from your customers — booking deposits and invoice Pay Now links"
+          ok={(() => { try { return Boolean(JSON.parse(account.integrations.find((i) => i.platform === 'stripe')?.config ?? '{}').secretKey) && (account.integrations.find((i) => i.platform === 'stripe')?.enabled ?? false) } catch { return false } })()}
+          statusLabel="Connected"
+        >
+          <StripeSettingsForm accountId={accountId} />
         </CollapsibleSection>
 
         {/* 7. Review Widget */}

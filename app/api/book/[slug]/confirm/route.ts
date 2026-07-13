@@ -6,6 +6,7 @@ import { getAccountSmtp } from '@/lib/email-from'
 import { sendEmail } from '@/lib/email'
 import { getBaseUrl } from '@/lib/base-url'
 import { getCalendarConfig, getBusyIntervals, createCalendarEvent } from '@/lib/google-calendar'
+import { getAccountStripe, getAccountStripeConfig } from '@/lib/stripe'
 import { randomBytes } from 'crypto'
 import { after } from 'next/server'
 
@@ -135,6 +136,21 @@ export async function POST(
     },
   })
 
+  // Deposit: only when the chosen service requires one AND the account has
+  // Stripe connected. The deposit is a snapshot on the appointment; the webhook
+  // flips depositPaid once Checkout completes. basePrice (excl. add-ons) is the
+  // base for a percentage deposit, matching how services are priced.
+  let depositAmount: number | null = null
+  const stripeCfg = bookingType && bookingType.depositType !== 'none' ? await getAccountStripeConfig(account.id) : null
+  if (bookingType && bookingType.depositType !== 'none' && stripeCfg) {
+    if (bookingType.depositType === 'percent' && bookingType.depositValue != null) {
+      depositAmount = Math.round(basePrice * (bookingType.depositValue / 100) * 100) / 100
+    } else if (bookingType.depositType === 'fixed' && bookingType.depositValue != null) {
+      depositAmount = Math.round(bookingType.depositValue * 100) / 100
+    }
+    if (!depositAmount || depositAmount <= 0) depositAmount = null
+  }
+
   const cancelToken = randomBytes(24).toString('hex')
   const appointment = await prisma.appointment.create({
     data: {
@@ -147,9 +163,44 @@ export async function POST(
       bookingTypeId: bookingType?.id ?? null,
       bookingPrice: totalPrice,
       addonsJson: chosenAddons.length ? JSON.stringify(chosenAddons.map((a) => ({ name: a.name, price: a.price, durationMin: a.durationMin }))) : null,
+      depositAmount,
       cancelToken,
     },
   })
+
+  // When a deposit is due, send the customer to Stripe Checkout to secure the
+  // slot. The booking is already created (holding the slot); the webhook marks
+  // depositPaid on completion. We skip the confirmation email here — it's sent
+  // after payment, or immediately below when no deposit applies.
+  if (depositAmount && stripeCfg) {
+    try {
+      const stripe = await getAccountStripe(account.id)
+      const checkout = await stripe.checkout.sessions.create({
+        mode: 'payment',
+        line_items: [
+          {
+            quantity: 1,
+            price_data: {
+              currency: 'aud',
+              unit_amount: Math.round(depositAmount * 100),
+              product_data: { name: `Deposit — ${serviceLabel ?? 'Booking'} (${account.name})` },
+            },
+          },
+        ],
+        customer_email: lead.email ?? undefined,
+        metadata: { kind: 'deposit', appointmentId: appointment.id, accountId: account.id },
+        success_url: `${getBaseUrl()}/pay/result?status=success&kind=deposit`,
+        cancel_url: `${getBaseUrl()}/pay/result?status=cancelled&kind=deposit`,
+      })
+      if (checkout.url) {
+        await prisma.appointment.update({ where: { id: appointment.id }, data: { depositSessionId: checkout.id } })
+        return NextResponse.json({ success: true, leadId: lead.id, checkoutUrl: checkout.url })
+      }
+    } catch {
+      // Stripe failed — fall through to the normal (deposit-less) confirmation
+      // so the booking still stands rather than losing the customer.
+    }
+  }
 
   // Push to Google right away so the busy block is visible to external
   // calendars (e.g. Fresha's sync) immediately, not at the next periodic sync.

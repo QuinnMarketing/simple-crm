@@ -17,6 +17,8 @@ type BookingType = {
   bufferAfter: number
   onlineBookable: boolean
   active: boolean
+  depositType: string
+  depositValue: number | null
   addons?: Addon[]
   variants?: Variant[]
 }
@@ -32,11 +34,14 @@ type Draft = {
   bufferAfter: number
   onlineBookable: boolean
   active: boolean
+  depositType: string
+  depositValue: string
 }
 
 const EMPTY: Draft = {
   name: '', category: '', description: '', durationMin: 60, price: '', priceType: 'fixed',
   bufferBefore: 0, bufferAfter: 0, onlineBookable: true, active: true,
+  depositType: 'none', depositValue: '',
 }
 
 const inputCls = 'w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent'
@@ -73,6 +78,7 @@ export default function BookingTypesManager({ accountId }: { accountId: string |
       name: t.name, category: t.category ?? '', description: t.description ?? '',
       durationMin: t.durationMin, price: t.price != null ? String(t.price) : '', priceType: t.priceType,
       bufferBefore: t.bufferBefore, bufferAfter: t.bufferAfter, onlineBookable: t.onlineBookable, active: t.active,
+      depositType: t.depositType ?? 'none', depositValue: t.depositValue != null ? String(t.depositValue) : '',
     })
     setEditingId(t.id)
     setError('')
@@ -233,7 +239,29 @@ export default function BookingTypesManager({ accountId }: { accountId: string |
               <input type="checkbox" checked={draft.active} onChange={(e) => setDraft((d) => ({ ...d, active: e.target.checked }))} className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500" />
               Active
             </label>
+            <div>
+              <label className={labelCls}>Deposit</label>
+              <select className={inputCls} value={draft.depositType} onChange={(e) => setDraft((d) => ({ ...d, depositType: e.target.value }))}>
+                <option value="none">No deposit</option>
+                <option value="percent">Percentage of price</option>
+                <option value="fixed">Fixed amount</option>
+              </select>
+            </div>
+            <div>
+              <label className={labelCls}>{draft.depositType === 'percent' ? 'Deposit %' : draft.depositType === 'fixed' ? 'Deposit amount ($)' : 'Deposit value'}</label>
+              <input
+                type="number" min={0} step={draft.depositType === 'percent' ? 1 : 0.01}
+                className={inputCls}
+                value={draft.depositValue}
+                disabled={draft.depositType === 'none'}
+                onChange={(e) => setDraft((d) => ({ ...d, depositValue: e.target.value }))}
+                placeholder={draft.depositType === 'percent' ? 'e.g. 20' : '0.00'}
+              />
+            </div>
           </div>
+          {draft.depositType !== 'none' && (
+            <p className="text-xs text-slate-400 mt-2">Requires Stripe to be connected (Settings → Payments). Customers pay the deposit at booking to confirm.</p>
+          )}
           {editingType && (
             <div className="mt-4 pt-4 border-t border-indigo-100">
               <p className="text-xs font-medium text-slate-600 mb-1">Variants <span className="font-normal text-slate-400">(duration/price options — customer picks one)</span></p>

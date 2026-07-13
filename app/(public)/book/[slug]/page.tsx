@@ -198,7 +198,12 @@ export default function BookingPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ date: selectedDate, time: selectedTime, bookingTypeId: selectedType?.id ?? null, variantId: selectedVariant?.id ?? null, staffId: selectedStaff?.id ?? null, addonIds: selectedAddons.map((a) => a.id), ...form }),
       })
-      if (r.ok) { setStep('done'); return }
+      if (r.ok) {
+        const data = await r.json().catch(() => ({}))
+        // A service with a deposit sends the customer to Stripe Checkout first.
+        if (data.checkoutUrl) { window.location.href = data.checkoutUrl; return }
+        setStep('done'); return
+      }
       const data = await r.json().catch(() => ({}))
       setSubmitError(data.error ?? 'Something went wrong — please try again.')
       // If the slot was taken, send them back to pick another time

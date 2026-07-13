@@ -1,6 +1,6 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
-import { Loader2, Plus, Trash2, X } from 'lucide-react'
+import { Loader2, Plus, Trash2, X, CreditCard } from 'lucide-react'
 import { fmtAUD } from './QuoteModal'
 
 type Payment = { id: string; amount: number; method: string; paidAt: string; notes: string | null }
@@ -9,6 +9,7 @@ const METHOD_LABELS: Record<string, string> = {
   bank_transfer: 'Bank transfer',
   cash: 'Cash',
   card: 'Card',
+  stripe: 'Card (Stripe)',
   other: 'Other',
 }
 
@@ -22,6 +23,7 @@ export default function PaymentsPanel({ quoteId, total }: { quoteId: string; tot
   const [notes, setNotes] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [payingNow, setPayingNow] = useState(false)
 
   const fetchPayments = useCallback(async () => {
     const res = await fetch(`/api/quotes/${quoteId}/payments`)
@@ -59,6 +61,18 @@ export default function PaymentsPanel({ quoteId, total }: { quoteId: string; tot
     if (res.ok) setPayments((p) => p.filter((x) => x.id !== id))
   }
 
+  async function payNow() {
+    setPayingNow(true); setError('')
+    const res = await fetch(`/api/quotes/${quoteId}/pay`, { method: 'POST' })
+    const data = await res.json().catch(() => ({}))
+    if (res.ok && data.url) {
+      window.location.href = data.url
+      return
+    }
+    setError(data.error ?? 'Could not start payment')
+    setPayingNow(false)
+  }
+
   return (
     <div className="border border-slate-200 rounded-lg p-4">
       <div className="flex items-center justify-between mb-3">
@@ -71,12 +85,24 @@ export default function PaymentsPanel({ quoteId, total }: { quoteId: string; tot
           </p>
         </div>
         {!showForm && (
-          <button
-            onClick={() => setShowForm(true)}
-            className="flex items-center gap-1 text-xs font-medium text-indigo-600 hover:text-indigo-700"
-          >
-            <Plus className="w-3.5 h-3.5" /> Record payment
-          </button>
+          <div className="flex items-center gap-3">
+            {balance > 0.01 && (
+              <button
+                onClick={payNow}
+                disabled={payingNow}
+                className="flex items-center gap-1 text-xs font-medium text-white bg-indigo-600 hover:bg-indigo-700 px-2.5 py-1.5 rounded-lg disabled:opacity-60"
+              >
+                {payingNow ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CreditCard className="w-3.5 h-3.5" />}
+                Pay now
+              </button>
+            )}
+            <button
+              onClick={() => setShowForm(true)}
+              className="flex items-center gap-1 text-xs font-medium text-indigo-600 hover:text-indigo-700"
+            >
+              <Plus className="w-3.5 h-3.5" /> Record payment
+            </button>
+          </div>
         )}
       </div>
 

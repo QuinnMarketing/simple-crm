@@ -5,6 +5,18 @@ import { getAccountFilter } from '@/lib/account-scope'
 import { NextRequest, NextResponse } from 'next/server'
 
 const PRICE_TYPES = ['fixed', 'from', 'free']
+const DEPOSIT_TYPES = ['none', 'percent', 'fixed']
+
+/** Normalises deposit inputs: percent clamps 0-100, fixed clamps >= 0, none => null value. */
+function normalizeDeposit(depositType: unknown, depositValue: unknown): { depositType: string; depositValue: number | null } {
+  const type = DEPOSIT_TYPES.includes(depositType as string) ? (depositType as string) : 'none'
+  if (type === 'none') return { depositType: 'none', depositValue: null }
+  let value = Number(depositValue)
+  if (!Number.isFinite(value) || value <= 0) return { depositType: 'none', depositValue: null }
+  if (type === 'percent') value = Math.min(100, Math.max(0, value))
+  else value = Math.max(0, value)
+  return { depositType: type, depositValue: value }
+}
 
 export async function GET(req: NextRequest) {
   const session = await auth()
@@ -39,6 +51,7 @@ export async function POST(req: NextRequest) {
   if (!body.name?.trim()) return NextResponse.json({ error: 'Name is required' }, { status: 400 })
 
   const count = await prisma.bookingType.count({ where: { accountId } })
+  const deposit = normalizeDeposit(body.depositType, body.depositValue)
   const type = await prisma.bookingType.create({
     data: {
       accountId,
@@ -53,6 +66,8 @@ export async function POST(req: NextRequest) {
       color: body.color?.trim()?.slice(0, 20) || null,
       onlineBookable: body.onlineBookable !== false,
       active: body.active !== false,
+      depositType: deposit.depositType,
+      depositValue: deposit.depositValue,
       sortOrder: count,
     },
   })

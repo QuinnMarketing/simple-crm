@@ -6,6 +6,18 @@ import { NextRequest, NextResponse } from 'next/server'
 
 type Params = { params: Promise<{ id: string }> }
 const PRICE_TYPES = ['fixed', 'from', 'free']
+const DEPOSIT_TYPES = ['none', 'percent', 'fixed']
+
+/** Normalises deposit inputs: percent clamps 0-100, fixed clamps >= 0, none => null value. */
+function normalizeDeposit(depositType: unknown, depositValue: unknown): { depositType: string; depositValue: number | null } {
+  const type = DEPOSIT_TYPES.includes(depositType as string) ? (depositType as string) : 'none'
+  if (type === 'none') return { depositType: 'none', depositValue: null }
+  let value = Number(depositValue)
+  if (!Number.isFinite(value) || value <= 0) return { depositType: 'none', depositValue: null }
+  if (type === 'percent') value = Math.min(100, Math.max(0, value))
+  else value = Math.max(0, value)
+  return { depositType: type, depositValue: value }
+}
 
 export async function PATCH(req: NextRequest, { params }: Params) {
   const session = await auth()
@@ -32,6 +44,12 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       ...('color' in body ? { color: body.color?.trim()?.slice(0, 20) || null } : {}),
       ...('onlineBookable' in body ? { onlineBookable: Boolean(body.onlineBookable) } : {}),
       ...('active' in body ? { active: Boolean(body.active) } : {}),
+      ...('depositType' in body || 'depositValue' in body
+        ? normalizeDeposit(
+            'depositType' in body ? body.depositType : existing.depositType,
+            'depositValue' in body ? body.depositValue : existing.depositValue,
+          )
+        : {}),
       ...('sortOrder' in body ? { sortOrder: Number(body.sortOrder) || 0 } : {}),
     },
   })
