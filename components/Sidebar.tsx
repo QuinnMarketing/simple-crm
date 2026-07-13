@@ -189,11 +189,13 @@ export default function Sidebar({
       </nav>
 
       <div className="p-4 border-t border-slate-800">
-        <div className="mb-3 px-1">
-          <p className="text-white text-sm font-medium truncate">{user?.name || user?.email}</p>
-          <p className="text-slate-500 text-xs truncate mt-0.5">{user?.email}</p>
-          <p className="text-slate-600 text-xs mt-0.5 capitalize">{user?.role?.replace(/_/g, ' ')}</p>
-        </div>
+        {pathname.startsWith('/settings') && (
+          <div className="mb-3 px-1">
+            <p className="text-white text-sm font-medium truncate">{user?.name || user?.email}</p>
+            <p className="text-slate-500 text-xs truncate mt-0.5">{user?.email}</p>
+            <p className="text-slate-600 text-xs mt-0.5 capitalize">{user?.role?.replace(/_/g, ' ')}</p>
+          </div>
+        )}
         <div className="flex items-center justify-between">
           <button
             onClick={() => signOut({ callbackUrl: '/login' })}
