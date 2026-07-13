@@ -2,7 +2,7 @@
 import { useState } from 'react'
 import { DragDropContext, Droppable, Draggable, type DropResult } from '@hello-pangea/dnd'
 import Link from 'next/link'
-import { LayoutList, Zap } from 'lucide-react'
+import { LayoutList, Zap, Crosshair } from 'lucide-react'
 import LeadsCsvButtons from '../LeadsCsvButtons'
 
 type Lead = {
@@ -15,7 +15,20 @@ type Lead = {
   gclid: string | null
   status: string
   createdAt: string | Date
+  targetMatchScore: number | null
   company: { name: string; color: string } | null
+}
+
+// Colour-coded target-match chip (only for scored leads)
+function MatchChip({ score }: { score: number }) {
+  const cls =
+    score >= 80 ? 'bg-emerald-50 text-emerald-700' :
+    score >= 50 ? 'bg-amber-50 text-amber-700' : 'bg-rose-50 text-rose-600'
+  return (
+    <span className={`inline-flex items-center gap-0.5 text-xs font-semibold px-1.5 py-0.5 rounded-full ${cls}`} title="Target customer match">
+      <Crosshair className="w-3 h-3" />{score}
+    </span>
+  )
 }
 
 const COLUMNS: { id: string; label: string; color: string; headerCls: string; dotCls: string }[] = [
@@ -50,13 +63,16 @@ function LeadCard({ lead, index }: { lead: Lead; index: number }) {
             snapshot.isDragging ? 'shadow-lg border-indigo-300 rotate-1' : 'border-slate-200 hover:border-slate-300'
           }`}
         >
-          <Link
-            href={`/leads/${lead.id}`}
-            className="block text-sm font-medium text-slate-900 hover:text-indigo-600 transition-colors leading-tight mb-1"
-            onClick={(e) => snapshot.isDragging && e.preventDefault()}
-          >
-            {lead.name}
-          </Link>
+          <div className="flex items-start justify-between gap-1.5 mb-1">
+            <Link
+              href={`/leads/${lead.id}`}
+              className="block text-sm font-medium text-slate-900 hover:text-indigo-600 transition-colors leading-tight"
+              onClick={(e) => snapshot.isDragging && e.preventDefault()}
+            >
+              {lead.name}
+            </Link>
+            {lead.targetMatchScore != null && <MatchChip score={lead.targetMatchScore} />}
+          </div>
           {lead.company && (
             <span
               className="inline-block text-xs font-medium px-1.5 py-0.5 rounded-full mb-1.5"
@@ -98,11 +114,14 @@ export default function PipelineBoard({ initialLeads, exportHref, accountId }: {
     const { source, destination, draggableId } = result
     if (!destination || destination.droppableId === source.droppableId) return
 
-    const sourceCol = [...columns[source.droppableId]]
+    // Locate by id, not index — the board may be rendered in a sorted order
+    // that differs from the underlying column arrays
+    const moved = columns[source.droppableId].find((l) => l.id === draggableId)
+    if (!moved) return
+    const sourceCol = columns[source.droppableId].filter((l) => l.id !== draggableId)
     const destCol = [...columns[destination.droppableId]]
-    const [moved] = sourceCol.splice(source.index, 1)
     const updated: Lead = { ...moved, status: destination.droppableId }
-    destCol.splice(destination.index, 0, updated)
+    destCol.splice(Math.min(destination.index, destCol.length), 0, updated)
 
     setColumns((prev) => ({
       ...prev,
@@ -134,6 +153,18 @@ export default function PipelineBoard({ initialLeads, exportHref, accountId }: {
   const totalValue = Object.values(columns).flat().reduce((sum, l) => sum + (l.value ?? 0), 0)
   const wonValue = columns.won.reduce((sum, l) => sum + (l.value ?? 0), 0)
 
+  // "Best match first": display-order columns by target-match score (scored
+  // leads first, highest score up top). Drag-and-drop still works — this only
+  // affects render order, and status moves are what persist.
+  const [sortByMatch, setSortByMatch] = useState(false)
+  const hasAnyScore = Object.values(columns).flat().some((l) => l.targetMatchScore != null)
+  const displayColumns: Record<string, Lead[]> = sortByMatch
+    ? Object.fromEntries(Object.entries(columns).map(([k, list]) => [
+        k,
+        [...list].sort((a, b) => (b.targetMatchScore ?? -1) - (a.targetMatchScore ?? -1)),
+      ]))
+    : columns
+
   return (
     <div>
       <div className="mb-6 flex items-center justify-between">
@@ -146,6 +177,20 @@ export default function PipelineBoard({ initialLeads, exportHref, accountId }: {
           </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
+          {hasAnyScore && (
+            <button
+              onClick={() => setSortByMatch((v) => !v)}
+              className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium border transition-colors ${
+                sortByMatch
+                  ? 'bg-indigo-50 border-indigo-300 text-indigo-700'
+                  : 'text-slate-600 border-slate-200 hover:bg-slate-50'
+              }`}
+              title="Order each column by target-customer match score"
+            >
+              <Crosshair className="w-4 h-4" />
+              Best match first
+            </button>
+          )}
           <LeadsCsvButtons exportHref={exportHref} accountId={accountId} />
           <Link
             href="/leads"
@@ -160,7 +205,7 @@ export default function PipelineBoard({ initialLeads, exportHref, accountId }: {
       <DragDropContext onDragEnd={onDragEnd}>
         <div className="flex gap-4 overflow-x-auto pb-4 -mx-4 px-4 sm:mx-0 sm:px-0" style={{ minHeight: '70vh' }}>
           {COLUMNS.map((col) => {
-            const leads = columns[col.id] ?? []
+            const leads = displayColumns[col.id] ?? []
             const colValue = leads.reduce((sum, l) => sum + (l.value ?? 0), 0)
             return (
               <div key={col.id} className="flex-shrink-0 w-56 flex flex-col">

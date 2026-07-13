@@ -8,6 +8,7 @@ import StatusBadge from '@/components/StatusBadge'
 type Lead = {
   id: string; name: string; email: string | null; phone: string | null
   service: string | null; status: string; value: number | null
+  targetMatchScore: number | null
   firstRespondedAt: string | null
   createdAt: string; updatedAt: string
   company: { name: string; color: string } | null
@@ -89,6 +90,7 @@ const STATUSES = ['new', 'contacted', 'qualified', 'won', 'lost', 'junk']
                 { label: 'Service', cls: 'hidden lg:table-cell' },
                 { label: 'Company', cls: 'hidden lg:table-cell' },
                 { label: 'Value', cls: 'hidden sm:table-cell' },
+                { label: 'Match', cls: 'hidden sm:table-cell' },
                 { label: 'Status', cls: '' },
                 { label: 'Platforms', cls: 'hidden xl:table-cell' },
                 { label: 'Added', cls: 'hidden sm:table-cell' },
@@ -155,6 +157,17 @@ const STATUSES = ['new', 'contacted', 'qualified', 'won', 'lost', 'junk']
                   </td>
                   <td className="px-4 py-3 text-sm text-slate-600 hidden sm:table-cell">
                     {lead.value ? `$${lead.value.toLocaleString()}` : '—'}
+                  </td>
+                  <td className="px-4 py-3 hidden sm:table-cell">
+                    {lead.targetMatchScore != null ? (
+                      <span className={`text-xs font-semibold px-2 py-0.5 rounded-full whitespace-nowrap ${
+                        lead.targetMatchScore >= 80 ? 'bg-emerald-50 text-emerald-700'
+                        : lead.targetMatchScore >= 50 ? 'bg-amber-50 text-amber-700'
+                        : 'bg-rose-50 text-rose-600'
+                      }`} title="Target customer match">
+                        ⌖ {lead.targetMatchScore}
+                      </span>
+                    ) : <span className="text-slate-300 text-sm">—</span>}
                   </td>
                   <td className="px-4 py-3"><StatusBadge status={lead.status} /></td>
                   <td className="px-4 py-3 hidden xl:table-cell">
