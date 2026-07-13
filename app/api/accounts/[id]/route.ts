@@ -55,6 +55,8 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       ...('businessWebsite' in body ? { businessWebsite: businessWebsite?.trim() || null } : {}),
       ...('slaHours' in body ? { slaHours: body.slaHours != null ? Number(body.slaHours) || null : null } : {}),
       ...('idleAlertDays' in body ? { idleAlertDays: body.idleAlertDays != null ? Number(body.idleAlertDays) || null : null } : {}),
+      // Onboarding wizard completion — any account user can mark their own account onboarded.
+      ...('onboardedAt' in body ? { onboardedAt: body.onboardedAt ? new Date(body.onboardedAt) : new Date() } : {}),
     },
     include: { _count: { select: { users: true, leads: true } } },
   })
