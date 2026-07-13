@@ -70,7 +70,36 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  // Honeypot: real users never fill these hidden fields — bots do. Silently
+  // accept (200) so the bot thinks it succeeded, but create no lead.
+  const HONEYPOTS = ['_gotcha', 'honeypot', 'hp', 'url_website', 'confirm_email']
+  if (HONEYPOTS.some((k) => typeof body[k] === 'string' && (body[k] as string).trim() !== '')) {
+    return NextResponse.json({ success: true })
+  }
+
   const parsed = parseWebhookPayload(body)
+
+  // Drop nameless/contactless submissions — almost always junk
+  if (!parsed.name?.trim() && !parsed.email && !parsed.phone) {
+    return NextResponse.json({ success: true })
+  }
+
+  // Dedupe: skip an identical submission (same account + email/phone) seen in
+  // the last 5 minutes — stops double-submits and simple flood loops.
+  if (accountId && (parsed.email || parsed.phone)) {
+    const recent = await prisma.lead.findFirst({
+      where: {
+        accountId,
+        createdAt: { gt: new Date(Date.now() - 5 * 60_000) },
+        OR: [
+          ...(parsed.email ? [{ email: parsed.email }] : []),
+          ...(parsed.phone ? [{ phone: parsed.phone }] : []),
+        ],
+      },
+      select: { id: true },
+    })
+    if (recent) return NextResponse.json({ success: true, leadId: recent.id, deduped: true })
+  }
 
   const lead = await prisma.lead.create({
     data: {

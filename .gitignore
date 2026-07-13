@@ -17,3 +17,6 @@ next-env.d.ts
 *.db-wal
 prisma/dev.db*
 .env*
+
+# Claude Code worktrees / local agent state
+.claude/

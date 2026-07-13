@@ -8,16 +8,24 @@ export function localToUTCDate(dateStr: string, timeStr: string, tz: string): Da
   return new Date(localToUTCms(dateStr, timeStr, tz))
 }
 
-/** Convert a local YYYY-MM-DD + HH:MM in a named timezone to a UTC ms timestamp. */
-export function localToUTCms(dateStr: string, timeStr: string, tz: string): number {
-  const dtStr = `${dateStr}T${timeStr}:00`
-  const asUTCMs = new Date(dtStr + 'Z').getTime()
+// The timezone's UTC offset (ms) at a given absolute instant.
+function offsetAt(instantMs: number, tz: string): number {
   const inTZ = new Intl.DateTimeFormat('sv-SE', {
     timeZone: tz,
     year: 'numeric', month: '2-digit', day: '2-digit',
     hour: '2-digit', minute: '2-digit', second: '2-digit',
-  }).format(asUTCMs)
-  const tzAsUTCMs = new Date(inTZ.replace(' ', 'T') + 'Z').getTime()
-  const offset = tzAsUTCMs - asUTCMs
-  return asUTCMs - offset
+  }).format(instantMs)
+  return new Date(inTZ.replace(' ', 'T') + 'Z').getTime() - instantMs
+}
+
+/** Convert a local YYYY-MM-DD + HH:MM in a named timezone to a UTC ms timestamp. */
+export function localToUTCms(dateStr: string, timeStr: string, tz: string): number {
+  // The wall-clock time interpreted as if it were UTC
+  const wall = new Date(`${dateStr}T${timeStr}:00Z`).getTime()
+  // First guess uses the offset at that (wrong) instant; a second pass
+  // recomputes the offset at the candidate instant, which corrects the answer
+  // across DST changeovers (the offset can differ between the two instants).
+  let utc = wall - offsetAt(wall, tz)
+  utc = wall - offsetAt(utc, tz)
+  return utc
 }

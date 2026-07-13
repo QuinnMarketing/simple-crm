@@ -56,13 +56,12 @@ describe('localToUTCms (Australia/Sydney)', () => {
     )
   })
 
-  it('KNOWN QUIRK: times before the autumn changeover on the same day get the post-change (AEST) offset', () => {
-    // 01:00 on 2026-04-05 is still AEDT (+11) in reality, so the correct UTC
-    // instant is 2026-04-04T14:00:00Z. localToUTCms instead applies the AEST
-    // (+10) offset and returns 15:00:00Z. This only affects the ~3h DST-end
-    // window on the changeover day; documented here so the behaviour is pinned.
+  it('applies the pre-change AEDT offset before the autumn changeover on the same day', () => {
+    // 01:00 on 2026-04-05 is still AEDT (+11) — before the 03:00 fall-back — so
+    // the correct UTC instant is 2026-04-04T14:00:00Z. The two-pass conversion
+    // resolves this correctly across the DST-end boundary.
     expect(localToUTCms('2026-04-05', '01:00', SYD)).toBe(
-      Date.parse('2026-04-04T15:00:00Z')
+      Date.parse('2026-04-04T14:00:00Z')
     )
   })
 
@@ -74,13 +73,12 @@ describe('localToUTCms (Australia/Sydney)', () => {
     )
   })
 
-  it('KNOWN QUIRK: times before the spring-forward changeover get the post-change (AEDT) offset', () => {
-    // 00:30 on 2026-10-04 is still AEST (+10) in reality, so the correct UTC
-    // instant is 2026-10-03T14:30:00Z. localToUTCms instead applies the AEDT
-    // (+11) offset and returns 13:30:00Z. Same DST-changeover-day quirk as the
-    // autumn case; only affects times before the switch on the changeover day.
+  it('applies the pre-change AEST offset before the spring-forward changeover', () => {
+    // 00:30 on 2026-10-04 is still AEST (+10) — before the 02:00 skip-forward —
+    // so the correct UTC instant is 2026-10-03T14:30:00Z. The two-pass
+    // conversion resolves this correctly across the DST-start boundary.
     expect(localToUTCms('2026-10-04', '00:30', SYD)).toBe(
-      Date.parse('2026-10-03T13:30:00Z')
+      Date.parse('2026-10-03T14:30:00Z')
     )
   })
 

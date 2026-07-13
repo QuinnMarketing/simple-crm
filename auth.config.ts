@@ -32,6 +32,9 @@ export const authConfig = {
       if (path.startsWith('/lp')) return true // public landing pages (drafts gate themselves via auth() in the page)
       if (path.startsWith('/chat')) return true // public chat widget page
       if (path.startsWith('/api/chat')) return true // widget endpoints — auth via per-conversation visitor tokens
+      if (path === '/signup') return true // public self-serve signup
+      if (path.startsWith('/api/signup')) return true // signup handler (own rate limiting)
+      if (path.startsWith('/pay')) return true // public Stripe payment result page (/pay/result)
       if (path === '/login') {
         if (isLoggedIn) return Response.redirect(new URL('/', nextUrl))
         return true
