@@ -14,6 +14,12 @@ model Account {
   webhookToken      String   @unique @default(cuid())
   receiptEmailToken String?  // Token for receipt email address (auto-generated on first use)
   plan              String   @default("starter")
+  // Self-serve onboarding / free trial (Agent B)
+  subscriptionStatus String @default("trialing") // trialing | active | past_due | cancelled | expired
+  trialEndsAt        DateTime?
+  onboardedAt        DateTime?  // set when the setup wizard is completed
+  signupSource       String?    // ad/campaign attribution for commercialisation
+  stripeCustomerId   String?    // reserved for future platform billing
   isActive        Boolean  @default(true)
   featTakeoffs    Boolean  @default(false)
   abn             String?
@@ -364,6 +370,10 @@ model Appointment {
   status          String   @default("scheduled") // scheduled | completed | cancelled | no_show
   cancelToken     String?  // lets the customer view/cancel their booking without an account (48 random hex chars)
   addonsJson      String?  // snapshot of chosen add-ons: [{name, price, durationMin}]
+  // Booking deposit (Agent A / Stripe)
+  depositAmount   Float?   // amount required to hold this booking (snapshot)
+  depositPaid     Boolean  @default(false)
+  depositSessionId String? // Stripe Checkout session id for the deposit
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
@@ -391,6 +401,9 @@ model BookingType {
   onlineBookable Boolean       @default(true)     // shown on the public booking page
   active         Boolean       @default(true)
   sortOrder      Int           @default(0)
+  // Deposit required to book this service (Agent A / Stripe)
+  depositType    String        @default("none")   // none | percent | fixed
+  depositValue   Float?                            // percent (0-100) or fixed amount, per depositType
   appointments   Appointment[]
   staff          BookingStaffProfile[] @relation("BookingTypeStaff") // team members who perform this service
   addons         BookingAddon[]        // optional extras a customer can add to this service
@@ -546,11 +559,14 @@ model Payment {
   quoteId   String
   quote     Quote    @relation(fields: [quoteId], references: [id], onDelete: Cascade)
   amount    Float
-  method    String   // 'bank_transfer' | 'cash' | 'card' | 'other'
+  method    String   // 'bank_transfer' | 'cash' | 'card' | 'other' | 'stripe'
   paidAt    DateTime
   notes     String?
   accountId String?
   account   Account? @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  // Online payment linkage (Agent A / Stripe)
+  stripeSessionId       String?
+  stripePaymentIntentId String?
   createdAt DateTime @default(now())
 
   @@index([quoteId])
