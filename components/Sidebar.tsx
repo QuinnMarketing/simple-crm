@@ -2,7 +2,7 @@
 import Link from 'next/link'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { useState } from 'react'
-import { LayoutDashboard, Users, Settings, LogOut, Zap, Building2, ChevronDown, Layers, CalendarDays, FileText, Bot, Clock, Mail, MailOpen, TrendingUp, BarChart2, Share2, GanttChartSquare, CheckSquare, Star, BookOpen, Receipt, FolderOpen, Ruler, Inbox, Target, Rocket, MessagesSquare, ClipboardList, Image as ImageIcon, ShoppingBag, Crosshair } from 'lucide-react'
+import { LayoutDashboard, Users, Settings, LogOut, Zap, Building2, ChevronDown, Layers, CalendarDays, FileText, Bot, Clock, Mail, MailOpen, TrendingUp, BarChart2, Share2, GanttChartSquare, CheckSquare, Star, BookOpen, Receipt, FolderOpen, Ruler, Inbox, Target, Rocket, MessagesSquare, ClipboardList, Image as ImageIcon, ShoppingBag, Crosshair, UserSquare2, Newspaper } from 'lucide-react'
 import { signOut } from 'next-auth/react'
 import PushToggle from './PushToggle'
 import { moduleForNavHref } from '@/lib/modules'
@@ -75,6 +75,8 @@ export default function Sidebar({
     { href: '/price-book', icon: BookOpen, label: 'Price Book' },
     { href: '/gallery', icon: ImageIcon, label: 'Website Gallery' },
     { href: '/products', icon: ShoppingBag, label: 'Featured Products' },
+    { href: '/team', icon: UserSquare2, label: 'Team' },
+    { href: '/blog', icon: Newspaper, label: 'Blog' },
     { href: '/gantt', icon: GanttChartSquare, label: 'Gantt Charts' },
     { href: '/companies', icon: Building2, label: 'Companies' },
     { href: '/projects', icon: FolderOpen, label: 'Projects' },

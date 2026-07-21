@@ -70,6 +70,8 @@ model Account {
   customerAvatars        CustomerAvatar[]
   galleryImages          GalleryImage[]
   featuredItems          FeaturedItem[]
+  teamMembers            TeamMember[]
+  blogPosts              BlogPost[]
 }
 
 // The business's ideal-customer persona ("who you should be targeting") — the
@@ -932,6 +934,44 @@ model FeaturedItem {
   updatedAt   DateTime @updatedAt
 
   @@index([accountId])
+}
+
+// A team member/stylist bio for the public website's About/Team section.
+model TeamMember {
+  id        String   @id @default(cuid())
+  accountId String
+  account   Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  name      String
+  role      String?
+  bio       String?
+  photoUrl  String?
+  sortOrder Int      @default(0)
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([accountId])
+}
+
+// An educational/content blog post for the public website's Blog section.
+model BlogPost {
+  id           String    @id @default(cuid())
+  accountId    String
+  account      Account   @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  slug         String
+  title        String
+  excerpt      String?
+  body         String    // markdown
+  coverImageUrl String?
+  category     String?
+  publishedAt  DateTime?  // null = draft, not shown on the public site
+  sortOrder    Int       @default(0)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@unique([accountId, slug])
+  @@index([accountId])
+  @@index([accountId, publishedAt])
 }
 
 model PriceItem {
