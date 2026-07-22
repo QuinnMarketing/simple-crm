@@ -59,23 +59,20 @@ describe('moduleForNavHref', () => {
 })
 
 describe('DEFAULT_ON_KEYS', () => {
-  it('excludes takeoffs (opt-in / off by default)', () => {
-    expect(DEFAULT_ON_KEYS).not.toContain('takeoffs')
+  it('is the lean default: only Target Customer and Quotes are on out of the box', () => {
+    // Dashboard, Leads and Settings are always-on core (CORE_NAV_HREFS) and are
+    // not modules, so the only default-on *modules* are these two.
+    expect([...DEFAULT_ON_KEYS].sort()).toEqual(['quotes', 'target_customer'])
   })
 
-  it('includes the always-on core-adjacent modules', () => {
-    expect(DEFAULT_ON_KEYS).toContain('calendar')
-    expect(DEFAULT_ON_KEYS).toContain('quotes')
-    expect(DEFAULT_ON_KEYS).toContain('expenses')
+  it('leaves every other module off by default', () => {
+    for (const key of ['calendar', 'expenses', 'takeoffs', 'reviews', 'gallery', 'products', 'team', 'blog'] as const) {
+      expect(DEFAULT_ON_KEYS).not.toContain(key)
+    }
   })
 
   it('contains exactly the modules whose defaultOn is true', () => {
     const expected = MODULES.filter((m) => m.defaultOn).map((m) => m.key)
     expect(DEFAULT_ON_KEYS).toEqual(expected)
-  })
-
-  it('takeoffs is the only module off by default', () => {
-    const offByDefault = MODULES.filter((m) => !m.defaultOn).map((m) => m.key)
-    expect(offByDefault).toEqual(['takeoffs'])
   })
 })

@@ -22,13 +22,19 @@ export type ModuleKey =
   | 'reviews'
   | 'sops'
   | 'time'
+  | 'gallery'
+  | 'products'
+  | 'team'
+  | 'blog'
 
 export type ModuleDef = {
   key: ModuleKey
   label: string
   description: string
   // Default state when an account has no explicit AccountModule override.
-  // Everything is on by default except opt-in modules like Takeoffs.
+  // Lean default: only Target Customer and Quotes & Invoices are on out of the
+  // box (alongside the always-on core: Dashboard, Leads, Settings). Every other
+  // module is opt-in and must be switched on per account.
   defaultOn: boolean
   // Nav hrefs this module owns (hidden from the sidebar when disabled)
   navHrefs: string[]
@@ -38,23 +44,27 @@ export type ModuleDef = {
 
 export const MODULES: ModuleDef[] = [
   { key: 'target_customer', label: 'Target Customer', description: 'The ideal-customer avatar shown on login — who the business should be targeting', defaultOn: true, navHrefs: ['/target-customer'], routePrefixes: ['/api/target-customer'] },
-  { key: 'calendar', label: 'Calendar & Booking', description: 'Appointment calendar and public online booking', defaultOn: true, navHrefs: ['/calendar'], routePrefixes: ['/api/appointments', '/api/calendar', '/api/book', '/api/settings/booking'] },
+  { key: 'calendar', label: 'Calendar & Booking', description: 'Appointment calendar and public online booking', defaultOn: false, navHrefs: ['/calendar'], routePrefixes: ['/api/appointments', '/api/calendar', '/api/book', '/api/settings/booking'] },
   { key: 'quotes', label: 'Quotes & Invoices', description: 'Quotes, invoices, payments and the price book', defaultOn: true, navHrefs: ['/quotes', '/price-book'], routePrefixes: ['/api/quotes', '/api/price-book'] },
   { key: 'takeoffs', label: 'Takeoffs & Estimating', description: 'Plan takeoffs and measured estimating', defaultOn: false, navHrefs: ['/takeoffs'], routePrefixes: ['/api/takeoffs'] },
-  { key: 'projects', label: 'Projects & Gantt', description: 'Project tracking and Gantt charts', defaultOn: true, navHrefs: ['/gantt', '/projects'], routePrefixes: ['/api/gantt', '/api/projects'] },
-  { key: 'companies', label: 'Companies', description: 'Company records linked to leads', defaultOn: true, navHrefs: ['/companies'], routePrefixes: ['/api/companies'] },
-  { key: 'expenses', label: 'Expenses & Receipts', description: 'Expense tracking and receipt inbox with OCR', defaultOn: true, navHrefs: ['/expenses', '/receipts'], routePrefixes: ['/api/expenses', '/api/pending-receipts', '/api/receipts'] },
-  { key: 'email_inbox', label: 'Email Inbox', description: 'Two-way email sync with leads', defaultOn: true, navHrefs: ['/email-inbox'], routePrefixes: ['/api/email-inbox'] },
-  { key: 'live_chat', label: 'Live Chat', description: 'Website live-chat widget and inbox', defaultOn: true, navHrefs: ['/live-chat'], routePrefixes: ['/api/live-chat'] },
-  { key: 'automations', label: 'Automations', description: 'Trigger-based workflow automations', defaultOn: true, navHrefs: ['/automations'], routePrefixes: ['/api/automations'] },
-  { key: 'tasks', label: 'Tasks', description: 'Team task management', defaultOn: true, navHrefs: ['/tasks'], routePrefixes: ['/api/tasks'] },
-  { key: 'reports', label: 'Reports & Analytics', description: 'Reporting dashboards and website analytics', defaultOn: true, navHrefs: ['/reports', '/analytics'], routePrefixes: ['/api/reports', '/api/analytics'] },
-  { key: 'campaigns', label: 'Campaigns & Landing Pages', description: 'Email marketing campaigns and landing pages', defaultOn: true, navHrefs: ['/campaigns', '/landing-pages'], routePrefixes: ['/api/campaigns', '/api/landing-pages'] },
-  { key: 'social', label: 'Social', description: 'Social media scheduling and publishing', defaultOn: true, navHrefs: ['/social'], routePrefixes: ['/api/social'] },
-  { key: 'ads', label: 'Ad Manager', description: 'Google and Meta ad campaign management', defaultOn: true, navHrefs: ['/ads'], routePrefixes: ['/api/ads'] },
-  { key: 'reviews', label: 'Reviews', description: 'Review collection, widget and Google sync', defaultOn: true, navHrefs: ['/reviews'], routePrefixes: ['/api/reviews', '/api/settings/reviews'] },
-  { key: 'sops', label: 'SOPs', description: 'Standard operating procedures with AI generation', defaultOn: true, navHrefs: ['/sops'], routePrefixes: ['/api/sops'] },
-  { key: 'time', label: 'Time Tracking', description: 'Time entries and timesheets', defaultOn: true, navHrefs: ['/time'], routePrefixes: ['/api/time-entries'] },
+  { key: 'projects', label: 'Projects & Gantt', description: 'Project tracking and Gantt charts', defaultOn: false, navHrefs: ['/gantt', '/projects'], routePrefixes: ['/api/gantt', '/api/projects'] },
+  { key: 'companies', label: 'Companies', description: 'Company records linked to leads', defaultOn: false, navHrefs: ['/companies'], routePrefixes: ['/api/companies'] },
+  { key: 'expenses', label: 'Expenses & Receipts', description: 'Expense tracking and receipt inbox with OCR', defaultOn: false, navHrefs: ['/expenses', '/receipts'], routePrefixes: ['/api/expenses', '/api/pending-receipts', '/api/receipts'] },
+  { key: 'email_inbox', label: 'Email Inbox', description: 'Two-way email sync with leads', defaultOn: false, navHrefs: ['/email-inbox'], routePrefixes: ['/api/email-inbox'] },
+  { key: 'live_chat', label: 'Live Chat', description: 'Website live-chat widget and inbox', defaultOn: false, navHrefs: ['/live-chat'], routePrefixes: ['/api/live-chat'] },
+  { key: 'automations', label: 'Automations', description: 'Trigger-based workflow automations', defaultOn: false, navHrefs: ['/automations'], routePrefixes: ['/api/automations'] },
+  { key: 'tasks', label: 'Tasks', description: 'Team task management', defaultOn: false, navHrefs: ['/tasks'], routePrefixes: ['/api/tasks'] },
+  { key: 'reports', label: 'Reports & Analytics', description: 'Reporting dashboards and website analytics', defaultOn: false, navHrefs: ['/reports', '/analytics'], routePrefixes: ['/api/reports', '/api/analytics'] },
+  { key: 'campaigns', label: 'Campaigns & Landing Pages', description: 'Email marketing campaigns and landing pages', defaultOn: false, navHrefs: ['/campaigns', '/landing-pages'], routePrefixes: ['/api/campaigns', '/api/landing-pages'] },
+  { key: 'social', label: 'Social', description: 'Social media scheduling and publishing', defaultOn: false, navHrefs: ['/social'], routePrefixes: ['/api/social'] },
+  { key: 'ads', label: 'Ad Manager', description: 'Google and Meta ad campaign management', defaultOn: false, navHrefs: ['/ads'], routePrefixes: ['/api/ads'] },
+  { key: 'reviews', label: 'Reviews', description: 'Review collection, widget and Google sync', defaultOn: false, navHrefs: ['/reviews'], routePrefixes: ['/api/reviews', '/api/settings/reviews'] },
+  { key: 'sops', label: 'SOPs', description: 'Standard operating procedures with AI generation', defaultOn: false, navHrefs: ['/sops'], routePrefixes: ['/api/sops'] },
+  { key: 'time', label: 'Time Tracking', description: 'Time entries and timesheets', defaultOn: false, navHrefs: ['/time'], routePrefixes: ['/api/time-entries'] },
+  { key: 'gallery', label: 'Website Gallery', description: 'Project photo gallery published to the client website', defaultOn: false, navHrefs: ['/gallery'], routePrefixes: ['/api/gallery'] },
+  { key: 'products', label: 'Featured Products', description: 'Featured products/packages shown on the client website', defaultOn: false, navHrefs: ['/products'], routePrefixes: ['/api/featured-items'] },
+  { key: 'team', label: 'Team', description: 'Team member profiles for the client website', defaultOn: false, navHrefs: ['/team'], routePrefixes: ['/api/team-members'] },
+  { key: 'blog', label: 'Blog', description: 'Blog posts published to the client website', defaultOn: false, navHrefs: ['/blog'], routePrefixes: ['/api/blog-posts'] },
 ]
 
 // Nav hrefs that are always available and never gated (the CRM core).

@@ -2,10 +2,12 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import { getAccountFilter } from '@/lib/account-scope'
+import { requireModule } from '@/lib/account-modules'
 
 export async function GET(req: NextRequest) {
   const session = await auth()
   if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const gate = await requireModule(session.user, 'gallery'); if (gate) return gate
 
   const accountParam = req.nextUrl.searchParams.get('account') ?? undefined
   const filter = getAccountFilter(session.user, accountParam)
@@ -20,6 +22,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const session = await auth()
   if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const gate = await requireModule(session.user, 'gallery'); if (gate) return gate
 
   const body = await req.json()
   const { accountParam, url, caption } = body

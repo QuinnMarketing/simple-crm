@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import { getAccountFilter } from '@/lib/account-scope'
+import { requireModule } from '@/lib/account-modules'
 import type { Session } from 'next-auth'
 
 async function getImage(id: string, user: Session['user']) {
@@ -16,6 +17,7 @@ async function getImage(id: string, user: Session['user']) {
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth()
   if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const gate = await requireModule(session.user, 'gallery'); if (gate) return gate
 
   const { id } = await params
   const image = await getImage(id, session.user)
@@ -36,6 +38,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth()
   if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const gate = await requireModule(session.user, 'gallery'); if (gate) return gate
 
   const { id } = await params
   const image = await getImage(id, session.user)
