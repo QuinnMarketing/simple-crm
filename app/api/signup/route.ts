@@ -30,6 +30,10 @@ async function uniqueSlug(name: string): Promise<string> {
   return `${base}-${Date.now().toString(36)}`
 }
 
+export async function OPTIONS() {
+  return new NextResponse(null, { status: 204 })
+}
+
 export async function POST(req: NextRequest) {
   const ip = getClientIp(req)
 

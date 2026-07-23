@@ -32,6 +32,15 @@ const nextConfig: NextConfig = {
           { key: 'Content-Security-Policy', value: "frame-ancestors *" },
         ],
       },
+      {
+        source: '/api/signup',
+        headers: [
+          { key: 'Access-Control-Allow-Origin', value: 'https://expertsoncall.com.au' },
+          { key: 'Access-Control-Allow-Methods', value: 'POST, OPTIONS' },
+          { key: 'Access-Control-Allow-Headers', value: 'Content-Type' },
+          { key: 'Access-Control-Max-Age', value: '86400' },
+        ],
+      },
     ]
   },
 }
