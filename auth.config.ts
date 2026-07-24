@@ -9,6 +9,9 @@ export const authConfig = {
       const path = nextUrl.pathname
 
       if (path.startsWith('/api/webhooks')) return true
+      // TEMPORARY: one-off demo-lead seeding endpoint, gated by its own
+      // SEED_DEMO_SECRET header check — remove alongside the route.
+      if (path.startsWith('/api/admin/seed-demo-leads')) return true
       if (path.startsWith('/api/calendar/callback')) return true
       // System + public-facing endpoints: cron runner, email tracking pixels,
       // unsubscribe links, quote accept/decline links, inbound receipt emails.
