@@ -6,7 +6,7 @@ export async function GET(req: NextRequest) {
   const error = searchParams.get('error')
 
   const fail = (msg: string) =>
-    NextResponse.redirect(new URL(`/admin/config?sheets=error&msg=${encodeURIComponent(msg)}`, req.url))
+    NextResponse.json({ success: false, error: msg }, { status: 400 })
 
   if (error) return fail(error)
   if (!code) return fail('No authorization code returned')

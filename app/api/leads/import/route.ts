@@ -2,6 +2,7 @@ import { auth } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import { parseCsv } from '@/lib/csv'
 import { appendLeadToSheet } from '@/lib/google-sheets'
+import { syncLeadToTrackingSheet } from '@/lib/lead-tracking-sheet'
 import { NextRequest, NextResponse } from 'next/server'
 
 const VALID_STATUSES = new Set(['new', 'contacted', 'qualified', 'won', 'lost'])
@@ -116,6 +117,7 @@ export async function POST(req: NextRequest) {
       appendLeadToSheet(lead).catch(err => {
         console.error(`Failed to append lead ${lead.id} to sheet:`, err)
       })
+      syncLeadToTrackingSheet(accountId, lead)
 
       created++
     } catch (err) {

@@ -4,6 +4,7 @@ import { logAudit } from '@/lib/audit'
 import { runAutomations } from '@/lib/automations'
 import { sendPushToAccount } from '@/lib/push'
 import { appendLeadToSheet } from '@/lib/google-sheets'
+import { syncLeadToTrackingSheet } from '@/lib/lead-tracking-sheet'
 import { NextRequest, NextResponse } from 'next/server'
 
 // Verification ping from email services (Mailgun, SendGrid) — respond 200
@@ -85,6 +86,7 @@ export async function POST(req: NextRequest) {
   }
 
   appendLeadToSheet(lead).catch(() => {})
+  syncLeadToTrackingSheet(accountId, lead)
   runAutomations('lead_created', lead).catch(() => {})
   logAudit({ accountId, action: 'lead.created', entityType: 'lead', entityId: lead.id, entityLabel: lead.name, ipAddress: null }).catch(() => {})
   sendPushToAccount(accountId, {

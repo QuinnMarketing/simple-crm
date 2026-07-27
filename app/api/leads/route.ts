@@ -5,6 +5,7 @@ import { getAccountFilter } from '@/lib/account-scope'
 import { runAutomations } from '@/lib/automations'
 import { sendPushToAccount } from '@/lib/push'
 import { appendLeadToSheet } from '@/lib/google-sheets'
+import { syncLeadToTrackingSheet } from '@/lib/lead-tracking-sheet'
 import { after } from 'next/server'
 import { NextRequest, NextResponse } from 'next/server'
 
@@ -67,6 +68,7 @@ export async function POST(req: NextRequest) {
   })
 
   after(() => appendLeadToSheet(lead))
+  after(() => syncLeadToTrackingSheet(accountId, lead))
   after(() => runAutomations('lead_created', lead))
   after(() => logAudit({ accountId, userId: session.user.id, userEmail: session.user.email, action: 'lead.created', entityType: 'lead', entityId: lead.id, entityLabel: lead.name, ipAddress: getIp(req) }))
   after(() => sendPushToAccount(accountId, {

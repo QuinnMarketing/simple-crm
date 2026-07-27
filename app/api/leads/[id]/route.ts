@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { getAccountFilter } from '@/lib/account-scope'
 import { pushToGoogleAds, type GoogleAdsConfig } from '@/lib/google-ads'
 import { runAutomations } from '@/lib/automations'
+import { syncLeadToTrackingSheet } from '@/lib/lead-tracking-sheet'
 import { after } from 'next/server'
 import { NextRequest, NextResponse } from 'next/server'
 
@@ -164,6 +165,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       ))
     }
     after(() => runAutomations('lead_status_changed', lead, { previousStatus: existing.status }))
+    after(() => syncLeadToTrackingSheet(lead.accountId, lead))
   }
 
   after(() => logAudit({ accountId: lead.accountId, userId: session.user.id, userEmail: session.user.email, action: 'lead.updated', entityType: 'lead', entityId: lead.id, entityLabel: lead.name, changes: auditDiff(existing as Record<string, unknown>, lead as Record<string, unknown>), ipAddress: getIp(req) }))

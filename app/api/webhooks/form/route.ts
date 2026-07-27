@@ -2,6 +2,7 @@ import { logAudit } from '@/lib/audit'
 import { runAutomations } from '@/lib/automations'
 import { sendPushToAccount } from '@/lib/push'
 import { appendLeadToSheet } from '@/lib/google-sheets'
+import { syncLeadToTrackingSheet } from '@/lib/lead-tracking-sheet'
 import { prisma } from '@/lib/prisma'
 import { parseWebhookPayload } from '@/lib/webhook-parser'
 import { deriveLeadSource } from '@/lib/lead-source'
@@ -130,6 +131,7 @@ export async function POST(req: NextRequest) {
   })
 
   after(() => appendLeadToSheet(lead))
+  after(() => syncLeadToTrackingSheet(accountId, lead))
   after(() => runAutomations('lead_created', lead))
   after(() => logAudit({ accountId, action: 'lead.created', entityType: 'lead', entityId: lead.id, entityLabel: lead.name, ipAddress: lead.ipAddress }))
   after(() => sendPushToAccount(accountId, {
