@@ -2,9 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { rateLimit, getClientIp } from '@/lib/rate-limit'
 import { localToUTCDate } from '@/lib/booking-time'
-import { getAccountSmtp } from '@/lib/email-from'
-import { sendEmail } from '@/lib/email'
 import { getBaseUrl } from '@/lib/base-url'
+import { notifyAppointmentBooked } from '@/lib/appointment-notifications'
+import { runAppointmentBookedAutomations } from '@/lib/automations'
 import { getCalendarConfig, getBusyIntervals, createCalendarEvent } from '@/lib/google-calendar'
 import { getAccountStripe, getAccountStripeConfig } from '@/lib/stripe'
 import { randomBytes } from 'crypto'
@@ -218,33 +218,19 @@ export async function POST(
     })
   }
 
-  // Confirmation email with a self-service manage link (best-effort, off the response path)
-  if (lead.email) {
-    after(async () => {
-      const smtp = await getAccountSmtp(account.id)
-      if (!smtp.host || !smtp.user || !smtp.pass) return
-      const whenStr = new Intl.DateTimeFormat('en-AU', {
-        timeZone: settings.timezone, weekday: 'long', day: 'numeric', month: 'long',
-        hour: 'numeric', minute: '2-digit', hour12: true,
-      }).format(startTime)
-      const manageUrl = `${getBaseUrl()}/book/manage/${cancelToken}`
-      const lines = [
-        `Hi ${lead.name},`,
-        '',
-        `Your booking with ${account.name} is confirmed:`,
-        '',
-        `${serviceLabel ? serviceLabel + '\n' : ''}${whenStr}`,
-        '',
-        settings.cancellationHours > 0
-          ? `Need to change or cancel? Manage your booking here:\n${manageUrl}`
-          : '',
-        settings.policyText ? `\n${settings.policyText}` : '',
-        '',
-        `— ${account.name}`,
-      ].filter((l) => l !== null).join('\n')
-      await sendEmail(smtp, lead.email!, `Booking confirmed — ${account.name}`, lines).catch(() => {})
-    })
-  }
+  // System confirmation — emails the customer AND the business (best-effort, off
+  // the response path). Editable per-account automations fire alongside it; an
+  // account using a custom 'appointment_booked' automation can disable the
+  // system confirmation via BookingSettings.notifyConfirmation.
+  after(() => notifyAppointmentBooked(appointment.id))
+  after(() => runAppointmentBookedAutomations({
+    id: appointment.id,
+    title: appointment.title,
+    startTime,
+    location: appointment.location ?? null,
+    accountId: account.id,
+    leadId: lead.id,
+  }))
 
   return NextResponse.json({ success: true, leadId: lead.id })
 }

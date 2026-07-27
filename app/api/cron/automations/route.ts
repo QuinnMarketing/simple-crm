@@ -1,4 +1,5 @@
 import { runPendingQuoteFollowups, runAppointmentReminderAutomations, runIdleDealAlerts, runIdlePushAlerts } from '@/lib/automations'
+import { sendDueAppointmentReminders } from '@/lib/appointment-notifications'
 import { resumeWaitingRuns, runScheduledAutomations } from '@/lib/automation-engine'
 import { sendCampaign } from '@/lib/email-campaign'
 import { syncAllEmailAccounts } from '@/lib/email-sync'
@@ -22,9 +23,10 @@ export async function GET(req: Request) {
   const campaignsSent = campaignResults.filter((r) => r.status === 'fulfilled').length
   const campaignsFailed = campaignResults.filter((r) => r.status === 'rejected').length
 
-  const [quotes, reminders, idleDeals, idlePush, resumed, scheduled, emailSync] = await Promise.all([
+  const [quotes, reminders, bookingReminders, idleDeals, idlePush, resumed, scheduled, emailSync] = await Promise.all([
     runPendingQuoteFollowups(),
     runAppointmentReminderAutomations(),
+    sendDueAppointmentReminders(),
     runIdleDealAlerts(),
     runIdlePushAlerts(),
     resumeWaitingRuns(),
@@ -32,5 +34,5 @@ export async function GET(req: Request) {
     syncAllEmailAccounts(),
   ])
 
-  return NextResponse.json({ ok: true, quotes, reminders, idleDeals, idlePush, resumed, scheduled, emailSync, campaigns: { sent: campaignsSent, failed: campaignsFailed } })
+  return NextResponse.json({ ok: true, quotes, reminders, bookingReminders, idleDeals, idlePush, resumed, scheduled, emailSync, campaigns: { sent: campaignsSent, failed: campaignsFailed } })
 }

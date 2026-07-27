@@ -267,6 +267,8 @@ export default async function SettingsPage({
               minNoticeHours: account.bookingSettings.minNoticeHours,
               cancellationHours: account.bookingSettings.cancellationHours,
               policyText: account.bookingSettings.policyText ?? '',
+              notifyConfirmation: account.bookingSettings.notifyConfirmation,
+              notifyReminder: account.bookingSettings.notifyReminder,
             } : null}
           />
         </CollapsibleSection>

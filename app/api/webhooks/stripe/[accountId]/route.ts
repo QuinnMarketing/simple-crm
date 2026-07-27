@@ -1,6 +1,8 @@
 import type Stripe from 'stripe'
 import { prisma } from '@/lib/prisma'
 import { getAccountStripe, getAccountStripeConfig } from '@/lib/stripe'
+import { notifyAppointmentBooked } from '@/lib/appointment-notifications'
+import { runAppointmentBookedAutomations } from '@/lib/automations'
 import { NextRequest, NextResponse } from 'next/server'
 
 type Params = { params: Promise<{ accountId: string }> }
@@ -85,8 +87,24 @@ async function markDepositPaid(session: Stripe.Checkout.Session) {
   if (!appointmentId) return
 
   // Idempotent: updateMany with a not-already-paid guard is a no-op on retry.
-  await prisma.appointment.updateMany({
+  const res = await prisma.appointment.updateMany({
     where: { id: appointmentId, depositPaid: false },
     data: { depositPaid: true },
   })
+  if (res.count === 0) return // already processed on an earlier delivery — don't re-send
+
+  // The deposit was just paid, securing the slot. Send the booking confirmation
+  // that was deferred at booking time (customer + business) and fire editable
+  // automations, matching the no-deposit path.
+  const appt = await prisma.appointment.findUnique({
+    where: { id: appointmentId },
+    select: { id: true, title: true, startTime: true, location: true, accountId: true, leadId: true },
+  })
+  await notifyAppointmentBooked(appointmentId).catch(() => {})
+  if (appt?.accountId && appt.leadId) {
+    await runAppointmentBookedAutomations({
+      id: appt.id, title: appt.title, startTime: appt.startTime,
+      location: appt.location, accountId: appt.accountId, leadId: appt.leadId,
+    }).catch(() => {})
+  }
 }

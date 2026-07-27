@@ -413,6 +413,7 @@ model Appointment {
   depositAmount   Float?   // amount required to hold this booking (snapshot)
   depositPaid     Boolean  @default(false)
   depositSessionId String? // Stripe Checkout session id for the deposit
+  reminderSentAt  DateTime? // when the system 24h-before reminder was sent (dedup)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
@@ -1036,6 +1037,8 @@ model BookingSettings {
   minNoticeHours Int      @default(24)
   cancellationHours Int   @default(24)  // notice required to cancel/reschedule online (0 = no self-service cancel)
   policyText     String?                // cancellation policy shown on the booking page and confirmation
+  notifyConfirmation Boolean @default(true) // email business + customer at booking time
+  notifyReminder     Boolean @default(true) // email business + customer ~24h before the appointment
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 }

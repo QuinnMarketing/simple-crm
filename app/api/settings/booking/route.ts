@@ -8,7 +8,8 @@ export async function POST(req: NextRequest) {
 
   const body = await req.json()
   const { accountId, enabled, title, description, slotDuration, bufferTime, timezone,
-    availableHours, maxDaysAhead, minNoticeHours, cancellationHours, policyText } = body
+    availableHours, maxDaysAhead, minNoticeHours, cancellationHours, policyText,
+    notifyConfirmation, notifyReminder } = body
 
   if (!accountId) return NextResponse.json({ error: 'Missing accountId' }, { status: 400 })
 
@@ -31,6 +32,11 @@ export async function POST(req: NextRequest) {
     minNoticeHours: Math.max(0, Math.min(168, parseInt(minNoticeHours) || 24)),
     cancellationHours: Math.max(0, Math.min(336, parseInt(cancellationHours) ?? 24)),
     policyText: policyText ? String(policyText).slice(0, 1000) : null,
+    // Default on so existing clients (and older UI that omits these) keep the
+    // booking + reminder emails; explicitly togglable to avoid duplicates when
+    // an account runs its own custom automation instead.
+    notifyConfirmation: notifyConfirmation === undefined ? true : Boolean(notifyConfirmation),
+    notifyReminder: notifyReminder === undefined ? true : Boolean(notifyReminder),
   }
 
   await prisma.bookingSettings.upsert({

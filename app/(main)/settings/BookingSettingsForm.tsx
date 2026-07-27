@@ -50,6 +50,8 @@ type Props = {
     minNoticeHours: number
     cancellationHours: number
     policyText: string
+    notifyConfirmation: boolean
+    notifyReminder: boolean
   } | null
 }
 
@@ -72,6 +74,8 @@ export default function BookingSettingsForm({ accountId, accountSlug, initial }:
   const [minNoticeHours, setMinNoticeHours] = useState(String(initial?.minNoticeHours ?? 24))
   const [cancellationHours, setCancellationHours] = useState(String(initial?.cancellationHours ?? 24))
   const [policyText, setPolicyText] = useState(initial?.policyText ?? '')
+  const [notifyConfirmation, setNotifyConfirmation] = useState(initial?.notifyConfirmation ?? true)
+  const [notifyReminder, setNotifyReminder] = useState(initial?.notifyReminder ?? true)
   const [hours, setHours] = useState<Record<string, DayConfig>>(parseHours(initial?.availableHours ?? '{}'))
 
   const [saving, setSaving] = useState(false)
@@ -112,6 +116,8 @@ export default function BookingSettingsForm({ accountId, accountSlug, initial }:
           minNoticeHours: parseInt(minNoticeHours) || 24,
           cancellationHours: parseInt(cancellationHours) || 0,
           policyText,
+          notifyConfirmation,
+          notifyReminder,
         }),
       })
       setSaved(true)
@@ -231,6 +237,35 @@ export default function BookingSettingsForm({ accountId, accountSlug, initial }:
           className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none"
         />
         <p className="text-xs text-slate-400 mt-1">Shown on the booking page, the confirmation email, and the manage-booking page.</p>
+      </div>
+
+      {/* Notification emails */}
+      <div>
+        <p className="text-sm font-medium text-slate-700 mb-2">Notification emails</p>
+        <label className="flex items-start gap-2.5 mb-2">
+          <input
+            type="checkbox"
+            checked={notifyConfirmation}
+            onChange={(e) => setNotifyConfirmation(e.target.checked)}
+            className="mt-0.5 h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+          />
+          <span className="text-sm text-slate-700">
+            Send a confirmation email at booking time
+            <span className="block text-xs text-slate-400">Emails the customer and your business the moment a booking is made.</span>
+          </span>
+        </label>
+        <label className="flex items-start gap-2.5">
+          <input
+            type="checkbox"
+            checked={notifyReminder}
+            onChange={(e) => setNotifyReminder(e.target.checked)}
+            className="mt-0.5 h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+          />
+          <span className="text-sm text-slate-700">
+            Send a reminder ~24 hours before the appointment
+            <span className="block text-xs text-slate-400">Reminds the customer and your business the day before. Turn off if you run your own reminder automation.</span>
+          </span>
+        </label>
       </div>
 
       {/* Working hours */}
