@@ -122,6 +122,37 @@ export async function notifyAppointmentBooked(appointmentId: string): Promise<vo
 }
 
 /**
+ * Reschedule confirmation — customer and business — when a booking is moved via
+ * the manage-booking page. Always sent (it's direct feedback for the action the
+ * customer just took), best-effort.
+ */
+export async function notifyAppointmentRescheduled(appointmentId: string): Promise<void> {
+  const appt = await loadAppointment(appointmentId)
+  if (!appt || !appt.accountId || !appt.account || !appt.leadId || !appt.lead) return
+  const smtp = await getAccountSmtp(appt.accountId)
+  if (!smtpReady(smtp)) return
+
+  const settings = appt.account.bookingSettings
+  const tz = settings?.timezone ?? 'Australia/Sydney'
+  const whenStr = fmtWhen(appt.startTime, tz)
+  const acct = appt.account.name
+  const serviceLine = appt.bookingType?.name ? `${appt.bookingType.name}\n` : ''
+  const manage = settings && settings.cancellationHours > 0 && appt.cancelToken
+    ? `\nNeed to make another change? Manage your booking here:\n${getBaseUrl()}/book/manage/${appt.cancelToken}\n`
+    : ''
+
+  if (appt.lead.email) {
+    const body = `Hi ${appt.lead.name},\n\nYour booking with ${acct} has been rescheduled to:\n\n${serviceLine}${whenStr}\n${manage}\nSee you then!\n— ${acct}`
+    await sendEmail(smtp, appt.lead.email, `Booking rescheduled — ${acct}`, body).catch(() => {})
+  }
+  const biz = await resolveBusinessEmail(appt.accountId)
+  if (biz) {
+    await sendEmail(smtp, biz, `Booking rescheduled: ${appt.lead.name} — ${whenStr}`,
+      businessBody(appt, whenStr, 'A booking was rescheduled:')).catch(() => {})
+  }
+}
+
+/**
  * System 24h-before reminder — customer and business. Runs from the daily
  * cron; a 12–36h window plus the reminderSentAt stamp mean each appointment is
  * reminded exactly once, the day before.
