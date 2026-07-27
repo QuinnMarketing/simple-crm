@@ -451,7 +451,17 @@ interface BookingsData {
   totalBookings: number; services: number; topService: string | null; cancelled: number; bookedValue: number
   byService: { service: string; count: number; revenue: number; cancelled: number }[]
   byStatus: { status: string; count: number }[]
+  byTimeOfDay: { bucket: string; count: number }[]
   bookings: { id: string; service: string; status: string; price: number | null; when: string; leadName: string | null; leadId: string | null }[]
+}
+
+const TOD_LABELS: Record<string, { label: string; range: string }> = {
+  before_work: { label: 'Before work', range: 'before 9am' },
+  morning: { label: 'Morning', range: '9–10:30am' },
+  morning_tea: { label: 'Morning tea', range: '10:30am–12' },
+  midday: { label: 'Midday', range: '12–2pm' },
+  afternoon: { label: 'Afternoon', range: '2–5pm' },
+  night: { label: 'Night', range: 'after 5pm' },
 }
 
 const BOOKING_STATUS: Record<string, { label: string; color: string }> = {
@@ -486,6 +496,8 @@ function BookingsReport({ from, to, account }: { from: string; to: string; accou
 
   const chartData = data.byService.filter(s => s.count > 0).slice(0, 12)
   const chartHeight = Math.max(160, chartData.length * 34)
+  const todData = data.byTimeOfDay.map(t => ({ ...t, label: TOD_LABELS[t.bucket]?.label ?? t.bucket }))
+  const todPeak = Math.max(0, ...data.byTimeOfDay.map(t => t.count))
 
   return (
     <div className="space-y-6">
@@ -506,6 +518,29 @@ function BookingsReport({ from, to, account }: { from: string; to: string; accou
               <Tooltip formatter={(v, _n, p) => [`${v} booking${Number(v) === 1 ? '' : 's'}${p?.payload?.revenue ? ` · ${fmtCurrency(p.payload.revenue)}` : ''}`, 'Bookings']} />
               <Bar dataKey="count" radius={[0, 4, 4, 0]}>
                 {chartData.map((_, i) => <Cell key={i} fill={SERVICE_COLORS[i % SERVICE_COLORS.length]} />)}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        )}
+      </div>
+
+      <div className="bg-white rounded-xl border border-slate-200 p-5">
+        <SectionTitle>Bookings by Time of Day</SectionTitle>
+        {data.totalBookings === 0 ? <p className="text-sm text-slate-400">No bookings in this period</p> : (
+          <ResponsiveContainer width="100%" height={200}>
+            <BarChart data={todData} margin={{ left: 0, right: 10, top: 10 }}>
+              <XAxis dataKey="label" tick={{ fontSize: 10 }} interval={0} />
+              <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
+              <Tooltip
+                cursor={{ fill: '#f1f5f9' }}
+                formatter={(v) => [`${v} booking${Number(v) === 1 ? '' : 's'}`, 'Bookings']}
+                labelFormatter={(l) => {
+                  const b = todData.find(x => x.label === l)
+                  return b ? `${l} · ${TOD_LABELS[b.bucket]?.range ?? ''}` : String(l)
+                }}
+              />
+              <Bar dataKey="count" radius={[4, 4, 0, 0]}>
+                {todData.map((t, i) => <Cell key={i} fill={todPeak > 0 && t.count === todPeak ? '#10b981' : '#6366f1'} />)}
               </Bar>
             </BarChart>
           </ResponsiveContainer>

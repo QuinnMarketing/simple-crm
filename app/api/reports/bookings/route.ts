@@ -6,6 +6,33 @@ import { NextRequest, NextResponse } from 'next/server'
 // Bookings report: how often each service (booking type) is booked, so a
 // business can see which services are most popular. Scoped by account and by
 // when the booking was made (createdAt), matching the other reports' period.
+
+// Time-of-day buckets by local start time (in the account's booking timezone).
+const TOD_ORDER = ['before_work', 'morning', 'morning_tea', 'midday', 'afternoon', 'night'] as const
+
+function todBucket(minutesOfDay: number): (typeof TOD_ORDER)[number] {
+  if (minutesOfDay < 540) return 'before_work'   // before 9:00am
+  if (minutesOfDay < 630) return 'morning'        // 9:00–10:29
+  if (minutesOfDay < 720) return 'morning_tea'    // 10:30–11:59
+  if (minutesOfDay < 840) return 'midday'         // 12:00–1:59pm
+  if (minutesOfDay < 1020) return 'afternoon'     // 2:00–4:59pm
+  return 'night'                                  // 5:00pm onwards
+}
+
+// Local minutes-since-midnight of a UTC instant, in the given timezone.
+const _todFmt = new Map<string, Intl.DateTimeFormat>()
+function localMinutesOfDay(date: Date, tz: string): number {
+  let f = _todFmt.get(tz)
+  if (!f) {
+    f = new Intl.DateTimeFormat('en-GB', { timeZone: tz, hour: '2-digit', minute: '2-digit', hour12: false })
+    _todFmt.set(tz, f)
+  }
+  const parts = f.formatToParts(date)
+  const h = Number(parts.find((p) => p.type === 'hour')?.value ?? '0') % 24 // some runtimes emit '24' at midnight
+  const m = Number(parts.find((p) => p.type === 'minute')?.value ?? '0')
+  return h * 60 + m
+}
+
 export async function GET(req: NextRequest) {
   const session = await auth()
   if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -29,12 +56,14 @@ export async function GET(req: NextRequest) {
       id: true, status: true, bookingPrice: true, startTime: true,
       bookingType: { select: { name: true } },
       lead: { select: { id: true, name: true } },
+      account: { select: { bookingSettings: { select: { timezone: true } } } },
     },
     orderBy: { startTime: 'desc' },
   })
 
   const serviceMap = new Map<string, { count: number; revenue: number; cancelled: number }>()
   const statusMap: Record<string, number> = {}
+  const todMap: Record<string, number> = {}
   let cancelled = 0
   let bookedValue = 0
 
@@ -48,6 +77,10 @@ export async function GET(req: NextRequest) {
     } else {
       entry.count++
       if (a.bookingPrice) { entry.revenue += a.bookingPrice; bookedValue += a.bookingPrice }
+      // Bucket confirmed bookings by local start time of day.
+      const tz = a.account?.bookingSettings?.timezone ?? 'Australia/Sydney'
+      const bucket = todBucket(localMinutesOfDay(a.startTime, tz))
+      todMap[bucket] = (todMap[bucket] ?? 0) + 1
     }
     serviceMap.set(svc, entry)
   }
@@ -71,6 +104,7 @@ export async function GET(req: NextRequest) {
     bookedValue,
     byService,
     byStatus,
+    byTimeOfDay: TOD_ORDER.map((bucket) => ({ bucket, count: todMap[bucket] ?? 0 })),
     bookings: appts.slice(0, 500).map((a) => ({
       id: a.id,
       service: a.bookingType?.name ?? 'Unspecified',
