@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts'
-import { Loader2, Download, TrendingUp, Clock, DollarSign, Users } from 'lucide-react'
+import { Loader2, Download, TrendingUp, Clock, DollarSign, Users, CalendarDays } from 'lucide-react'
 import Link from 'next/link'
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -445,11 +445,144 @@ function RevenueReport({ from, to, account }: { from: string; to: string; accoun
   )
 }
 
+// ─── Bookings Report ──────────────────────────────────────────────────────────
+
+interface BookingsData {
+  totalBookings: number; services: number; topService: string | null; cancelled: number; bookedValue: number
+  byService: { service: string; count: number; revenue: number; cancelled: number }[]
+  byStatus: { status: string; count: number }[]
+  bookings: { id: string; service: string; status: string; price: number | null; when: string; leadName: string | null; leadId: string | null }[]
+}
+
+const BOOKING_STATUS: Record<string, { label: string; color: string }> = {
+  scheduled: { label: 'Scheduled', color: '#6366f1' },
+  completed: { label: 'Completed', color: '#10b981' },
+  cancelled: { label: 'Cancelled', color: '#ef4444' },
+  no_show: { label: 'No-show', color: '#f59e0b' },
+}
+const SERVICE_COLORS = ['#6366f1', '#8b5cf6', '#ec4899', '#f59e0b', '#10b981', '#3b82f6', '#ef4444', '#14b8a6', '#a855f7', '#f97316', '#0ea5e9', '#84cc16']
+
+function BookingsReport({ from, to, account }: { from: string; to: string; account?: string }) {
+  const [data, setData] = useState<BookingsData | null>(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    setLoading(true)
+    const qs = new URLSearchParams({ from, to, ...(account ? { account } : {}) })
+    fetch(`/api/reports/bookings?${qs}`).then(r => r.json()).then(setData).finally(() => setLoading(false))
+  }, [from, to, account])
+
+  if (loading) return <div className="flex justify-center py-20 text-slate-400"><Loader2 className="w-5 h-5 animate-spin" /></div>
+  if (!data) return null
+
+  function handleExport() {
+    if (!data) return
+    const rows = [
+      ['Service', 'Bookings', 'Cancelled', 'Booked value'],
+      ...data.byService.map(s => [s.service, String(s.count), String(s.cancelled), s.revenue ? String(s.revenue) : '']),
+    ]
+    exportCsv(rows, `bookings-by-service-${from}-${to}.csv`)
+  }
+
+  const chartData = data.byService.filter(s => s.count > 0).slice(0, 12)
+  const chartHeight = Math.max(160, chartData.length * 34)
+
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <StatCard label="Total Bookings" value={String(data.totalBookings)} sub="excludes cancelled" icon={CalendarDays} color="bg-indigo-100 text-indigo-600" />
+        <StatCard label="Services Booked" value={String(data.services)} icon={TrendingUp} color="bg-purple-100 text-purple-600" />
+        <StatCard label="Most Popular" value={data.topService ?? '—'} icon={TrendingUp} color="bg-emerald-100 text-emerald-600" />
+        <StatCard label="Cancelled" value={String(data.cancelled)} sub={data.bookedValue ? `${fmtCurrency(data.bookedValue)} booked` : undefined} icon={Clock} color="bg-amber-100 text-amber-600" />
+      </div>
+
+      <div className="bg-white rounded-xl border border-slate-200 p-5">
+        <SectionTitle>Bookings by Service</SectionTitle>
+        {chartData.length === 0 ? <p className="text-sm text-slate-400">No bookings in this period</p> : (
+          <ResponsiveContainer width="100%" height={chartHeight}>
+            <BarChart data={chartData} layout="vertical" margin={{ left: 110, right: 20 }}>
+              <XAxis type="number" tick={{ fontSize: 11 }} allowDecimals={false} />
+              <YAxis type="category" dataKey="service" tick={{ fontSize: 11 }} width={110} />
+              <Tooltip formatter={(v, _n, p) => [`${v} booking${Number(v) === 1 ? '' : 's'}${p?.payload?.revenue ? ` · ${fmtCurrency(p.payload.revenue)}` : ''}`, 'Bookings']} />
+              <Bar dataKey="count" radius={[0, 4, 4, 0]}>
+                {chartData.map((_, i) => <Cell key={i} fill={SERVICE_COLORS[i % SERVICE_COLORS.length]} />)}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        )}
+      </div>
+
+      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+        <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-100">
+          <p className="font-semibold text-slate-900 text-sm">Services ({data.byService.length})</p>
+          <button onClick={handleExport} className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-indigo-600 border border-slate-200 rounded-lg px-3 py-1.5 hover:border-indigo-300 transition-colors">
+            <Download className="w-3.5 h-3.5" /> Export CSV
+          </button>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="bg-slate-50 border-b border-slate-100">
+              <tr>{['Service', 'Bookings', 'Cancelled', 'Booked Value'].map(h => <th key={h} className="text-left px-5 py-2.5 text-xs font-semibold text-slate-500 uppercase tracking-wide">{h}</th>)}</tr>
+            </thead>
+            <tbody className="divide-y divide-slate-50">
+              {data.byService.map((s, i) => (
+                <tr key={s.service} className="hover:bg-slate-50/50">
+                  <td className="px-5 py-3 font-medium text-slate-900 flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: SERVICE_COLORS[i % SERVICE_COLORS.length] }} />
+                    {s.service}
+                  </td>
+                  <td className="px-5 py-3 font-semibold text-slate-700">{s.count}</td>
+                  <td className="px-5 py-3 text-slate-400">{s.cancelled || '—'}</td>
+                  <td className="px-5 py-3 text-slate-500">{s.revenue ? fmtCurrency(s.revenue) : '—'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {data.byService.length === 0 && <p className="text-sm text-slate-400 text-center py-10">No bookings in this period</p>}
+        </div>
+      </div>
+
+      {data.bookings.length > 0 && (
+        <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+          <div className="px-5 py-3.5 border-b border-slate-100">
+            <p className="font-semibold text-slate-900 text-sm">Recent Bookings</p>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-slate-50 border-b border-slate-100">
+                <tr>{['Service', 'Status', 'Customer', 'Price', 'Date'].map(h => <th key={h} className="text-left px-5 py-2.5 text-xs font-semibold text-slate-500 uppercase tracking-wide">{h}</th>)}</tr>
+              </thead>
+              <tbody className="divide-y divide-slate-50">
+                {data.bookings.map(b => (
+                  <tr key={b.id} className="hover:bg-slate-50/50">
+                    <td className="px-5 py-3 font-medium text-slate-900">{b.service}</td>
+                    <td className="px-5 py-3">
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium" style={{ background: (BOOKING_STATUS[b.status]?.color ?? '#94a3b8') + '20', color: BOOKING_STATUS[b.status]?.color ?? '#94a3b8' }}>
+                        {BOOKING_STATUS[b.status]?.label ?? capitalize(b.status)}
+                      </span>
+                    </td>
+                    <td className="px-5 py-3 text-slate-500">
+                      {b.leadId ? <Link href={`/leads/${b.leadId}`} className="hover:text-indigo-600 hover:underline">{b.leadName ?? '—'}</Link> : (b.leadName ?? '—')}
+                    </td>
+                    <td className="px-5 py-3 text-slate-700">{b.price ? fmtCurrency(b.price) : '—'}</td>
+                    <td className="px-5 py-3 text-slate-400">{fmtDate(b.when)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
-type Tab = 'leads' | 'time' | 'revenue'
+type Tab = 'leads' | 'time' | 'revenue' | 'bookings'
 const TABS: { id: Tab; label: string; icon: React.ElementType }[] = [
   { id: 'leads', label: 'Lead Pipeline', icon: Users },
+  { id: 'bookings', label: 'Bookings', icon: CalendarDays },
   { id: 'time', label: 'Time Tracking', icon: Clock },
   { id: 'revenue', label: 'Revenue', icon: DollarSign },
 ]
@@ -481,7 +614,7 @@ export default function ReportsPage() {
       <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Reports</h1>
-          <p className="text-slate-500 mt-1 text-sm">Lead pipeline, time tracking, and revenue</p>
+          <p className="text-slate-500 mt-1 text-sm">Lead pipeline, bookings, time tracking, and revenue</p>
         </div>
       </div>
 
@@ -521,6 +654,7 @@ export default function ReportsPage() {
       </div>
 
       {tab === 'leads' && <LeadsReport from={from} to={to} account={account} />}
+      {tab === 'bookings' && <BookingsReport from={from} to={to} account={account} />}
       {tab === 'time' && <TimeReport from={from} to={to} account={account} />}
       {tab === 'revenue' && <RevenueReport from={from} to={to} account={account} />}
     </div>
