@@ -33,6 +33,18 @@ function localMinutesOfDay(date: Date, tz: string): number {
   return h * 60 + m
 }
 
+// Local weekday of a UTC instant, in the given timezone (Mon–Sun).
+const DOW_ORDER = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as const
+const _dowFmt = new Map<string, Intl.DateTimeFormat>()
+function localWeekday(date: Date, tz: string): string {
+  let f = _dowFmt.get(tz)
+  if (!f) {
+    f = new Intl.DateTimeFormat('en-US', { timeZone: tz, weekday: 'short' })
+    _dowFmt.set(tz, f)
+  }
+  return f.format(date) // "Mon", "Tue", …
+}
+
 export async function GET(req: NextRequest) {
   const session = await auth()
   if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -64,6 +76,7 @@ export async function GET(req: NextRequest) {
   const serviceMap = new Map<string, { count: number; revenue: number; cancelled: number }>()
   const statusMap: Record<string, number> = {}
   const todMap: Record<string, number> = {}
+  const dowMap: Record<string, number> = {}
   let cancelled = 0
   let bookedValue = 0
 
@@ -77,10 +90,12 @@ export async function GET(req: NextRequest) {
     } else {
       entry.count++
       if (a.bookingPrice) { entry.revenue += a.bookingPrice; bookedValue += a.bookingPrice }
-      // Bucket confirmed bookings by local start time of day.
+      // Bucket confirmed bookings by local start time of day and weekday.
       const tz = a.account?.bookingSettings?.timezone ?? 'Australia/Sydney'
       const bucket = todBucket(localMinutesOfDay(a.startTime, tz))
       todMap[bucket] = (todMap[bucket] ?? 0) + 1
+      const dow = localWeekday(a.startTime, tz)
+      dowMap[dow] = (dowMap[dow] ?? 0) + 1
     }
     serviceMap.set(svc, entry)
   }
@@ -105,6 +120,7 @@ export async function GET(req: NextRequest) {
     byService,
     byStatus,
     byTimeOfDay: TOD_ORDER.map((bucket) => ({ bucket, count: todMap[bucket] ?? 0 })),
+    byDayOfWeek: DOW_ORDER.map((day) => ({ day, count: dowMap[day] ?? 0 })),
     bookings: appts.slice(0, 500).map((a) => ({
       id: a.id,
       service: a.bookingType?.name ?? 'Unspecified',

@@ -452,6 +452,7 @@ interface BookingsData {
   byService: { service: string; count: number; revenue: number; cancelled: number }[]
   byStatus: { status: string; count: number }[]
   byTimeOfDay: { bucket: string; count: number }[]
+  byDayOfWeek: { day: string; count: number }[]
   bookings: { id: string; service: string; status: string; price: number | null; when: string; leadName: string | null; leadId: string | null }[]
 }
 
@@ -498,6 +499,7 @@ function BookingsReport({ from, to, account }: { from: string; to: string; accou
   const chartHeight = Math.max(160, chartData.length * 34)
   const todData = data.byTimeOfDay.map(t => ({ ...t, label: TOD_LABELS[t.bucket]?.label ?? t.bucket }))
   const todPeak = Math.max(0, ...data.byTimeOfDay.map(t => t.count))
+  const dowPeak = Math.max(0, ...data.byDayOfWeek.map(d => d.count))
 
   return (
     <div className="space-y-6">
@@ -524,27 +526,45 @@ function BookingsReport({ from, to, account }: { from: string; to: string; accou
         )}
       </div>
 
-      <div className="bg-white rounded-xl border border-slate-200 p-5">
-        <SectionTitle>Bookings by Time of Day</SectionTitle>
-        {data.totalBookings === 0 ? <p className="text-sm text-slate-400">No bookings in this period</p> : (
-          <ResponsiveContainer width="100%" height={200}>
-            <BarChart data={todData} margin={{ left: 0, right: 10, top: 10 }}>
-              <XAxis dataKey="label" tick={{ fontSize: 10 }} interval={0} />
-              <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
-              <Tooltip
-                cursor={{ fill: '#f1f5f9' }}
-                formatter={(v) => [`${v} booking${Number(v) === 1 ? '' : 's'}`, 'Bookings']}
-                labelFormatter={(l) => {
-                  const b = todData.find(x => x.label === l)
-                  return b ? `${l} · ${TOD_LABELS[b.bucket]?.range ?? ''}` : String(l)
-                }}
-              />
-              <Bar dataKey="count" radius={[4, 4, 0, 0]}>
-                {todData.map((t, i) => <Cell key={i} fill={todPeak > 0 && t.count === todPeak ? '#10b981' : '#6366f1'} />)}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
-        )}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="bg-white rounded-xl border border-slate-200 p-5">
+          <SectionTitle>Bookings by Day of Week</SectionTitle>
+          {data.totalBookings === 0 ? <p className="text-sm text-slate-400">No bookings in this period</p> : (
+            <ResponsiveContainer width="100%" height={200}>
+              <BarChart data={data.byDayOfWeek} margin={{ left: 0, right: 10, top: 10 }}>
+                <XAxis dataKey="day" tick={{ fontSize: 11 }} interval={0} />
+                <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
+                <Tooltip cursor={{ fill: '#f1f5f9' }} formatter={(v) => [`${v} booking${Number(v) === 1 ? '' : 's'}`, 'Bookings']} />
+                <Bar dataKey="count" radius={[4, 4, 0, 0]}>
+                  {data.byDayOfWeek.map((d, i) => <Cell key={i} fill={dowPeak > 0 && d.count === dowPeak ? '#10b981' : '#6366f1'} />)}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          )}
+        </div>
+
+        <div className="bg-white rounded-xl border border-slate-200 p-5">
+          <SectionTitle>Bookings by Time of Day</SectionTitle>
+          {data.totalBookings === 0 ? <p className="text-sm text-slate-400">No bookings in this period</p> : (
+            <ResponsiveContainer width="100%" height={200}>
+              <BarChart data={todData} margin={{ left: 0, right: 10, top: 10 }}>
+                <XAxis dataKey="label" tick={{ fontSize: 10 }} interval={0} />
+                <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
+                <Tooltip
+                  cursor={{ fill: '#f1f5f9' }}
+                  formatter={(v) => [`${v} booking${Number(v) === 1 ? '' : 's'}`, 'Bookings']}
+                  labelFormatter={(l) => {
+                    const b = todData.find(x => x.label === l)
+                    return b ? `${l} · ${TOD_LABELS[b.bucket]?.range ?? ''}` : String(l)
+                  }}
+                />
+                <Bar dataKey="count" radius={[4, 4, 0, 0]}>
+                  {todData.map((t, i) => <Cell key={i} fill={todPeak > 0 && t.count === todPeak ? '#10b981' : '#6366f1'} />)}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          )}
+        </div>
       </div>
 
       <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
