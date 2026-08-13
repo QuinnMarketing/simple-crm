@@ -2,6 +2,7 @@ import { auth } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import { getAccountFilter } from '@/lib/account-scope'
 import { runAutomations } from '@/lib/automations'
+import { sendPushToAccount } from '@/lib/push'
 import { logAudit, getIp } from '@/lib/audit'
 import { after, NextRequest, NextResponse } from 'next/server'
 
@@ -34,6 +35,11 @@ export async function POST(req: NextRequest, { params }: Params) {
   await prisma.syncedEmail.update({ where: { id }, data: { leadId: lead.id } })
 
   after(() => runAutomations('lead_created', lead))
+  after(() => sendPushToAccount(accountId, {
+    title: `New Lead: ${lead.name}`,
+    body: [lead.email, 'Email inbox'].filter(Boolean).join(' · '),
+    url: `/leads/${lead.id}`,
+  }))
   after(() => logAudit({
     accountId, userId: session.user.id, userEmail: session.user.email,
     action: 'lead.created', entityType: 'lead', entityId: lead.id, entityLabel: lead.name,
