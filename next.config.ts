@@ -5,6 +5,14 @@ const nextConfig: NextConfig = {
   async headers() {
     return [
       {
+        // The production Vercel alias serves a fully crawlable copy of the
+        // app. Vercel only noindexes *preview* deployments, not the production
+        // alias, so tag every *.vercel.app host ourselves.
+        source: '/:path*',
+        has: [{ type: 'host', value: '.*\\.vercel\\.app' }],
+        headers: [{ key: 'X-Robots-Tag', value: 'noindex, nofollow' }],
+      },
+      {
         source: '/book/:path*',
         headers: [
           { key: 'X-Frame-Options', value: 'ALLOWALL' },
