@@ -1,6 +1,7 @@
 import { prisma } from './prisma'
 import { sendEmail } from './email'
 import { getAccountSmtp } from './email-from'
+import { sendPushToAccount } from './push'
 import type {
   AutomationDefinition,
   BodyStep,
@@ -121,6 +122,16 @@ async function execAction(
       const smtp = await getAccountSmtp(ctx.accountId)
       await sendEmail(smtp, to, i(cfg.subject) || 'CRM Notification', i(cfg.body))
       return { sentTo: to }
+    }
+
+    case 'send_push': {
+      // Push reaches the account's subscribed CRM users (the business team's
+      // devices), not the lead/customer. Deep-links to the lead by default.
+      const title = i(cfg.pushTitle) || 'CRM Notification'
+      const body = i(cfg.pushBody)
+      const url = i(cfg.pushUrl) || (ctx.leadId ? `/leads/${ctx.leadId}` : '/')
+      await sendPushToAccount(ctx.accountId, { title, body, url })
+      return { pushed: title, url }
     }
 
     case 'update_lead': {

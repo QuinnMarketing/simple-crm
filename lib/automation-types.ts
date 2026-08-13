@@ -40,6 +40,7 @@ export interface TriggerNode {
 export type ActionType =
   | 'send_email'
   | 'notify_team'
+  | 'send_push'
   | 'update_lead'
   | 'add_note'
   | 'send_webhook'
@@ -50,6 +51,10 @@ export interface ActionConfig {
   to?: string
   subject?: string
   body?: string
+  // send_push (to the account's subscribed team devices)
+  pushTitle?: string
+  pushBody?: string
+  pushUrl?: string
   // update_lead
   field?: string
   value?: string

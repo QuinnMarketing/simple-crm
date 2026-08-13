@@ -11,6 +11,7 @@ import {
   Plus, Trash2, ChevronLeft, Save, Loader2, Mail, Clock, GitBranch,
   Zap, Edit2, Bell, RefreshCw, Webhook, ToggleLeft, ToggleRight, Check,
   Play, X, History, CheckCircle2, XCircle, Pause, AlertCircle, CalendarPlus,
+  Smartphone,
 } from 'lucide-react'
 import type {
   AutomationDefinition, BodyStep, ActionStep, ConditionStep, DelayStep,
@@ -35,6 +36,7 @@ const TRIGGER_OPTIONS: { value: TriggerType; label: string; desc: string }[] = [
 const ACTION_OPTIONS: { value: ActionType; label: string; icon: React.ReactNode }[] = [
   { value: 'send_email',         label: 'Send email to lead',   icon: <Mail className="w-4 h-4" /> },
   { value: 'notify_team',        label: 'Notify team member',   icon: <Bell className="w-4 h-4" /> },
+  { value: 'send_push',          label: 'Send push notification', icon: <Smartphone className="w-4 h-4" /> },
   { value: 'create_appointment', label: 'Create appointment',   icon: <CalendarPlus className="w-4 h-4" /> },
   { value: 'update_lead',        label: 'Update lead field',    icon: <RefreshCw className="w-4 h-4" /> },
   { value: 'add_note',           label: 'Add note to lead',     icon: <Edit2 className="w-4 h-4" /> },
@@ -91,6 +93,7 @@ function actionSummary(step: ActionStep): string {
   const c = step.config
   switch (step.actionType) {
     case 'send_email': case 'notify_team': return c.subject ?? 'No subject'
+    case 'send_push': return c.pushTitle ?? 'No title'
     case 'update_lead': return c.field ? `${c.field} = ${c.value ?? '?'}` : 'No field'
     case 'add_note': return c.content ? c.content.slice(0, 50) : 'Empty note'
     case 'send_webhook': return c.url ?? 'No URL'
@@ -257,6 +260,7 @@ function ActionNodeComp({ data }: NodeProps) {
   const iconMap: Partial<Record<ActionType, React.ReactNode>> = {
     send_email: <Mail className="w-4 h-4" />,
     notify_team: <Bell className="w-4 h-4" />,
+    send_push: <Smartphone className="w-4 h-4" />,
     create_appointment: <CalendarPlus className="w-4 h-4" />,
     update_lead: <RefreshCw className="w-4 h-4" />,
     add_note: <Edit2 className="w-4 h-4" />,
@@ -512,7 +516,7 @@ function TriggerConfigForm({ def, onChange }: { def: AutomationDefinition; onCha
 function ActionConfigForm({ step, onChange }: { step: ActionStep; onChange: (s: ActionStep) => void }) {
   const cfg = step.config
   const set = (patch: object) => onChange({ ...step, config: { ...cfg, ...patch } })
-  const ins = (field: 'subject' | 'body' | 'content', v: string) => set({ [field]: ((cfg[field] as string) ?? '') + v })
+  const ins = (field: 'subject' | 'body' | 'content' | 'pushTitle' | 'pushBody', v: string) => set({ [field]: ((cfg[field] as string) ?? '') + v })
 
   return (
     <div className="space-y-3">
@@ -543,6 +547,28 @@ function ActionConfigForm({ step, onChange }: { step: ActionStep; onChange: (s: 
             <label className={lbl}>Body (HTML or plain text)</label>
             <textarea rows={6} value={cfg.body ?? ''} onChange={e => set({ body: e.target.value })} className={`${inp} resize-none font-mono text-xs`} />
             <VarChips onInsert={v => ins('body', v)} />
+          </div>
+        </>
+      )}
+
+      {step.actionType === 'send_push' && (
+        <>
+          <p className="text-xs text-slate-500 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2">
+            Sends a push notification to your team&apos;s devices (anyone who has enabled push in the CRM sidebar). This does not notify the lead or customer.
+          </p>
+          <div>
+            <label className={lbl}>Title</label>
+            <input type="text" value={cfg.pushTitle ?? ''} onChange={e => set({ pushTitle: e.target.value })} className={inp} placeholder="New booking" />
+            <VarChips onInsert={v => ins('pushTitle', v)} />
+          </div>
+          <div>
+            <label className={lbl}>Message</label>
+            <textarea rows={3} value={cfg.pushBody ?? ''} onChange={e => set({ pushBody: e.target.value })} className={`${inp} resize-none`} placeholder="{{name}} just booked in" />
+            <VarChips onInsert={v => ins('pushBody', v)} />
+          </div>
+          <div>
+            <label className={lbl}>Open link (optional)</label>
+            <input type="text" value={cfg.pushUrl ?? ''} onChange={e => set({ pushUrl: e.target.value })} className={inp} placeholder="/leads/{{id}} — defaults to the lead" />
           </div>
         </>
       )}
