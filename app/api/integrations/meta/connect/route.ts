@@ -16,6 +16,8 @@ export async function GET(req: NextRequest) {
     'pages_show_list',
     'pages_read_engagement',
     'pages_manage_posts',
+    'pages_manage_metadata', // subscribe the page to our leadgen webhook
+    'leads_retrieval',       // read Instant Form lead answers via the Graph API
     'instagram_basic',
     'instagram_content_publish',
     'ads_read',

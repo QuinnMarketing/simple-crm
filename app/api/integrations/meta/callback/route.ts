@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma'
-import { NextRequest, NextResponse } from 'next/server'
+import { subscribePages } from '@/lib/meta-leads'
+import { after, NextRequest, NextResponse } from 'next/server'
 
 export async function GET(req: NextRequest) {
   const { searchParams } = req.nextUrl
@@ -89,6 +90,11 @@ export async function GET(req: NextRequest) {
         enabled: true,
       },
     })
+
+    // Subscribe every connected page to our leadgen webhook so Instant Form
+    // leads start flowing straight away (best-effort; needs pages_manage_metadata).
+    const pagesForSub = (pagesData.data ?? []).map((p: { id: string; access_token: string }) => ({ id: p.id, accessToken: p.access_token }))
+    if (pagesForSub.length) after(() => subscribePages(pagesForSub))
 
     const acct = accountId ? `&account=${accountId}` : ''
     return NextResponse.redirect(new URL(`/settings?meta=connected${acct}`, req.url))
