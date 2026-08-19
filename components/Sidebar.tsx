@@ -2,7 +2,7 @@
 import Link from 'next/link'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { useState } from 'react'
-import { LayoutDashboard, Users, Settings, LogOut, Zap, Building2, ChevronDown, Layers, CalendarDays, FileText, Bot, Clock, Mail, MailOpen, TrendingUp, BarChart2, Share2, GanttChartSquare, CheckSquare, Star, BookOpen, Receipt, FolderOpen, Ruler, Inbox, Target, Rocket, MessagesSquare, ClipboardList, Image as ImageIcon, ShoppingBag, Crosshair, UserSquare2, Newspaper, PlugZap } from 'lucide-react'
+import { LayoutDashboard, Users, Settings, LogOut, Zap, Building2, ChevronDown, Layers, CalendarDays, FileText, Bot, Clock, Mail, MailOpen, TrendingUp, BarChart2, Share2, GanttChartSquare, CheckSquare, Star, BookOpen, Receipt, FolderOpen, Ruler, Inbox, Target, Rocket, MessagesSquare, ClipboardList, Image as ImageIcon, ShoppingBag, Crosshair, UserSquare2, Newspaper, PlugZap, Facebook } from 'lucide-react'
 import { signOut } from 'next-auth/react'
 import PushToggle from './PushToggle'
 import { moduleForNavHref } from '@/lib/modules'
@@ -22,6 +22,7 @@ type NavItem = { href: string; icon: React.ElementType; label: string; match?: s
 const MASTER_NAV: NavItem[] = [
   { href: '/accounts', icon: Layers, label: 'Accounts' },
   { href: '/connection-health', icon: PlugZap, label: 'Connections', match: '/connection-health' },
+  { href: '/meta-leads', icon: Facebook, label: 'FB Lead Sync', match: '/meta-leads' },
 ]
 
 export default function Sidebar({
