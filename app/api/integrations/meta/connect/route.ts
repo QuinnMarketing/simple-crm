@@ -12,16 +12,13 @@ export async function GET(req: NextRequest) {
   if (!accountId) return NextResponse.json({ error: 'No account — master_admin must pass ?account=ID' }, { status: 400 })
 
   const base = process.env.NEXTAUTH_URL ?? 'http://localhost:3000'
+  // Lead Ads only needs these three. Posting/Instagram scopes are omitted
+  // because this app hasn't had those permissions enabled, and requesting a
+  // permission the app lacks blocks the entire OAuth dialog ("Invalid Scopes").
   const scopes = [
     'pages_show_list',
-    'pages_read_engagement',
-    'pages_manage_posts',
     'pages_manage_metadata', // subscribe the page to our leadgen webhook
     'leads_retrieval',       // read Instant Form lead answers via the Graph API
-    'instagram_basic',
-    'instagram_content_publish',
-    'ads_read',
-    'business_management',
   ].join(',')
 
   const params = new URLSearchParams({
