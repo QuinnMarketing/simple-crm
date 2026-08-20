@@ -8,70 +8,72 @@ datasource db {
 }
 
 model Account {
-  id                String   @id @default(cuid())
-  name              String
-  slug              String   @unique
-  webhookToken      String   @unique @default(cuid())
-  receiptEmailToken String?  // Token for receipt email address (auto-generated on first use)
-  plan              String   @default("starter")
+  id                   String                @id @default(cuid())
+  name                 String
+  slug                 String                @unique
+  webhookToken         String                @unique @default(cuid())
+  receiptEmailToken    String? // Token for receipt email address (auto-generated on first use)
+  plan                 String                @default("starter")
   // Self-serve onboarding / free trial (Agent B)
-  subscriptionStatus String @default("trialing") // trialing | active | past_due | cancelled | expired
-  trialEndsAt        DateTime?
-  onboardedAt        DateTime?  // set when the setup wizard is completed
-  signupSource       String?    // ad/campaign attribution for commercialisation
-  stripeCustomerId   String?    // reserved for future platform billing
-  isActive        Boolean  @default(true)
-  featTakeoffs    Boolean  @default(false)
-  abn             String?
-  businessAddress String?
-  businessPhone   String?
-  businessEmail   String?
-  businessWebsite String?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-  users              User[]
-  userAccounts       UserAccount[]
-  leads              Lead[]
-  companies          Company[]
-  integrations       AccountIntegration[]
-  appointments       Appointment[]
-  quotes             Quote[]
-  automations        Automation[]
-  timeEntries        TimeEntry[]
-  documentTemplates  DocumentTemplate[]
-  emailCampaigns     EmailCampaign[]
-  customFields       CustomField[]
-  slaHours           Int?
-  idleAlertDays      Int?
-  lastIdleAlertAt    DateTime?
-  socialAccounts     SocialAccount[]
-  socialPosts        SocialPost[]
-  ganttProjects      GanttProject[]
-  tasks              Task[]
-  bookingSettings    BookingSettings?
-  reviews            Review[]
-  reviewSettings     ReviewSettings?
-  priceItems         PriceItem[]
-  documentSettings       DocumentSettings?
-  outboundIntegrations   OutboundIntegration[]
-  expenses               Expense[]
-  pendingReceipts        PendingReceipt[]
-  takeoffs               Takeoff[]
-  adPlatformAccounts     AdPlatformAccount[]
-  whatsAppMessages       WhatsAppMessage[]
-  payments               Payment[]
-  syncedEmails           SyncedEmail[]
-  landingPages           LandingPage[]
-  chatConversations      ChatConversation[]
-  sops                   Sop[]
-  moduleStates           AccountModule[]
-  bookingTypes           BookingType[]
-  bookingStaff           BookingStaffProfile[]
-  customerAvatars        CustomerAvatar[]
-  galleryImages          GalleryImage[]
-  featuredItems          FeaturedItem[]
-  teamMembers            TeamMember[]
-  blogPosts              BlogPost[]
+  subscriptionStatus   String                @default("trialing") // trialing | active | past_due | cancelled | expired
+  trialEndsAt          DateTime?
+  onboardedAt          DateTime? // set when the setup wizard is completed
+  signupSource         String? // ad/campaign attribution for commercialisation
+  stripeCustomerId     String? // reserved for future platform billing
+  isActive             Boolean               @default(true)
+  featTakeoffs         Boolean               @default(false)
+  abn                  String?
+  businessAddress      String?
+  businessPhone        String?
+  businessEmail        String?
+  businessWebsite      String?
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
+  users                User[]
+  userAccounts         UserAccount[]
+  leads                Lead[]
+  companies            Company[]
+  integrations         AccountIntegration[]
+  appointments         Appointment[]
+  quotes               Quote[]
+  automations          Automation[]
+  timeEntries          TimeEntry[]
+  documentTemplates    DocumentTemplate[]
+  emailCampaigns       EmailCampaign[]
+  customFields         CustomField[]
+  slaHours             Int?
+  idleAlertDays        Int?
+  lastIdleAlertAt      DateTime?
+  socialAccounts       SocialAccount[]
+  socialPosts          SocialPost[]
+  ganttProjects        GanttProject[]
+  tasks                Task[]
+  bookingSettings      BookingSettings?
+  reviews              Review[]
+  reviewSettings       ReviewSettings?
+  priceItems           PriceItem[]
+  documentSettings     DocumentSettings?
+  outboundIntegrations OutboundIntegration[]
+  expenses             Expense[]
+  pendingReceipts      PendingReceipt[]
+  takeoffs             Takeoff[]
+  adPlatformAccounts   AdPlatformAccount[]
+  whatsAppMessages     WhatsAppMessage[]
+  payments             Payment[]
+  syncedEmails         SyncedEmail[]
+  landingPages         LandingPage[]
+  chatConversations    ChatConversation[]
+  sops                 Sop[]
+  moduleStates         AccountModule[]
+  bookingTypes         BookingType[]
+  bookingStaff         BookingStaffProfile[]
+  customerAvatars      CustomerAvatar[]
+  galleryImages        GalleryImage[]
+  featuredItems        FeaturedItem[]
+  teamMembers          TeamMember[]
+  blogPosts            BlogPost[]
+  visitEvents          VisitEvent[]
+  blockedIps           BlockedIp[]
 }
 
 // The business's ideal-customer persona ("who you should be targeting") — the
@@ -82,24 +84,24 @@ model CustomerAvatar {
   id           String   @id @default(cuid())
   accountId    String
   account      Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
-  name         String                       // persona name, e.g. "Renovator Rachel"
-  tagline      String?                       // one-line summary of who they are
-  imageUrl     String?                       // chosen portrait
-  imageOptions String   @default("[]")       // JSON array of alternative portrait URLs to cycle
+  name         String // persona name, e.g. "Renovator Rachel"
+  tagline      String? // one-line summary of who they are
+  imageUrl     String? // chosen portrait
+  imageOptions String   @default("[]") // JSON array of alternative portrait URLs to cycle
   ageRange     String?
   gender       String?
   occupation   String?
   location     String?
-  income       String?                       // budget / income band
-  goals        String?                       // what they want — newline-separated bullets
-  painPoints   String?                       // problems you solve — newline-separated
-  objections   String?                       // why they hesitate — newline-separated
-  channels     String?                       // where to reach them — newline-separated
-  services     String?                       // which of your services they need
+  income       String? // budget / income band
+  goals        String? // what they want — newline-separated bullets
+  painPoints   String? // problems you solve — newline-separated
+  objections   String? // why they hesitate — newline-separated
+  channels     String? // where to reach them — newline-separated
+  services     String? // which of your services they need
   notes        String?
   isPrimary    Boolean  @default(false)
   sortOrder    Int      @default(0)
-  source       String   @default("ai")       // ai | manual
+  source       String   @default("ai") // ai | manual
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -123,19 +125,19 @@ model AccountModule {
 }
 
 model ChatConversation {
-  id            String   @id @default(cuid())
-  visitorToken  String   @unique // secret held by the widget — lets the visitor read/post only their own thread
+  id            String        @id @default(cuid())
+  visitorToken  String        @unique // secret held by the widget — lets the visitor read/post only their own thread
   visitorName   String
   visitorEmail  String?
   visitorPhone  String?
-  status        String   @default("open") // open | closed
-  lastMessageAt DateTime @default(now())
+  status        String        @default("open") // open | closed
+  lastMessageAt DateTime      @default(now())
   leadId        String?
-  lead          Lead?    @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  lead          Lead?         @relation(fields: [leadId], references: [id], onDelete: SetNull)
   accountId     String?
-  account       Account? @relation(fields: [accountId], references: [id], onDelete: Cascade)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  account       Account?      @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
   messages      ChatMessage[]
 
   @@index([accountId, status, lastMessageAt])
@@ -158,8 +160,8 @@ model Sop {
   id        String   @id @default(cuid())
   title     String
   industry  String?
-  category  String?  // e.g. Safety, Operations, Sales, Admin
-  content   String   // markdown
+  category  String? // e.g. Safety, Operations, Sales, Admin
+  content   String // markdown
   source    String   @default("custom") // ai | custom
   accountId String?
   account   Account? @relation(fields: [accountId], references: [id], onDelete: Cascade)
@@ -171,11 +173,11 @@ model Sop {
 
 model LandingPage {
   id        String   @id @default(cuid())
-  name      String   // internal label shown in the CRM, not on the page
+  name      String // internal label shown in the CRM, not on the page
   slug      String   @unique
   status    String   @default("draft") // draft | published
-  goal      String   @default("form")  // form (lead capture) | call (click-to-call)
-  content   String   @default("{}")    // JSON LandingPageContent — structured copy rendered by fixed section components
+  goal      String   @default("form") // form (lead capture) | call (click-to-call)
+  content   String   @default("{}") // JSON LandingPageContent — structured copy rendered by fixed section components
   views     Int      @default(0)
   accountId String?
   account   Account? @relation(fields: [accountId], references: [id], onDelete: Cascade)
@@ -199,15 +201,15 @@ model AccountIntegration {
 }
 
 model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  password  String
-  name      String?
-  role      String   @default("account_user")
-  accountId   String?
-  account     Account?    @relation(fields: [accountId], references: [id])
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
+  id                   String                @id @default(cuid())
+  email                String                @unique
+  password             String
+  name                 String?
+  role                 String                @default("account_user")
+  accountId            String?
+  account              Account?              @relation(fields: [accountId], references: [id])
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
   timeEntries          TimeEntry[]
   pushSubscriptions    PushSubscription[]
   userAccounts         UserAccount[]
@@ -268,61 +270,61 @@ model Company {
 }
 
 model Lead {
-  id          String   @id @default(cuid())
-  name        String
-  email       String?
-  phone       String?
-  source      String?
-  status      String   @default("new")
-  service     String?
-  notes       String?
+  id                 String    @id @default(cuid())
+  name               String
+  email              String?
+  phone              String?
+  source             String?
+  status             String    @default("new")
+  service            String?
+  notes              String?
   // How well this lead matches the account's target-customer persona (on-demand AI score)
-  targetMatchScore   Int?      // 0-100
-  targetMatchSummary String?   // one-line reason
+  targetMatchScore   Int? // 0-100
+  targetMatchSummary String? // one-line reason
   targetMatchAt      DateTime?
-  address     String?
-  value       Float?
-  formData    String?
-  gclid       String?
-  fbclid      String?
-  fbp         String?
-  fbc         String?
-  utmSource    String?
-  utmMedium    String?
-  utmCampaign  String?
-  utmTerm      String?
-  utmContent   String?
-  utmMatchtype String?
-  userAgent   String?
-  ipAddress   String?
-  pageUrl     String?
-  bestTimeToContact   String?
-  firstRespondedAt    DateTime?
-  nextStep            String?
-  nextStepDue         String?
-  lostReason          String?
-  unsubscribed        Boolean               @default(false)
-  profileData         String?   // JSON blob: Apollo enrichment result (title, social links, company) — provider-shaped, kept as JSON rather than columns
-  profileEnrichedAt   DateTime?
-  companyId           String?
-  company     Company? @relation(fields: [companyId], references: [id])
-  accountId   String?
-  account     Account? @relation(fields: [accountId], references: [id])
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  address            String?
+  value              Float?
+  formData           String?
+  gclid              String?
+  fbclid             String?
+  fbp                String?
+  fbc                String?
+  utmSource          String?
+  utmMedium          String?
+  utmCampaign        String?
+  utmTerm            String?
+  utmContent         String?
+  utmMatchtype       String?
+  userAgent          String?
+  ipAddress          String?
+  pageUrl            String?
+  bestTimeToContact  String?
+  firstRespondedAt   DateTime?
+  nextStep           String?
+  nextStepDue        String?
+  lostReason         String?
+  unsubscribed       Boolean   @default(false)
+  profileData        String? // JSON blob: Apollo enrichment result (title, social links, company) — provider-shaped, kept as JSON rather than columns
+  profileEnrichedAt  DateTime?
+  companyId          String?
+  company            Company?  @relation(fields: [companyId], references: [id])
+  accountId          String?
+  account            Account?  @relation(fields: [accountId], references: [id])
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
 
-  conversions         ConversionEvent[]
-  appointments        Appointment[]
-  quotes              Quote[]
-  timeEntries         TimeEntry[]
-  emailCampaignSends  EmailCampaignSend[]
-  customFieldValues   CustomFieldValue[]
-  tasks               Task[]
-  reviews             Review[]
-  takeoffs            Takeoff[]
-  whatsAppMessages    WhatsAppMessage[]
-  syncedEmails        SyncedEmail[]
-  chatConversations   ChatConversation[]
+  conversions        ConversionEvent[]
+  appointments       Appointment[]
+  quotes             Quote[]
+  timeEntries        TimeEntry[]
+  emailCampaignSends EmailCampaignSend[]
+  customFieldValues  CustomFieldValue[]
+  tasks              Task[]
+  reviews            Review[]
+  takeoffs           Takeoff[]
+  whatsAppMessages   WhatsAppMessage[]
+  syncedEmails       SyncedEmail[]
+  chatConversations  ChatConversation[]
 
   @@index([accountId, status])
   @@index([accountId, createdAt])
@@ -332,7 +334,7 @@ model Lead {
 
 model WhatsAppMessage {
   id          String   @id @default(cuid())
-  direction   String   // 'inbound' | 'outbound'
+  direction   String // 'inbound' | 'outbound'
   body        String
   waMessageId String?  @unique // Meta's message id — dedupes inbound webhook retries
   status      String   @default("sent") // sent | delivered | read | failed
@@ -349,13 +351,13 @@ model WhatsAppMessage {
 
 model SyncedEmail {
   id         String   @id @default(cuid())
-  provider   String   // 'gmail' | 'outlook'
-  externalId String   // provider's message id — dedupes re-synced messages
+  provider   String // 'gmail' | 'outlook'
+  externalId String // provider's message id — dedupes re-synced messages
   fromEmail  String
   fromName   String?
   toEmail    String?
   subject    String?
-  snippet    String   // provider-generated preview text, not the full body
+  snippet    String // provider-generated preview text, not the full body
   sentAt     DateTime
   leadId     String?
   lead       Lead?    @relation(fields: [leadId], references: [id], onDelete: SetNull)
@@ -369,53 +371,53 @@ model SyncedEmail {
 }
 
 model Task {
-  id           String    @id @default(cuid())
-  title        String
-  description  String?
-  status       String    @default("todo")    // todo | in_progress | done
-  priority     String    @default("medium")  // low | medium | high
-  dueDate      DateTime?
-  leadId       String?
-  lead         Lead?     @relation(fields: [leadId], references: [id], onDelete: SetNull)
-  accountId    String?
-  account      Account?  @relation(fields: [accountId], references: [id], onDelete: Cascade)
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  id          String    @id @default(cuid())
+  title       String
+  description String?
+  status      String    @default("todo") // todo | in_progress | done
+  priority    String    @default("medium") // low | medium | high
+  dueDate     DateTime?
+  leadId      String?
+  lead        Lead?     @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  accountId   String?
+  account     Account?  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
   @@index([accountId, status])
   @@index([leadId])
 }
 
 model Appointment {
-  id              String   @id @default(cuid())
-  title           String
-  description     String?
-  startTime       DateTime
-  endTime         DateTime
-  allDay          Boolean  @default(false)
-  location        String?
-  leadId          String?
-  lead            Lead?    @relation(fields: [leadId], references: [id], onDelete: SetNull)
-  userId          String?
-  assignedTo      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
-  accountId       String?
-  account         Account? @relation(fields: [accountId], references: [id], onDelete: Cascade)
-  googleEventId   String?
-  firefliesRef    String?  // short token embedded in the Fireflies meeting title to match the transcribed webhook back to this appointment
-  firefliesStatus String?  // 'requested' | 'recorded' | 'failed'
-  bookingTypeId   String?  // set when created via the public booking flow for a specific service
-  bookingType     BookingType? @relation(fields: [bookingTypeId], references: [id], onDelete: SetNull)
-  bookingPrice    Float?   // price snapshot at time of booking (the type's price can change later)
-  status          String   @default("scheduled") // scheduled | completed | cancelled | no_show
-  cancelToken     String?  // lets the customer view/cancel their booking without an account (48 random hex chars)
-  addonsJson      String?  // snapshot of chosen add-ons: [{name, price, durationMin}]
+  id               String       @id @default(cuid())
+  title            String
+  description      String?
+  startTime        DateTime
+  endTime          DateTime
+  allDay           Boolean      @default(false)
+  location         String?
+  leadId           String?
+  lead             Lead?        @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  userId           String?
+  assignedTo       User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
+  accountId        String?
+  account          Account?     @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  googleEventId    String?
+  firefliesRef     String? // short token embedded in the Fireflies meeting title to match the transcribed webhook back to this appointment
+  firefliesStatus  String? // 'requested' | 'recorded' | 'failed'
+  bookingTypeId    String? // set when created via the public booking flow for a specific service
+  bookingType      BookingType? @relation(fields: [bookingTypeId], references: [id], onDelete: SetNull)
+  bookingPrice     Float? // price snapshot at time of booking (the type's price can change later)
+  status           String       @default("scheduled") // scheduled | completed | cancelled | no_show
+  cancelToken      String? // lets the customer view/cancel their booking without an account (48 random hex chars)
+  addonsJson       String? // snapshot of chosen add-ons: [{name, price, durationMin}]
   // Booking deposit (Agent A / Stripe)
-  depositAmount   Float?   // amount required to hold this booking (snapshot)
-  depositPaid     Boolean  @default(false)
+  depositAmount    Float? // amount required to hold this booking (snapshot)
+  depositPaid      Boolean      @default(false)
   depositSessionId String? // Stripe Checkout session id for the deposit
-  reminderSentAt  DateTime? // when the system 24h-before reminder was sent (dedup)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  reminderSentAt   DateTime? // when the system 24h-before reminder was sent (dedup)
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
 
   @@index([accountId, startTime])
   @@index([firefliesRef])
@@ -426,30 +428,30 @@ model Appointment {
 // A bookable service/appointment type (Fresha-style service menu). Each has its
 // own duration, price and buffers; the public booking flow starts by choosing one.
 model BookingType {
-  id             String        @id @default(cuid())
+  id             String                @id @default(cuid())
   accountId      String
-  account        Account       @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  account        Account               @relation(fields: [accountId], references: [id], onDelete: Cascade)
   name           String
-  category       String?       // groups types in the picker, e.g. "Hair", "Massage"
+  category       String? // groups types in the picker, e.g. "Hair", "Massage"
   description    String?
-  durationMin    Int           @default(60)
+  durationMin    Int                   @default(60)
   price          Float?
-  priceType      String        @default("fixed") // 'fixed' | 'from' | 'free'
-  bufferBefore   Int           @default(0)        // minutes blocked before the appointment
-  bufferAfter    Int           @default(0)        // minutes blocked after (cleanup/processing)
-  color          String?       // calendar/label colour
-  onlineBookable Boolean       @default(true)     // shown on the public booking page
-  active         Boolean       @default(true)
-  sortOrder      Int           @default(0)
+  priceType      String                @default("fixed") // 'fixed' | 'from' | 'free'
+  bufferBefore   Int                   @default(0) // minutes blocked before the appointment
+  bufferAfter    Int                   @default(0) // minutes blocked after (cleanup/processing)
+  color          String? // calendar/label colour
+  onlineBookable Boolean               @default(true) // shown on the public booking page
+  active         Boolean               @default(true)
+  sortOrder      Int                   @default(0)
   // Deposit required to book this service (Agent A / Stripe)
-  depositType    String        @default("none")   // none | percent | fixed
-  depositValue   Float?                            // percent (0-100) or fixed amount, per depositType
+  depositType    String                @default("none") // none | percent | fixed
+  depositValue   Float? // percent (0-100) or fixed amount, per depositType
   appointments   Appointment[]
   staff          BookingStaffProfile[] @relation("BookingTypeStaff") // team members who perform this service
-  addons         BookingAddon[]        // optional extras a customer can add to this service
-  variants       BookingVariant[]      // duration/price options under this service (e.g. 30/60/90 min)
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
+  addons         BookingAddon[] // optional extras a customer can add to this service
+  variants       BookingVariant[] // duration/price options under this service (e.g. 30/60/90 min)
+  createdAt      DateTime              @default(now())
+  updatedAt      DateTime              @updatedAt
 
   @@index([accountId])
 }
@@ -507,24 +509,24 @@ model BookingStaffProfile {
 }
 
 model Automation {
-  id            String    @id @default(cuid())
+  id            String          @id @default(cuid())
   name          String
   description   String?
-  enabled       Boolean   @default(true)
+  enabled       Boolean         @default(true)
   // New-style: steps JSON (AutomationDefinition). Empty object = legacy automation.
-  steps         String    @default("{}")
-  allowRepeat   Boolean   @default(false)
-  runCount      Int       @default(0)
+  steps         String          @default("{}")
+  allowRepeat   Boolean         @default(false)
+  runCount      Int             @default(0)
   lastRunAt     DateTime?
   // Legacy fields (kept for existing automations)
-  trigger       String    @default("")
-  triggerConfig String    @default("{}")
-  action        String    @default("")
-  actionConfig  String    @default("{}")
+  trigger       String          @default("")
+  triggerConfig String          @default("{}")
+  action        String          @default("")
+  actionConfig  String          @default("{}")
   accountId     String?
-  account       Account?  @relation(fields: [accountId], references: [id], onDelete: Cascade)
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  account       Account?        @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
   logs          AutomationLog[]
   runs          AutomationRun[]
 }
@@ -540,15 +542,15 @@ model AutomationLog {
 }
 
 model AutomationRun {
-  id            String     @id @default(cuid())
+  id            String              @id @default(cuid())
   automationId  String
-  automation    Automation @relation(fields: [automationId], references: [id], onDelete: Cascade)
+  automation    Automation          @relation(fields: [automationId], references: [id], onDelete: Cascade)
   leadId        String?
-  status        String     @default("running") // running | completed | failed | waiting
+  status        String              @default("running") // running | completed | failed | waiting
   resumeAt      DateTime?
   resumeAtIndex Int?
-  context       String     @default("{}")
-  startedAt     DateTime   @default(now())
+  context       String              @default("{}")
+  startedAt     DateTime            @default(now())
   completedAt   DateTime?
   stepLogs      AutomationStepLog[]
 
@@ -563,83 +565,83 @@ model AutomationStepLog {
   stepId     String
   stepType   String
   label      String?
-  status     String        // completed | failed | skipped
+  status     String // completed | failed | skipped
   output     String?
   error      String?
   executedAt DateTime      @default(now())
 }
 
 model Quote {
-  id        String    @id @default(cuid())
-  type      String    // 'quote' | 'invoice'
-  number    String
-  status    String    @default("draft")
-  clientToken String? @unique // one-time token for accept/reject links in emails
-  lineItems String    @default("[]") // JSON: [{description,quantity,unitPrice}]
-  subtotal  Float     @default(0)
-  taxRate   Float     @default(10)
-  taxAmount Float     @default(0)
-  total     Float     @default(0)
-  notes     String?
-  issuedAt  DateTime?
-  dueAt     DateTime?
+  id            String    @id @default(cuid())
+  type          String // 'quote' | 'invoice'
+  number        String
+  status        String    @default("draft")
+  clientToken   String?   @unique // one-time token for accept/reject links in emails
+  lineItems     String    @default("[]") // JSON: [{description,quantity,unitPrice}]
+  subtotal      Float     @default(0)
+  taxRate       Float     @default(10)
+  taxAmount     Float     @default(0)
+  total         Float     @default(0)
+  notes         String?
+  issuedAt      DateTime?
+  dueAt         DateTime?
   createdByName String?
-  leadId    String?
-  lead      Lead?     @relation(fields: [leadId], references: [id], onDelete: SetNull)
-  accountId String?
-  account   Account?  @relation(fields: [accountId], references: [id], onDelete: Cascade)
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  leadId        String?
+  lead          Lead?     @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  accountId     String?
+  account       Account?  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 
-  payments  Payment[]
+  payments Payment[]
 }
 
 model Payment {
-  id        String   @id @default(cuid())
-  quoteId   String
-  quote     Quote    @relation(fields: [quoteId], references: [id], onDelete: Cascade)
-  amount    Float
-  method    String   // 'bank_transfer' | 'cash' | 'card' | 'other' | 'stripe'
-  paidAt    DateTime
-  notes     String?
-  accountId String?
-  account   Account? @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  id                    String   @id @default(cuid())
+  quoteId               String
+  quote                 Quote    @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+  amount                Float
+  method                String // 'bank_transfer' | 'cash' | 'card' | 'other' | 'stripe'
+  paidAt                DateTime
+  notes                 String?
+  accountId             String?
+  account               Account? @relation(fields: [accountId], references: [id], onDelete: Cascade)
   // Online payment linkage (Agent A / Stripe)
   stripeSessionId       String?
   stripePaymentIntentId String?
-  createdAt DateTime @default(now())
+  createdAt             DateTime @default(now())
 
   @@index([quoteId])
   @@index([accountId])
 }
 
 model TimeEntry {
-  id          String   @id @default(cuid())
-  type        String   // 'call' | 'meeting' | 'work' | 'email' | 'admin' | 'other'
+  id          String        @id @default(cuid())
+  type        String // 'call' | 'meeting' | 'work' | 'email' | 'admin' | 'other'
   description String?
-  durationMin Int      // minutes
+  durationMin Int // minutes
   startedAt   DateTime
-  assignedTo  String?  // free-text name — works for non-registered employees/contractors
-  hourlyRate  Float?   // optional rate in account currency
+  assignedTo  String? // free-text name — works for non-registered employees/contractors
+  hourlyRate  Float? // optional rate in account currency
   latitude    Float?
   longitude   Float?
   leadId      String?
-  lead        Lead?        @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  lead        Lead?         @relation(fields: [leadId], references: [id], onDelete: SetNull)
   projectId   String?
   project     GanttProject? @relation(fields: [projectId], references: [id], onDelete: SetNull)
   userId      String?
-  user        User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
+  user        User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
   accountId   String?
-  account     Account?     @relation(fields: [accountId], references: [id], onDelete: Cascade)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  account     Account?      @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
 }
 
 model DocumentTemplate {
   id        String   @id @default(cuid())
   accountId String
   account   Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
-  type      String   // 'quote' | 'invoice'
+  type      String // 'quote' | 'invoice'
   filename  String
   data      Bytes
   createdAt DateTime @default(now())
@@ -653,11 +655,11 @@ model AuditLog {
   accountId   String?
   userId      String?
   userEmail   String?
-  action      String   // 'lead.created' | 'lead.updated' | 'lead.deleted' | etc.
-  entityType  String   // 'lead' | 'quote' | 'appointment' | 'company' | 'user' | 'automation' | 'time_entry'
+  action      String // 'lead.created' | 'lead.updated' | 'lead.deleted' | etc.
+  entityType  String // 'lead' | 'quote' | 'appointment' | 'company' | 'user' | 'automation' | 'time_entry'
   entityId    String
-  entityLabel String?  // human-readable name at time of action
-  changes     String?  // JSON: { field: [oldVal, newVal], ... }
+  entityLabel String? // human-readable name at time of action
+  changes     String? // JSON: { field: [oldVal, newVal], ... }
   ipAddress   String?
   createdAt   DateTime @default(now())
 }
@@ -677,24 +679,24 @@ model ConversionEvent {
 }
 
 model EmailCampaign {
-  id            String   @id @default(cuid())
+  id            String              @id @default(cuid())
   name          String
-  subject       String   @default("")
-  bodyHtml      String   @default("")
-  bodyText      String   @default("")
-  status        String   @default("draft") // draft | scheduled | sending | sent | failed
-  segmentFilter String   @default("{}") // JSON: { statuses, sources, leadIds }
-  trackOpens    Boolean  @default(false)
-  trackClicks   Boolean  @default(false)
+  subject       String              @default("")
+  bodyHtml      String              @default("")
+  bodyText      String              @default("")
+  status        String              @default("draft") // draft | scheduled | sending | sent | failed
+  segmentFilter String              @default("{}") // JSON: { statuses, sources, leadIds }
+  trackOpens    Boolean             @default(false)
+  trackClicks   Boolean             @default(false)
   scheduledAt   DateTime?
   sentAt        DateTime?
-  totalSent     Int      @default(0)
-  totalFailed   Int      @default(0)
+  totalSent     Int                 @default(0)
+  totalFailed   Int                 @default(0)
   lastError     String?
   accountId     String?
-  account       Account? @relation(fields: [accountId], references: [id], onDelete: Cascade)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  account       Account?            @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
   sends         EmailCampaignSend[]
 }
 
@@ -720,7 +722,7 @@ model CustomField {
   account   Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
   name      String
   type      String   @default("text") // text | textarea | number | date | select | checkbox
-  options   String?  // JSON string array — only used when type = 'select'
+  options   String? // JSON string array — only used when type = 'select'
   required  Boolean  @default(false)
   order     Int      @default(0)
   createdAt DateTime @default(now())
@@ -741,34 +743,34 @@ model CustomFieldValue {
 }
 
 model SocialAccount {
-  id          String   @id @default(cuid())
-  accountId   String
-  account     Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
-  platform    String   // 'facebook' | 'instagram' | 'google_business' | 'linkedin'
-  platformId  String   // page/profile ID on the platform
-  name        String
-  pictureUrl  String?
-  accessToken String
+  id           String             @id @default(cuid())
+  accountId    String
+  account      Account            @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  platform     String // 'facebook' | 'instagram' | 'google_business' | 'linkedin'
+  platformId   String // page/profile ID on the platform
+  name         String
+  pictureUrl   String?
+  accessToken  String
   refreshToken String?
-  expiresAt   DateTime?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  targets     SocialPostTarget[]
+  expiresAt    DateTime?
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+  targets      SocialPostTarget[]
 
   @@unique([accountId, platform, platformId])
 }
 
 model SocialPost {
-  id          String    @id @default(cuid())
+  id          String             @id @default(cuid())
   accountId   String
-  account     Account   @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  account     Account            @relation(fields: [accountId], references: [id], onDelete: Cascade)
   content     String
-  mediaUrls   String    @default("[]") // JSON array of image URLs
+  mediaUrls   String             @default("[]") // JSON array of image URLs
   link        String?
   scheduledAt DateTime?
-  status      String    @default("draft") // draft | scheduled | publishing | published | failed | partial
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  status      String             @default("draft") // draft | scheduled | publishing | published | failed | partial
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
   targets     SocialPostTarget[]
 }
 
@@ -807,8 +809,8 @@ model GanttTask {
   projectId String
   project   GanttProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
   name      String
-  startDate String       // YYYY-MM-DD
-  endDate   String       // YYYY-MM-DD
+  startDate String // YYYY-MM-DD
+  endDate   String // YYYY-MM-DD
   assignee  String?
   status    String       @default("not_started")
   progress  Int          @default(0)
@@ -827,11 +829,11 @@ model Expense {
   amount      Float
   currency    String       @default("AUD")
   vendor      String?
-  category    String?      // e.g., "materials", "labor", "equipment", "other"
+  category    String? // e.g., "materials", "labor", "equipment", "other"
   description String?
   date        DateTime
-  imageUrl    String?      // URL to receipt/invoice image
-  ocrData     String?      // Raw OCR text from image
+  imageUrl    String? // URL to receipt/invoice image
+  ocrData     String? // Raw OCR text from image
   status      String       @default("pending") // pending, verified, rejected
   notes       String?
   createdAt   DateTime     @default(now())
@@ -842,38 +844,38 @@ model Expense {
 }
 
 model PendingReceipt {
-  id          String   @id @default(cuid())
-  accountId   String
-  account     Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
-  fileName    String
-  imageUrl    String
-  amount      Float?
-  vendor      String?
-  date        DateTime?
-  ocrData     String?  // Raw OCR text from image
-  notes       String?
-  createdAt   DateTime @default(now())
+  id        String    @id @default(cuid())
+  accountId String
+  account   Account   @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  fileName  String
+  imageUrl  String
+  amount    Float?
+  vendor    String?
+  date      DateTime?
+  ocrData   String? // Raw OCR text from image
+  notes     String?
+  createdAt DateTime  @default(now())
 
   @@index([accountId])
 }
 
 model Review {
-  id            String   @id @default(cuid())
+  id            String    @id @default(cuid())
   accountId     String
-  account       Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  account       Account   @relation(fields: [accountId], references: [id], onDelete: Cascade)
   leadId        String?
-  lead          Lead?    @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  lead          Lead?     @relation(fields: [leadId], references: [id], onDelete: SetNull)
   reviewerName  String
   reviewerEmail String?
-  rating        Int      // 1-5
+  rating        Int // 1-5
   body          String?
   reply         String?
   repliedAt     DateTime?
-  source        String   @default("widget") // 'widget' | 'manual' | 'google'
-  externalId    String?  // GBP review name for dedup, e.g. accounts/.../locations/.../reviews/...
-  status        String   @default("pending") // 'pending' | 'approved' | 'hidden'
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  source        String    @default("widget") // 'widget' | 'manual' | 'google'
+  externalId    String? // GBP review name for dedup, e.g. accounts/.../locations/.../reviews/...
+  status        String    @default("pending") // 'pending' | 'approved' | 'hidden'
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 
   @@index([accountId])
   @@index([accountId, status])
@@ -881,20 +883,20 @@ model Review {
 }
 
 model ReviewSettings {
-  id             String   @id @default(cuid())
-  accountId      String   @unique
-  account        Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
-  enabled        Boolean  @default(true)
-  title          String   @default("How was your experience?")
-  description    String?
-  autoApprove    Boolean  @default(false)
-  autoReply      Boolean  @default(false)
-  replyTemplates String   @default("{}") // JSON: { positive, neutral, negative, widgetMinRating }
-  googlePlaceId  String?  // Google Places (New) place ID — powers reviews sync without needing a GBP OAuth connection
-  googleRating       Float?   // true aggregate rating from Google (all reviews, not just synced/approved ones)
-  googleReviewCount  Int?     // true total review count from Google — refreshed on every Places sync
-  createdAt      DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id                String   @id @default(cuid())
+  accountId         String   @unique
+  account           Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  enabled           Boolean  @default(true)
+  title             String   @default("How was your experience?")
+  description       String?
+  autoApprove       Boolean  @default(false)
+  autoReply         Boolean  @default(false)
+  replyTemplates    String   @default("{}") // JSON: { positive, neutral, negative, widgetMinRating }
+  googlePlaceId     String? // Google Places (New) place ID — powers reviews sync without needing a GBP OAuth connection
+  googleRating      Float? // true aggregate rating from Google (all reviews, not just synced/approved ones)
+  googleReviewCount Int? // true total review count from Google — refreshed on every Places sync
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 }
 
 // A photo for the account's public website gallery. Uploaded to Vercel Blob;
@@ -925,10 +927,10 @@ model FeaturedItem {
   kind        String   @default("product") // 'product' | 'package'
   name        String
   description String?
-  priceLabel  String?  // free text, e.g. "$45", "From $120" — no checkout/cart
+  priceLabel  String? // free text, e.g. "$45", "From $120" — no checkout/cart
   imageUrl    String?
-  ctaLabel    String?  // defaults applied client-side when blank
-  ctaHref     String?  // defaults to /book when blank
+  ctaLabel    String? // defaults applied client-side when blank
+  ctaHref     String? // defaults to /book when blank
   sortOrder   Int      @default(0)
   active      Boolean  @default(true)
   createdAt   DateTime @default(now())
@@ -956,19 +958,19 @@ model TeamMember {
 
 // An educational/content blog post for the public website's Blog section.
 model BlogPost {
-  id           String    @id @default(cuid())
-  accountId    String
-  account      Account   @relation(fields: [accountId], references: [id], onDelete: Cascade)
-  slug         String
-  title        String
-  excerpt      String?
-  body         String    // markdown
+  id            String    @id @default(cuid())
+  accountId     String
+  account       Account   @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  slug          String
+  title         String
+  excerpt       String?
+  body          String // markdown
   coverImageUrl String?
-  category     String?
-  publishedAt  DateTime?  // null = draft, not shown on the public site
-  sortOrder    Int       @default(0)
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  category      String?
+  publishedAt   DateTime? // null = draft, not shown on the public site
+  sortOrder     Int       @default(0)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 
   @@unique([accountId, slug])
   @@index([accountId])
@@ -994,17 +996,17 @@ model PriceItem {
 }
 
 model OutboundIntegration {
-  id            String   @id @default(cuid())
-  accountId     String
-  account       Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
-  name          String
-  url           String
-  authType      String   @default("none") // none | bearer | api_key | basic
-  authHeader    String?  // custom header name for api_key type (e.g. "X-Api-Key")
-  authValue     String?  // token / key / "user:pass" for basic
-  enabled       Boolean  @default(true)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id         String   @id @default(cuid())
+  accountId  String
+  account    Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  name       String
+  url        String
+  authType   String   @default("none") // none | bearer | api_key | basic
+  authHeader String? // custom header name for api_key type (e.g. "X-Api-Key")
+  authValue  String? // token / key / "user:pass" for basic
+  enabled    Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
   @@index([accountId])
 }
@@ -1023,24 +1025,24 @@ model DocumentSettings {
 }
 
 model BookingSettings {
-  id             String   @id @default(cuid())
-  accountId      String   @unique
-  account        Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
-  enabled        Boolean  @default(true)
-  title          String   @default("Book an Appointment")
-  description    String?
-  slotDuration   Int      @default(60)
-  bufferTime     Int      @default(0)
-  timezone       String   @default("Australia/Sydney")
-  availableHours String   @default("{}")
-  maxDaysAhead   Int      @default(60)
-  minNoticeHours Int      @default(24)
-  cancellationHours Int   @default(24)  // notice required to cancel/reschedule online (0 = no self-service cancel)
-  policyText     String?                // cancellation policy shown on the booking page and confirmation
-  notifyConfirmation Boolean @default(true) // email business + customer at booking time
-  notifyReminder     Boolean @default(true) // email business + customer ~24h before the appointment
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  id                 String   @id @default(cuid())
+  accountId          String   @unique
+  account            Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  enabled            Boolean  @default(true)
+  title              String   @default("Book an Appointment")
+  description        String?
+  slotDuration       Int      @default(60)
+  bufferTime         Int      @default(0)
+  timezone           String   @default("Australia/Sydney")
+  availableHours     String   @default("{}")
+  maxDaysAhead       Int      @default(60)
+  minNoticeHours     Int      @default(24)
+  cancellationHours  Int      @default(24) // notice required to cancel/reschedule online (0 = no self-service cancel)
+  policyText         String? // cancellation policy shown on the booking page and confirmation
+  notifyConfirmation Boolean  @default(true) // email business + customer at booking time
+  notifyReminder     Boolean  @default(true) // email business + customer ~24h before the appointment
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 }
 
 model Takeoff {
@@ -1070,8 +1072,8 @@ model TakeoffPlan {
   takeoffId    String
   takeoff      Takeoff  @relation(fields: [takeoffId], references: [id], onDelete: Cascade)
   name         String
-  imageData    String   // base64 data URL
-  scale        String?  // JSON: {p1,p2,pixelDist,realDist,unit}
+  imageData    String // base64 data URL
+  scale        String? // JSON: {p1,p2,pixelDist,realDist,unit}
   measurements String   @default("[]") // JSON array of measurement objects
   order        Int      @default(0)
   createdAt    DateTime @default(now())
@@ -1083,23 +1085,23 @@ model TakeoffPlan {
 // ─── Ads Management ───────────────────────────────────────────────────────────
 
 model AdPlatformAccount {
-  id                  String   @id @default(cuid())
+  id                  String    @id @default(cuid())
   accountId           String
-  account             Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
-  platform            String   // 'google_ads' | 'meta_ads' | 'tiktok_ads'
+  account             Account   @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  platform            String // 'google_ads' | 'meta_ads' | 'tiktok_ads'
   platformAccountId   String
   platformAccountName String
   accessToken         String?
   refreshToken        String?
   expiresAt           DateTime?
-  currencyCode        String   @default("AUD")
-  timezone            String   @default("Australia/Sydney")
+  currencyCode        String    @default("AUD")
+  timezone            String    @default("Australia/Sydney")
   developerToken      String?
-  loginCustomerId     String?  // MCC manager account ID required when accessing client accounts
-  enabled             Boolean  @default(true)
+  loginCustomerId     String? // MCC manager account ID required when accessing client accounts
+  enabled             Boolean   @default(true)
   syncedAt            DateTime?
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
 
   campaigns AdCampaign[]
   audiences AdAudience[]
@@ -1159,14 +1161,14 @@ model AdSet {
 }
 
 model AdCreative {
-  id             String   @id @default(cuid())
+  id             String    @id @default(cuid())
   adSetId        String
-  adSet          AdSet    @relation(fields: [adSetId], references: [id], onDelete: Cascade)
+  adSet          AdSet     @relation(fields: [adSetId], references: [id], onDelete: Cascade)
   campaignId     String
   platform       String
   platformAdId   String
   name           String
-  status         String   @default("paused")
+  status         String    @default("paused")
   format         String?
   headline       String?
   body           String?
@@ -1175,10 +1177,10 @@ model AdCreative {
   videoUrl       String?
   destinationUrl String?
   displayUrl     String?
-  creativeData   String   @default("{}")
+  creativeData   String    @default("{}")
   syncedAt       DateTime?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
   @@unique([adSetId, platformAdId])
   @@index([campaignId])
@@ -1229,4 +1231,47 @@ model AdAudience {
 
   @@index([accountId])
   @@index([adPlatformAccountId])
+}
+
+// --- Paid-click quality tracking -------------------------------------------
+// Landing pages beacon dwell time back to their own server, which resolves the
+// real client IP and forwards it here. Sub-2s sessions on a paid click are the
+// signal we use to spot competitor/bot clicks worth excluding in Google Ads.
+
+model VisitEvent {
+  id         String   @id @default(cuid())
+  accountId  String
+  account    Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  site       String
+  ip         String
+  path       String
+  durationMs Int
+  gclid      String?
+  userAgent  String?
+  referrer   String?
+  createdAt  DateTime @default(now())
+
+  @@index([accountId, ip])
+  @@index([accountId, site, createdAt])
+  @@index([createdAt])
+}
+
+model BlockedIp {
+  id         String    @id @default(cuid())
+  accountId  String
+  account    Account   @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  ip         String
+  site       String?
+  reason     String?
+  blockedBy  String?
+  // pending -> synced once the Google Ads ip_block criterion exists on every
+  // targeted campaign; failed keeps the error for the UI to surface.
+  syncStatus String    @default("pending")
+  syncError  String?
+  syncedAt   DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  @@unique([accountId, ip])
+  @@index([accountId])
 }

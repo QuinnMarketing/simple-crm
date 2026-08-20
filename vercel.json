@@ -25,6 +25,10 @@
     {
       "path": "/api/cron/lead-tracking-sheets",
       "schedule": "0 23 * * *"
+    },
+    {
+      "path": "/api/cron/visit-retention",
+      "schedule": "0 18 * * *"
     }
   ]
 }

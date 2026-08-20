@@ -2,7 +2,7 @@
 import Link from 'next/link'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { useState } from 'react'
-import { LayoutDashboard, Users, Settings, LogOut, Zap, Building2, ChevronDown, Layers, CalendarDays, FileText, Bot, Clock, Mail, MailOpen, TrendingUp, BarChart2, Share2, GanttChartSquare, CheckSquare, Star, BookOpen, Receipt, FolderOpen, Ruler, Inbox, Target, Rocket, MessagesSquare, ClipboardList, Image as ImageIcon, ShoppingBag, Crosshair, UserSquare2, Newspaper, PlugZap, Facebook } from 'lucide-react'
+import { LayoutDashboard, Users, Settings, LogOut, Zap, Building2, ChevronDown, Layers, CalendarDays, FileText, Bot, Clock, Mail, MailOpen, TrendingUp, BarChart2, Share2, GanttChartSquare, CheckSquare, Star, BookOpen, Receipt, FolderOpen, Ruler, Inbox, Target, Rocket, MessagesSquare, ClipboardList, Image as ImageIcon, ShoppingBag, Crosshair, UserSquare2, Newspaper, PlugZap, Facebook, ShieldBan } from 'lucide-react'
 import { signOut } from 'next-auth/react'
 import PushToggle from './PushToggle'
 import { moduleForNavHref } from '@/lib/modules'
@@ -94,6 +94,7 @@ export default function Sidebar({
     { href: '/landing-pages', icon: Rocket, label: 'Landing Pages' },
     { href: '/social', icon: Share2, label: 'Social' },
     { href: '/ads', icon: Target, label: 'Ad Manager' },
+    { href: '/click-quality', icon: ShieldBan, label: 'Click Quality' },
     { href: '/reviews', icon: Star, label: 'Reviews' },
     { href: '/sops', icon: ClipboardList, label: 'SOPs' },
     { href: '/time', icon: Clock, label: 'Time Tracking' },

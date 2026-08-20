@@ -57,7 +57,7 @@ export const MODULES: ModuleDef[] = [
   { key: 'reports', label: 'Reports & Analytics', description: 'Reporting dashboards and website analytics', defaultOn: false, navHrefs: ['/reports', '/analytics'], routePrefixes: ['/api/reports', '/api/analytics'] },
   { key: 'campaigns', label: 'Campaigns & Landing Pages', description: 'Email marketing campaigns and landing pages', defaultOn: false, navHrefs: ['/campaigns', '/landing-pages'], routePrefixes: ['/api/campaigns', '/api/landing-pages'] },
   { key: 'social', label: 'Social', description: 'Social media scheduling and publishing', defaultOn: false, navHrefs: ['/social'], routePrefixes: ['/api/social'] },
-  { key: 'ads', label: 'Ad Manager', description: 'Google and Meta ad campaign management', defaultOn: false, navHrefs: ['/ads'], routePrefixes: ['/api/ads'] },
+  { key: 'ads', label: 'Ad Manager', description: 'Google and Meta ad campaign management', defaultOn: false, navHrefs: ['/ads', '/click-quality'], routePrefixes: ['/api/ads', '/api/click-quality'] },
   { key: 'reviews', label: 'Reviews', description: 'Review collection, widget and Google sync', defaultOn: false, navHrefs: ['/reviews'], routePrefixes: ['/api/reviews', '/api/settings/reviews'] },
   { key: 'sops', label: 'SOPs', description: 'Standard operating procedures with AI generation', defaultOn: false, navHrefs: ['/sops'], routePrefixes: ['/api/sops'] },
   { key: 'time', label: 'Time Tracking', description: 'Time entries and timesheets', defaultOn: false, navHrefs: ['/time'], routePrefixes: ['/api/time-entries'] },

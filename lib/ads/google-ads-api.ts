@@ -2,7 +2,10 @@ import https from 'https'
 import http from 'http'
 
 const TOKEN_URL = 'https://oauth2.googleapis.com/token'
-const GOOGLE_ADS_API = 'https://googleads.googleapis.com/v21'
+// Google retires API versions on a rolling ~1yr cadence and a retired version
+// 404s on every endpoint. v21 and below are gone; keep this current or the whole
+// integration goes silently dead.
+const GOOGLE_ADS_API = 'https://googleads.googleapis.com/v22'
 
 // Use Node's raw https module to bypass any Next.js fetch instrumentation
 function nodeRequest(
@@ -645,4 +648,103 @@ export async function createCustomerMatchList(
   }
 
   return listId
+}
+
+// ─── IP exclusions (competitor / bot click blocking) ───────────────────────
+
+/**
+ * Adds an IP exclusion to every given campaign.
+ *
+ * Google caps this at 500 IP exclusions per campaign, and exclusions are
+ * campaign-level only — there is no account-wide list — so a blocked IP has to
+ * be written to each campaign individually.
+ */
+export async function addIpExclusions(
+  refreshToken: string,
+  customerId: string,
+  campaignIds: string[],
+  ip: string,
+  developerTokenOverride?: string,
+  loginCustomerId?: string
+): Promise<{ added: number; failed: { campaignId: string; error: string }[] }> {
+  const token = await getAccessToken(refreshToken)
+  const cleanId = customerId.replace(/-/g, '')
+  const dt = devToken(developerTokenOverride)
+  const failed: { campaignId: string; error: string }[] = []
+  let added = 0
+
+  // One request per campaign so a single rejection (e.g. that campaign already
+  // holds the exclusion, or is at the 500 cap) cannot roll back the others.
+  for (const campaignId of campaignIds) {
+    const url = `${GOOGLE_ADS_API}/customers/${cleanId}/campaignCriteria:mutate`
+    const res = await nodeRequest(url, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'developer-token': dt,
+        'Content-Type': 'application/json',
+        ...(loginCustomerId ? { 'login-customer-id': loginCustomerId } : {}),
+      },
+      body: JSON.stringify({
+        operations: [{
+          create: {
+            campaign: `customers/${cleanId}/campaigns/${campaignId}`,
+            negative: true,
+            ipBlock: { ipAddress: ip },
+          },
+        }],
+      }),
+    })
+    if (res.status >= 200 && res.status < 300) {
+      added++
+    } else {
+      let msg = `HTTP ${res.status}`
+      try {
+        const body = res.text()
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const data = JSON.parse(body) as any
+        msg = data?.error?.details?.[0]?.errors?.[0]?.message ?? data?.error?.message ?? msg
+      } catch { /* keep the status-only message */ }
+      failed.push({ campaignId, error: msg })
+    }
+  }
+  return { added, failed }
+}
+
+/** Campaign ids currently carrying an ip_block criterion for this address. */
+export async function listIpExclusions(
+  refreshToken: string,
+  customerId: string,
+  developerTokenOverride?: string,
+  loginCustomerId?: string
+): Promise<{ campaignId: string; ip: string; resourceName: string }[]> {
+  const token = await getAccessToken(refreshToken)
+  const cleanId = customerId.replace(/-/g, '')
+  const url = `${GOOGLE_ADS_API}/customers/${cleanId}/googleAds:searchStream`
+  const res = await nodeRequest(url, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'developer-token': devToken(developerTokenOverride),
+      'Content-Type': 'application/json',
+      ...(loginCustomerId ? { 'login-customer-id': loginCustomerId } : {}),
+    },
+    body: JSON.stringify({
+      query: `SELECT campaign.id, campaign_criterion.ip_block.ip_address, campaign_criterion.resource_name
+              FROM campaign_criterion WHERE campaign_criterion.type = 'IP_BLOCK'`,
+    }),
+  })
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const data = parseGadsBody(res.status, url, res.text()) as any[]
+  const out: { campaignId: string; ip: string; resourceName: string }[] = []
+  for (const chunk of data ?? []) {
+    for (const r of chunk?.results ?? []) {
+      out.push({
+        campaignId: String(r?.campaign?.id ?? ''),
+        ip: r?.campaignCriterion?.ipBlock?.ipAddress ?? '',
+        resourceName: r?.campaignCriterion?.resourceName ?? '',
+      })
+    }
+  }
+  return out
 }
