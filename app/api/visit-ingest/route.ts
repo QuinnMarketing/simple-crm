@@ -53,10 +53,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'durationMs required' }, { status: 400 })
   }
 
-  const account = await prisma.account.findUnique({
-    where: { id: accountId },
-    select: { id: true },
-  })
+  // Accept either the cuid or the account slug, so whoever configures the
+  // landing site can use whichever identifier they have to hand.
+  const account =
+    (await prisma.account.findUnique({ where: { id: accountId }, select: { id: true } })) ??
+    (await prisma.account.findUnique({ where: { slug: accountId }, select: { id: true } }))
   if (!account) {
     return NextResponse.json({ error: 'Unknown account' }, { status: 404 })
   }
