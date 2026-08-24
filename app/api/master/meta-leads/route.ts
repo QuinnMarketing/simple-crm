@@ -1,6 +1,6 @@
 import { auth } from '@/auth'
 import { prisma } from '@/lib/prisma'
-import { listSystemPages, subscribePageViaSystem, listRecentLeadIds, systemToken } from '@/lib/meta-leads'
+import { listSystemPages, subscribePageViaSystem, listRecentLeadIds, systemToken, getAppWebhookStatus, registerAppWebhook } from '@/lib/meta-leads'
 import { ingestMetaLead } from '@/lib/meta-lead-ingest'
 import { NextRequest, NextResponse } from 'next/server'
 
@@ -27,10 +27,11 @@ export async function GET() {
   }
   if (!systemToken()) return NextResponse.json({ error: 'META_SYSTEM_USER_TOKEN not set', pages: [], accounts: [], mapping: {} }, { status: 200 })
 
-  const [{ pages, error }, accounts, byAccount] = await Promise.all([
+  const [{ pages, error }, accounts, byAccount, appWebhook] = await Promise.all([
     listSystemPages(),
     prisma.account.findMany({ select: { id: true, name: true }, orderBy: { name: 'asc' } }),
     metaByAccount(),
+    getAppWebhookStatus(),
   ])
 
   // pageId → accountId, and pageId → subscription status if we've stored it.
@@ -39,7 +40,7 @@ export async function GET() {
     for (const p of cfg.pages ?? []) if (p.id) mapping[p.id] = accountId
   }
 
-  return NextResponse.json({ pages, accounts, mapping, error: error ?? null })
+  return NextResponse.json({ pages, accounts, mapping, appWebhook, error: error ?? null })
 }
 
 // POST — assign a page to an account (or unassign with accountId=null).
@@ -50,6 +51,14 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json().catch(() => ({}))
+
+  // Register the App-level Page/leadgen webhook (the callback Meta POSTs to).
+  // This is what makes leads arrive live, not just via backfill.
+  if (body.action === 'register_webhook') {
+    const r = await registerAppWebhook()
+    return NextResponse.json(r, { status: r.ok ? 200 : 502 })
+  }
+
   const pageId = String(body.pageId ?? '')
   const pageName = String(body.pageName ?? '')
   const accountId: string | null = body.accountId ? String(body.accountId) : null

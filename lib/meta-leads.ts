@@ -4,6 +4,68 @@ export function systemToken(): string {
   return process.env.META_SYSTEM_USER_TOKEN ?? ''
 }
 
+// ── App-level webhook (the callback Meta actually POSTs leads to) ───────────────
+// Subscribing a Page to our app is necessary but not sufficient: the App itself
+// must have a Page/leadgen webhook registered with our callback URL. We do that
+// via the Graph API using the app access token, so nobody has to touch the
+// App Dashboard.
+
+function appAccessToken(): string {
+  const id = process.env.FACEBOOK_APP_ID
+  const secret = process.env.FACEBOOK_APP_SECRET
+  return id && secret ? `${id}|${secret}` : ''
+}
+
+function webhookCallbackUrl(): string {
+  const base = process.env.NEXTAUTH_URL ?? ''
+  return `${base}/api/webhooks/meta-leads`
+}
+
+export async function getAppWebhookStatus(): Promise<{ subscribed: boolean; callbackUrl: string; fields: string[]; error?: string }> {
+  const appId = process.env.FACEBOOK_APP_ID
+  const token = appAccessToken()
+  if (!appId || !token) return { subscribed: false, callbackUrl: '', fields: [], error: 'FACEBOOK_APP_ID/SECRET not set' }
+  try {
+    const res = await fetch(`${GRAPH}/${appId}/subscriptions?access_token=${encodeURIComponent(token)}`)
+    const data = await res.json()
+    if (data.error) return { subscribed: false, callbackUrl: '', fields: [], error: data.error.message }
+    const pageSub = (data.data ?? []).find((s: { object?: string }) => s.object === 'page')
+    const fields = (pageSub?.fields ?? []).map((f: { name?: string } | string) => (typeof f === 'string' ? f : f.name)).filter(Boolean)
+    const hasLeadgen = fields.includes('leadgen')
+    return { subscribed: !!pageSub && hasLeadgen, callbackUrl: pageSub?.callback_url ?? '', fields }
+  } catch (e) {
+    return { subscribed: false, callbackUrl: '', fields: [], error: e instanceof Error ? e.message : 'request failed' }
+  }
+}
+
+export async function registerAppWebhook(): Promise<{ ok: boolean; callbackUrl: string; error?: string }> {
+  const appId = process.env.FACEBOOK_APP_ID
+  const token = appAccessToken()
+  const verifyToken = process.env.META_LEADGEN_VERIFY_TOKEN
+  const callbackUrl = webhookCallbackUrl()
+  if (!appId || !token) return { ok: false, callbackUrl, error: 'FACEBOOK_APP_ID/SECRET not set' }
+  if (!verifyToken) return { ok: false, callbackUrl, error: 'META_LEADGEN_VERIFY_TOKEN not set' }
+  try {
+    const res = await fetch(`${GRAPH}/${appId}/subscriptions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        object: 'page',
+        callback_url: callbackUrl,
+        fields: 'leadgen',
+        include_values: 'true',
+        verify_token: verifyToken,
+        access_token: token,
+      }),
+    })
+    const data = await res.json().catch(() => ({}))
+    if (!res.ok || data.error) return { ok: false, callbackUrl, error: data?.error?.message ?? `HTTP ${res.status}` }
+    return { ok: true, callbackUrl }
+  } catch (e) {
+    return { ok: false, callbackUrl, error: e instanceof Error ? e.message : 'request failed' }
+  }
+}
+
 // Subscribe a Facebook Page to our app for the `leadgen` field so Meta forwards
 // its Instant Form leads to /api/webhooks/meta-leads. Best-effort, never throws.
 export async function subscribePageToLeadgen(pageId: string, pageToken: string): Promise<{ ok: boolean; error?: string }> {

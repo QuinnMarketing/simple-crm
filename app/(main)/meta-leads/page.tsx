@@ -5,7 +5,8 @@ import { Loader2, Facebook, CheckCircle2, AlertTriangle, RefreshCw } from 'lucid
 
 type Page = { id: string; name: string }
 type Account = { id: string; name: string }
-type Report = { pages: Page[]; accounts: Account[]; mapping: Record<string, string>; error?: string | null }
+type AppWebhook = { subscribed: boolean; callbackUrl: string; fields: string[]; error?: string }
+type Report = { pages: Page[]; accounts: Account[]; mapping: Record<string, string>; appWebhook?: AppWebhook; error?: string | null }
 
 export default function MetaLeadsPage() {
   const { data: session, status } = useSession()
@@ -27,6 +28,20 @@ export default function MetaLeadsPage() {
   }, [])
 
   useEffect(() => { load() }, [load])
+
+  const [registering, setRegistering] = useState(false)
+  async function enableLiveDelivery() {
+    setRegistering(true); setToast('')
+    try {
+      const r = await fetch('/api/master/meta-leads', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'register_webhook' }),
+      })
+      const j = await r.json()
+      if (r.ok && j.ok) { setToast('Live delivery enabled — new leads now arrive instantly'); load() }
+      else setToast(`Could not enable live delivery: ${j.error ?? 'failed'}`)
+    } finally { setRegistering(false) }
+  }
 
   async function assign(page: Page, accountId: string) {
     setSavingId(page.id); setToast('')
@@ -78,6 +93,24 @@ export default function MetaLeadsPage() {
         <div className="text-sm text-emerald-800 bg-emerald-50 border border-emerald-200 rounded-lg px-4 py-2.5 mb-4 flex items-center gap-2">
           <CheckCircle2 className="w-4 h-4" /> {toast}
         </div>
+      )}
+
+      {/* Live delivery status — the app-level webhook that pushes new leads in */}
+      {data?.appWebhook && (
+        data.appWebhook.subscribed ? (
+          <div className="text-sm text-emerald-800 bg-emerald-50 border border-emerald-200 rounded-lg px-4 py-2.5 mb-4 flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4" /> Live delivery is on — new leads arrive instantly.
+          </div>
+        ) : (
+          <div className="text-sm bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 mb-4 flex items-center justify-between gap-3">
+            <span className="text-amber-800 flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 shrink-0" /> Live delivery is off — mapped leads only import on backfill until you enable it.
+            </span>
+            <button onClick={enableLiveDelivery} disabled={registering} className="shrink-0 inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-amber-600 text-white text-sm font-semibold hover:bg-amber-700 disabled:opacity-60">
+              {registering ? <Loader2 className="w-4 h-4 animate-spin" /> : null} Enable live delivery
+            </button>
+          </div>
+        )
       )}
 
       {loading && !data && (
