@@ -31,6 +31,22 @@ const PLATFORM_LABELS: Record<string, string> = {
 }
 const label = (p: string) => PLATFORM_LABELS[p] ?? p
 
+// Deep-link straight into the correct OAuth flow for a broken connection.
+function reconnectHref(platform: string, accountId: string): string | null {
+  const a = `account=${accountId}`
+  switch (platform) {
+    case 'google':
+    case 'google_analytics': return `/api/integrations/google/connect?${a}`
+    case 'google_calendar':  return `/api/calendar/connect?${a}`
+    case 'google_business':  return `/api/social/connect/google_business?${a}`
+    case 'google_ads':       return `/api/ads/connect?platform=google_ads&${a}`
+    case 'gmail':            return `/api/integrations/gmail/connect?${a}`
+    case 'sheets':           return `/api/integrations/sheets/connect?${a}`
+    case 'outlook':          return `/api/integrations/outlook/connect?${a}`
+    default: return null
+  }
+}
+
 const STATUS_STYLE: Record<Status, { cls: string; icon: React.ElementType; text: string }> = {
   healthy:        { cls: 'bg-emerald-50 text-emerald-700 border-emerald-200', icon: CheckCircle2,  text: 'Healthy' },
   needs_reconnect:{ cls: 'bg-red-50 text-red-700 border-red-200',             icon: AlertTriangle, text: 'Reconnect' },
@@ -137,17 +153,25 @@ export default function ConnectionHealthPage() {
                   <div key={a.accountId} className="px-4 py-3">
                     <div className="font-medium text-slate-900 text-sm mb-1.5">{a.accountName}</div>
                     <div className="flex flex-wrap gap-2">
-                      {a.integrations.map((i) => (
-                        <span key={i.platform} className="inline-flex items-center gap-1.5 text-xs bg-white border border-red-200 rounded-lg px-2 py-1">
-                          <StatusBadge status={i.status} /> <span className="text-slate-700">{label(i.platform)}</span>
-                        </span>
-                      ))}
+                      {a.integrations.map((i) => {
+                        const href = reconnectHref(i.platform, a.accountId)
+                        return (
+                          <span key={i.platform} className="inline-flex items-center gap-1.5 text-xs bg-white border border-red-200 rounded-lg px-2 py-1">
+                            <StatusBadge status={i.status} /> <span className="text-slate-700">{label(i.platform)}</span>
+                            {href && (
+                              <a href={href} className="ml-1 inline-flex items-center gap-1 font-semibold text-indigo-600 hover:text-indigo-800 hover:underline">
+                                <RefreshCw className="w-3 h-3" /> Reconnect
+                              </a>
+                            )}
+                          </span>
+                        )
+                      })}
                     </div>
                   </div>
                 ))}
               </div>
               <div className="px-4 py-2.5 text-xs text-red-700 bg-red-50 border-t border-red-100">
-                Fix: open each account → Settings → Integrations → <strong>Reconnect</strong> to re-authorise under the current OAuth client.
+                Click <strong>Reconnect</strong> on each, then sign in as that client&apos;s Google account and approve. For Analytics you&apos;ll also pick the GA4 property. Re-run the check afterwards to confirm green.
               </div>
             </div>
           )}
