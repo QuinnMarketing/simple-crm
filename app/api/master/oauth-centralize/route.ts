@@ -15,6 +15,12 @@ function adsClient() {
     secret: process.env.GOOGLE_ADS_CLIENT_SECRET ?? process.env.GOOGLE_CALENDAR_CLIENT_SECRET ?? '',
   }
 }
+function gbpClient() {
+  return {
+    id: process.env.GOOGLE_GBP_CLIENT_ID ?? process.env.GOOGLE_CALENDAR_CLIENT_ID ?? '',
+    secret: process.env.GOOGLE_GBP_CLIENT_SECRET ?? process.env.GOOGLE_CALENDAR_CLIENT_SECRET ?? '',
+  }
+}
 
 async function refresh(refreshToken: string, client: { id: string; secret: string }): Promise<string | null> {
   try {
@@ -156,6 +162,37 @@ export async function POST(req: NextRequest) {
       })
     }
     fixed.push({ account: name, platform: 'google_ads' })
+  }
+
+  // 4. Google Business — repoint BOTH the account credential and each per-location
+  // SocialAccount token, but only per location that the agency identity can
+  // actually read reviews for (guards false greens; surfaces GBP API approval).
+  if (body.includeGbp) {
+    const gbpAccess = await refresh(agencyRefresh, gbpClient())
+    const gbpRows = await prisma.accountIntegration.findMany({ where: { platform: 'google_business' } })
+    for (const row of gbpRows) {
+      const acct = await prisma.account.findUnique({ where: { id: row.accountId }, select: { name: true } })
+      const name = acct?.name ?? row.accountId
+      let cfg: Record<string, string> = {}
+      try { cfg = JSON.parse(row.config) } catch { /* */ }
+      if (cfg.refreshToken && await refresh(cfg.refreshToken, gbpClient())) continue // already healthy
+      if (!gbpAccess) { skipped.push({ account: name, platform: 'google_business', reason: 'agency token will not refresh for GBP' }); continue }
+      const sas = await prisma.socialAccount.findMany({ where: { accountId: row.accountId, platform: 'google_business' } })
+      if (sas.length === 0) { skipped.push({ account: name, platform: 'google_business', reason: 'no location (SocialAccount) to validate — needs reconnect' }); continue }
+      const okLocations: string[] = []
+      let lastReason = 'no readable locations'
+      for (const sa of sas) {
+        const res = await fetch(`https://mybusiness.googleapis.com/v4/${sa.platformId}/reviews?pageSize=1`, { headers: { Authorization: `Bearer ${gbpAccess}` } })
+        if (res.ok) { okLocations.push(sa.id) }
+        else { lastReason = res.status === 403 ? 'GBP API not approved for this Google Cloud project (or agency identity lacks access) — reconnect won\'t fix until the project is approved' : `reviews API returned ${res.status}` }
+      }
+      if (okLocations.length === 0) { skipped.push({ account: name, platform: 'google_business', reason: lastReason }); continue }
+      if (!dryRun) {
+        await prisma.accountIntegration.update({ where: { accountId_platform: { accountId: row.accountId, platform: 'google_business' } }, data: { config: JSON.stringify({ ...cfg, refreshToken: agencyRefresh }), enabled: true } })
+        for (const id of okLocations) await prisma.socialAccount.update({ where: { id }, data: { refreshToken: agencyRefresh } })
+      }
+      fixed.push({ account: name, platform: 'google_business', property: `${okLocations.length}/${sas.length} locations` })
+    }
   }
 
   return NextResponse.json({
