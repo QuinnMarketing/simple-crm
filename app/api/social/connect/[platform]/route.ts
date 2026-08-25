@@ -1,4 +1,5 @@
 import { auth } from '@/auth'
+import { resolveConnectAccountId } from '@/lib/oauth-account'
 import { NextRequest, NextResponse } from 'next/server'
 
 type P = { params: Promise<{ platform: string }> }
@@ -16,7 +17,7 @@ export async function GET(req: NextRequest, { params }: P) {
   if (!session?.user) return NextResponse.redirect(new URL('/login', req.url))
 
   const { platform } = await params
-  const accountId = session.user.accountId ?? req.nextUrl.searchParams.get('account') ?? ''
+  const accountId = resolveConnectAccountId(session.user, req.nextUrl.searchParams.get('account'))
   if (!accountId) return errorRedirect(req, platform, 'No account selected — master_admin must pass ?account=ID')
   const base = process.env.NEXTAUTH_URL ?? 'http://localhost:3000'
   const state = b64({ accountId, platform })
@@ -35,7 +36,7 @@ export async function GET(req: NextRequest, { params }: P) {
     const clientId = process.env.GOOGLE_GBP_CLIENT_ID || process.env.GOOGLE_CALENDAR_CLIENT_ID
     if (!clientId) return errorRedirect(req, platform, 'Google isn\'t configured yet — contact your administrator')
     const scopes = 'https://www.googleapis.com/auth/business.manage'
-    const url = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirect)}&response_type=code&scope=${encodeURIComponent(scopes)}&access_type=offline&prompt=consent&state=${state}`
+    const url = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirect)}&response_type=code&scope=${encodeURIComponent(scopes)}&access_type=offline&prompt=${encodeURIComponent('select_account consent')}&state=${state}`
     return NextResponse.redirect(url)
   }
 

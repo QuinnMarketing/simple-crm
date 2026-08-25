@@ -70,11 +70,35 @@ export default async function SettingsPage({
   const webhookUrl = `${baseUrl}/api/webhooks/form?token=${account.webhookToken}`
   const emailWebhookUrl = `${baseUrl}/api/webhooks/email?token=${account.webhookToken}`
 
+  // OAuth tokens / client secrets must NEVER reach the browser. Strip them from
+  // every config before it's handed to the client component; expose a
+  // "<key>Present" flag instead so the UI can still show connection state.
+  const SECRET_KEYS = new Set([
+    'refreshToken', 'refresh_token', 'accessToken', 'access_token',
+    'clientSecret', 'client_secret', 'developerToken',
+  ])
+  function redactConfig(raw: Record<string, unknown>): Record<string, string> {
+    const out: Record<string, string> = {}
+    for (const [k, v] of Object.entries(raw)) {
+      if (SECRET_KEYS.has(k)) { if (v) out[`${k}Present`] = 'true'; continue }
+      if (k === 'pages' && Array.isArray(v)) {
+        // Meta page objects carry per-page access tokens — drop them.
+        out.pages = JSON.stringify(v.map((p) => {
+          const { accessToken, access_token, ...rest } = (p ?? {}) as Record<string, unknown>
+          void accessToken; void access_token
+          return rest
+        }))
+        continue
+      }
+      out[k] = typeof v === 'string' ? v : JSON.stringify(v)
+    }
+    return out
+  }
+
   const integrationConfigs: Record<string, Record<string, string>> = {}
   for (const integration of account.integrations) {
     try {
       const raw = JSON.parse(integration.config)
-      // Strip refresh/access tokens from OAuth platforms — never expose to client
       if (integration.platform === 'google') {
         integrationConfigs.google = { connected: 'true', email: raw.email ?? '' }
       } else if (integration.platform === 'meta') {
@@ -82,7 +106,7 @@ export default async function SettingsPage({
           connected: 'true',
           userName: raw.userName ?? '',
           adAccounts: JSON.stringify(raw.adAccounts ?? []),
-          pages: JSON.stringify(raw.pages ?? []),
+          pages: JSON.stringify((raw.pages ?? []).map((p: Record<string, unknown>) => ({ id: p.id, name: p.name, instagram: p.instagram ?? null }))),
         }
       } else if (integration.platform === 'linkedin') {
         integrationConfigs.linkedin = {
@@ -97,7 +121,7 @@ export default async function SettingsPage({
           lastSyncedAt: raw.lastSyncedAt ?? '',
         }
       } else {
-        integrationConfigs[integration.platform] = raw
+        integrationConfigs[integration.platform] = redactConfig(raw)
       }
     } catch {
       integrationConfigs[integration.platform] = {}

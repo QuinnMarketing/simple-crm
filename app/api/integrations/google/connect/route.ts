@@ -1,4 +1,5 @@
 import { auth } from '@/auth'
+import { resolveConnectAccountId } from '@/lib/oauth-account'
 import { NextRequest, NextResponse } from 'next/server'
 
 export async function GET(req: NextRequest) {
@@ -8,7 +9,7 @@ export async function GET(req: NextRequest) {
   const clientId = process.env.GOOGLE_CALENDAR_CLIENT_ID
   if (!clientId) return NextResponse.json({ error: 'Google OAuth not configured — set GOOGLE_CALENDAR_CLIENT_ID' }, { status: 500 })
 
-  const accountId = session.user.accountId ?? req.nextUrl.searchParams.get('account') ?? ''
+  const accountId = resolveConnectAccountId(session.user, req.nextUrl.searchParams.get('account'))
   if (!accountId) return NextResponse.json({ error: 'No account — master_admin must pass ?account=ID' }, { status: 400 })
 
   const base = process.env.NEXTAUTH_URL ?? 'http://localhost:3000'
@@ -27,7 +28,7 @@ export async function GET(req: NextRequest) {
     response_type: 'code',
     scope: scopes,
     access_type: 'offline',
-    prompt: 'consent',
+    prompt: 'select_account consent',
     state: Buffer.from(accountId).toString('base64url'),
   })
 

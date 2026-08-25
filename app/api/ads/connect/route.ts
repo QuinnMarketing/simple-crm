@@ -2,6 +2,7 @@ import { auth } from '@/auth'
 import { NextRequest, NextResponse } from 'next/server'
 import { getAuthUrl as getGoogleAuthUrl } from '@/lib/ads/google-ads-api'
 import { getAuthUrl as getMetaAuthUrl } from '@/lib/ads/meta-ads'
+import { resolveConnectAccountId } from '@/lib/oauth-account'
 
 function b64(obj: object) {
   return Buffer.from(JSON.stringify(obj)).toString('base64url')
@@ -13,7 +14,7 @@ export async function GET(req: NextRequest) {
 
   const { searchParams } = req.nextUrl
   const platform = searchParams.get('platform')
-  const accountId = session.user.accountId ?? searchParams.get('account') ?? ''
+  const accountId = resolveConnectAccountId(session.user, searchParams.get('account'))
 
   if (!accountId) {
     return NextResponse.json({ error: 'No account selected' }, { status: 400 })

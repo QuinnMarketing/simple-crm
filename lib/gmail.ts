@@ -34,7 +34,7 @@ export function getAuthUrl(accountId: string): string {
     // EmailModal); we don't need to send through the user's personal Gmail
     scope: 'https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/userinfo.email',
     access_type: 'offline',
-    prompt: 'consent',
+    prompt: 'select_account consent',
     state,
   })
   return `${AUTH_URL}?${params}`

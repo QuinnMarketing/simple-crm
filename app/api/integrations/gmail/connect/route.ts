@@ -1,5 +1,6 @@
 import { auth } from '@/auth'
 import { getAuthUrl } from '@/lib/gmail'
+import { resolveConnectAccountId } from '@/lib/oauth-account'
 import { NextRequest, NextResponse } from 'next/server'
 
 export async function GET(req: NextRequest) {
@@ -10,7 +11,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Google OAuth not configured' }, { status: 500 })
   }
 
-  const accountId = session.user.accountId ?? req.nextUrl.searchParams.get('account') ?? ''
+  const accountId = resolveConnectAccountId(session.user, req.nextUrl.searchParams.get('account'))
   if (!accountId) {
     return NextResponse.json({ error: 'No account selected — master_admin must pass ?account=ID' }, { status: 400 })
   }

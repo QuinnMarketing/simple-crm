@@ -115,9 +115,10 @@ export default function IntegrationsForm({ accountId, initialConfigs }: Integrat
   const googleConnected = initialConfigs.google?.connected === 'true'
   const googleEmail = initialConfigs.google?.email ?? ''
 
-  // Also detect legacy separate google_analytics / google_calendar connections
-  const gaReportOk = googleConnected || !!initialConfigs.google_analytics?.refreshToken
-  const gcalOk = googleConnected || !!initialConfigs.google_calendar?.refreshToken
+  // Also detect legacy separate google_analytics / google_calendar connections.
+  // Tokens are redacted server-side, so we look at the "<key>Present" flag.
+  const gaReportOk = googleConnected || initialConfigs.google_analytics?.refreshTokenPresent === 'true'
+  const gcalOk = googleConnected || initialConfigs.google_calendar?.refreshTokenPresent === 'true'
   const gcalEmail = initialConfigs.google_calendar?.email ?? initialConfigs.google?.email ?? ''
 
   const [ads, setAds] = useState({

@@ -11,7 +11,7 @@ export function getAnalyticsAuthUrl(accountId: string): string {
     response_type: 'code',
     scope: 'https://www.googleapis.com/auth/analytics.readonly https://www.googleapis.com/auth/userinfo.email',
     access_type: 'offline',
-    prompt: 'consent',
+    prompt: 'select_account consent',
     state,
   })
   return `https://accounts.google.com/o/oauth2/v2/auth?${params}`
