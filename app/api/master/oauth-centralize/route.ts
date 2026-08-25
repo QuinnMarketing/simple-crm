@@ -28,6 +28,28 @@ async function refresh(refreshToken: string, client: { id: string; secret: strin
   } catch { return null }
 }
 
+const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '')
+
+// Every GA4 property the agency identity can see, with a searchable label.
+async function listAgencyProperties(accessToken: string): Promise<{ propertyId: string; label: string }[]> {
+  const out: { propertyId: string; label: string }[] = []
+  let url = 'https://analyticsadmin.googleapis.com/v1beta/accountSummaries?pageSize=200'
+  try {
+    for (let i = 0; i < 10 && url; i++) {
+      const res = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } })
+      const data = await res.json()
+      if (data.error) break
+      for (const acct of data.accountSummaries ?? []) {
+        for (const p of acct.propertySummaries ?? []) {
+          out.push({ propertyId: String(p.property ?? '').replace('properties/', ''), label: `${acct.displayName ?? ''} ${p.displayName ?? ''}` })
+        }
+      }
+      url = data.nextPageToken ? `https://analyticsadmin.googleapis.com/v1beta/accountSummaries?pageSize=200&pageToken=${data.nextPageToken}` : ''
+    }
+  } catch { /* */ }
+  return out
+}
+
 // Confirm an access token can actually read a specific GA4 property — proves the
 // agency identity has access before we point the account at it.
 async function ga4Works(accessToken: string, propertyId: string): Promise<boolean> {
@@ -65,8 +87,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'No healthy agency `google` token found to centralise from. Connect one account via the unified Google flow first.' }, { status: 400 })
   }
 
-  const fixed: { account: string; platform: string }[] = []
+  const fixed: { account: string; platform: string; property?: string }[] = []
   const skipped: { account: string; platform: string; reason: string }[] = []
+
+  // Property catalogue for safe auto-matching when an account has none selected.
+  const matchProperties = !!body.matchProperties
+  const agencyProperties = matchProperties ? await listAgencyProperties(agencyAccess) : []
 
   // 2. Analytics — validate against each account's own propertyId, then repoint.
   const gaRows = await prisma.accountIntegration.findMany({ where: { platform: 'google_analytics' } })
@@ -77,8 +103,26 @@ export async function POST(req: NextRequest) {
     try { cfg = JSON.parse(row.config) } catch { /* */ }
     // Already healthy? leave it.
     if (cfg.refreshToken && await refresh(cfg.refreshToken, calendarClient())) { continue }
-    const propertyId = cfg.propertyId
-    if (!propertyId) { skipped.push({ account: name, platform: 'google_analytics', reason: 'no GA4 property selected — needs reconnect + property pick' }); continue }
+    let propertyId = cfg.propertyId
+
+    // No property selected — only auto-assign on a UNIQUE, validated name match.
+    if (!propertyId) {
+      if (!matchProperties) { skipped.push({ account: name, platform: 'google_analytics', reason: 'no GA4 property selected — needs reconnect + property pick' }); continue }
+      const an = norm(name)
+      const matches = an.length >= 5 ? agencyProperties.filter((p) => norm(p.label).includes(an)) : []
+      if (matches.length !== 1) { skipped.push({ account: name, platform: 'google_analytics', reason: `no property set; ${matches.length} agency properties match "${name}" — needs human pick` }); continue }
+      if (!await ga4Works(agencyAccess, matches[0].propertyId)) { skipped.push({ account: name, platform: 'google_analytics', reason: `matched property ${matches[0].propertyId} not readable` }); continue }
+      propertyId = matches[0].propertyId
+      if (!dryRun) {
+        await prisma.accountIntegration.update({
+          where: { accountId_platform: { accountId: row.accountId, platform: 'google_analytics' } },
+          data: { config: JSON.stringify({ ...cfg, refreshToken: agencyRefresh, email: agencyEmail || cfg.email, propertyId }), enabled: true },
+        })
+      }
+      fixed.push({ account: name, platform: 'google_analytics', property: `${matches[0].label.trim()} (${propertyId})` })
+      continue
+    }
+
     if (!await ga4Works(agencyAccess, propertyId)) { skipped.push({ account: name, platform: 'google_analytics', reason: `agency identity (${agencyEmail}) cannot read property ${propertyId}` }); continue }
     if (!dryRun) {
       await prisma.accountIntegration.update({
