@@ -1,0 +1,23 @@
+name: Explee hot-leads sync
+
+# Vercel Hobby only allows daily crons, so the ~10-minute cadence for pulling
+# Explee hot leads into the CRM runs here instead. The workflow just pings the
+# app's sync endpoint; all the logic lives in /api/cron/explee.
+on:
+  schedule:
+    - cron: '*/10 * * * *'
+  workflow_dispatch: {}
+
+concurrency:
+  group: explee-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Explee sync
+        run: |
+          curl -sS -X GET "https://simple-crm-steel.vercel.app/api/cron/explee" \
+            -H "x-explee-token: ${{ secrets.EXPLEE_CRON_TOKEN }}" \
+            -w "\nHTTP %{http_code}\n" --fail-with-body

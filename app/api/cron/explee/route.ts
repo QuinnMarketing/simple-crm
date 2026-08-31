@@ -14,8 +14,19 @@ import { after, NextResponse } from 'next/server'
 // leads newer than the last one seen.
 export const maxDuration = 60
 
+// Authorized when called by Vercel's cron / CRON_SECRET, OR by the GitHub
+// Actions scheduler carrying the dedicated EXPLEE_CRON_TOKEN (Vercel Hobby only
+// allows daily crons, so the 10-min cadence comes from GitHub Actions).
+function authorized(req: Request): boolean {
+  if (isAuthorizedCron(req)) return true
+  const token = process.env.EXPLEE_CRON_TOKEN
+  if (!token) return false
+  const url = new URL(req.url)
+  return req.headers.get('x-explee-token') === token || url.searchParams.get('token') === token
+}
+
 export async function GET(req: Request) {
-  if (!isAuthorizedCron(req)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!authorized(req)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const accountId = process.env.EXPLEE_ACCOUNT_ID
   if (!accountId) return NextResponse.json({ error: 'EXPLEE_ACCOUNT_ID not set' }, { status: 500 })
