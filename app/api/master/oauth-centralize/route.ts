@@ -22,6 +22,13 @@ function gbpClient() {
   }
 }
 
+async function timedFetch(url: string, init: RequestInit, ms = 8000): Promise<Response> {
+  const ctrl = new AbortController()
+  const t = setTimeout(() => ctrl.abort(), ms)
+  try { return await fetch(url, { ...init, signal: ctrl.signal }) }
+  finally { clearTimeout(t) }
+}
+
 async function refresh(refreshToken: string, client: { id: string; secret: string }): Promise<string | null> {
   try {
     const res = await fetch(TOKEN_URL, {
@@ -179,19 +186,21 @@ export async function POST(req: NextRequest) {
       if (!gbpAccess) { skipped.push({ account: name, platform: 'google_business', reason: 'agency token will not refresh for GBP' }); continue }
       const sas = await prisma.socialAccount.findMany({ where: { accountId: row.accountId, platform: 'google_business' } })
       if (sas.length === 0) { skipped.push({ account: name, platform: 'google_business', reason: 'no location (SocialAccount) to validate — needs reconnect' }); continue }
-      const okLocations: string[] = []
-      let lastReason = 'no readable locations'
-      for (const sa of sas) {
-        const res = await fetch(`https://mybusiness.googleapis.com/v4/${sa.platformId}/reviews?pageSize=1`, { headers: { Authorization: `Bearer ${gbpAccess}` } })
-        if (res.ok) { okLocations.push(sa.id) }
-        else { lastReason = res.status === 403 ? 'GBP API not approved for this Google Cloud project (or agency identity lacks access) — reconnect won\'t fix until the project is approved' : `reviews API returned ${res.status}` }
-      }
-      if (okLocations.length === 0) { skipped.push({ account: name, platform: 'google_business', reason: lastReason }); continue }
+      // Validate against ONE location (bounded, timed) to learn if the GBP API
+      // works for this project/identity at all, then repoint all locations.
+      let apiOk = false
+      let reason = 'no readable locations'
+      try {
+        const res = await timedFetch(`https://mybusiness.googleapis.com/v4/${sas[0].platformId}/reviews?pageSize=1`, { headers: { Authorization: `Bearer ${gbpAccess}` } })
+        if (res.ok) apiOk = true
+        else reason = res.status === 403 ? 'GBP Business Profile API not approved for this Google Cloud project — reconnect will NOT fix; the project needs API access approval' : `reviews API returned ${res.status}`
+      } catch { reason = 'GBP reviews API timed out (project almost certainly lacks Business Profile API approval — zero quota)' }
+      if (!apiOk) { skipped.push({ account: name, platform: 'google_business', reason }); continue }
       if (!dryRun) {
         await prisma.accountIntegration.update({ where: { accountId_platform: { accountId: row.accountId, platform: 'google_business' } }, data: { config: JSON.stringify({ ...cfg, refreshToken: agencyRefresh }), enabled: true } })
-        for (const id of okLocations) await prisma.socialAccount.update({ where: { id }, data: { refreshToken: agencyRefresh } })
+        for (const sa of sas) await prisma.socialAccount.update({ where: { id: sa.id }, data: { refreshToken: agencyRefresh } })
       }
-      fixed.push({ account: name, platform: 'google_business', property: `${okLocations.length}/${sas.length} locations` })
+      fixed.push({ account: name, platform: 'google_business', property: `${sas.length} locations` })
     }
   }
 
